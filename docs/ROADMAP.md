@@ -108,6 +108,16 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Test my models, in 3.45.0
+
+Which model is best for talking, for coding, for reading a picture? Press Test my models on
+Settings, Which model does what: every connected model gets the same small tasks for each job,
+checked by code on your own computer, and a score ("11 of 12"). The best one for each job is one
+tap away and the next two become its backups. Test everything, one provider, or two or three models
+side by side for one job. Models you pay for by use are left out unless you tick them, and the
+page says how many calls a run will make before it starts. The crisis lines are now shown once in
+a conversation, not on every message.
+
 ## Research side by side and reports in more scripts, in 3.44.0
 
 Two research runs can work at the same time and a third waits its turn instead of being refused. The

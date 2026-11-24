@@ -16,7 +16,8 @@ ask her whether she is an AI, she will tell you that she is.
 Sara is not a therapist, doctor, lawyer or financial adviser, and she cannot call for help. If you
 are thinking about hurting yourself or someone else, contact local emergency services or a crisis
 line (in the US: call or text **988**). When Sara notices signs of crisis she shows crisis
-resources; that feature cannot be turned off.
+resources; that feature cannot be turned off. The app shows them on the first such message of a
+conversation (on every one for a child account); she keeps offering help in her replies each time.
 
 ## Adult content
 

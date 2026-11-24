@@ -11,7 +11,7 @@ import { cheapCall, fenceLines, safeLines, type CheapModel } from './cheap.ts';
 import { buildHistory, contextFill, historyBudgetFor, historySize, refsTextFor, type AppContext } from './chat.ts';
 import { appLanguage, LANGUAGE_NAMES } from './i18n.ts';
 import { leanSettings } from './lean.ts';
-import { isForgotten } from './memory-worker.ts';
+import { isForgotten, stillSaid } from './memory-worker.ts';
 import { minorSexualMatch } from './safety.ts';
 import { usedStopWord } from './bond.ts';
 import type { Conversation, StoredMessage } from './store.ts';
@@ -421,6 +421,12 @@ async function compactInner(app: AppContext, conv: Conversation, o: { focus?: st
       }
     }
   } else why = 'plain';
+  // C7: the model call can take a while. A message it read that was deleted, edited or forgotten
+  // meanwhile, or an earlier fold undone meanwhile, means this summary is not written.
+  if (pickModel) {
+    const still = currentFold(app, conv.id);
+    if (!app.store.getConversation(conv.id) || !stillSaid(app.store, newPart) || (older && (still?.id !== older.id || still.summary === null))) return { skipped: 'busy', reason: 'changed' };
+  }
   if (!summary) summary = app.redactor.redact(plainFold(app, older ? newPart : range, skip));
   if (older?.summary && kind === 'plain') summary = `${older.summary}\n${summary}`.slice(-4000);
   const db = app.store.db;

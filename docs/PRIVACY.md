@@ -158,6 +158,36 @@ replaced. The owner token and setup code are printed once at start-up straight t
 you share a log (for a bug report), still read it: it can name your server's folders, models and
 connected services. See [INSTALL.md → Logs](INSTALL.md#logs).
 
+## Deleting, editing or forgetting while she is still working
+
+A reply can take many model calls (tool rounds, a retry when a server is busy, another model taking
+over). If you delete or edit a message, or have her forget something, while a reply is still being
+written, this is what holds:
+
+- **The next model call of that reply goes without it.** Before each call (and each retry) she
+  checks whether the conversation changed; only then is the history read again, and a deleted,
+  edited or forgotten message is left out or sent as it is now. A part of the chat that was tidied
+  up into a summary and is undone by the forget goes too, and a memory note you removed leaves her
+  instructions. In your own chats with Session continuity on (the default), a change while she
+  waits before a call stops the reply instead, and you send your message again.
+- **Nothing made from it is saved.** A chat title, a tidied-up summary, a memory summary or note,
+  a skill draft or a second opinion whose model was answering while you made the change is dropped
+  and made again later from what is there then. Earlier tool results you had her forget no longer
+  back what she says she did.
+- **Forgotten messages stay out of side work too:** titles, side questions (/btw) and second
+  opinions never send them.
+
+What it can't do:
+
+- **What was already sent cannot be called back.** A model call that went out before your change
+  had the old text; a model provider in the cloud has it under its own terms. Only a model on this
+  computer keeps it on this computer.
+- The words she is writing at that moment are not rewritten; the change counts from the next call.
+- Her instructions for a reply keep "last time" and the lines she looked up from the past
+  (recalled lines) that were picked when the reply began; they follow the change on the next reply.
+- A bridge's room lines (what others said in a shared channel) are read once when the reply begins.
+- A skill draft written before you had her forget an ask keeps its text until you edit or decline it.
+
 ## What left this server
 
 **Settings → Privacy & system → Privacy → What left this server** shows, one day at a time, every

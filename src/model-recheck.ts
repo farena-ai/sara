@@ -111,13 +111,27 @@ function chunk(type: string, data: Buffer): Buffer {
 }
 /** A 64×64 plain red PNG, made here (no picture files shipped). */
 export function redPng(size = 64): Buffer {
+  return rgbPng(size, size, () => [220, 30, 30]);
+}
+
+/** A PNG of `width`×`height` with each pixel's colour from `pixel` (the model tests draw with it too). */
+export function rgbPng(width: number, height: number, pixel: (x: number, y: number) => readonly [number, number, number]): Buffer {
   const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(size, 0);
-  ihdr.writeUInt32BE(size, 4);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
   ihdr[8] = 8;
   ihdr[9] = 2; // RGB
-  const row = Buffer.concat([Buffer.from([0]), Buffer.alloc(size * 3, Buffer.from([220, 30, 30]))]);
-  const raw = Buffer.concat(Array.from({ length: size }, () => row));
+  const raw = Buffer.alloc(height * (1 + width * 3));
+  for (let y = 0; y < height; y++) {
+    const at = y * (1 + width * 3);
+    raw[at] = 0;
+    for (let x = 0; x < width; x++) {
+      const [r, g, b] = pixel(x, y);
+      raw[at + 1 + x * 3] = r;
+      raw[at + 2 + x * 3] = g;
+      raw[at + 3 + x * 3] = b;
+    }
+  }
   return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
 }
 

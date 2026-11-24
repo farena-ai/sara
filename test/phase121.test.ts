@@ -705,7 +705,8 @@ test('both: zero new runtime dependencies; no new setInterval in main.ts; the ch
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
   assert.deepEqual(Object.keys(pkg.dependencies ?? {}), []);
   const main = readFileSync(join(ROOT, 'src', 'main.ts'), 'utf8');
-  assert.equal((main.match(/setInterval\(/g) ?? []).length, 6, "2.53's six timers");
+  // D2 (T48): the six timers run on everyJob() now (src/tick-jobs.ts); still six, none new.
+  assert.equal((main.match(/setInterval\(|everyJob\(/g) ?? []).length, 6, "2.53's six timers");
   const src = readFileSync(join(ROOT, 'src', 'safety-check.ts'), 'utf8');
   assert.doesNotMatch(src, /from '\.\/safety\.ts'/);
 });

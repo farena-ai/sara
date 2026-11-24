@@ -8,6 +8,7 @@ import { cheapCall } from './cheap.ts';
 import { preflight, type AppContext } from './chat.ts';
 import { en } from './i18n.ts';
 import { personalize } from './identity.ts';
+import { isForgotten } from './memory-worker.ts';
 import { buildSystemPrompt, identityOf } from './persona.ts';
 import { whileBusySettings } from './pending.ts';
 import { CRISIS_RESOURCES, CRISIS_SYSTEM_NOTE, detectExplicit, MINOR_BLOCK_REPLY, minorSexualMatch } from './safety.ts';
@@ -37,7 +38,8 @@ export const BTW_LINES = {
 /** The conversation as plain lines (no pictures, no tool-call shapes: any model can take it). */
 function slice(app: AppContext, conv: Conversation): { transcript: string; doing: string[] } {
   const owner = app.settings.get().ownerName?.trim() || 'Owner';
-  const msgs = app.store.messages(conv.id).filter((m) => m.role !== 'notice').slice(-HISTORY_MESSAGES);
+  // C7: forgotten messages never go to the side-question model.
+  const msgs = app.store.messages(conv.id).filter((m) => m.role !== 'notice' && !isForgotten(m)).slice(-HISTORY_MESSAGES);
   const lines: string[] = [];
   for (const m of msgs) {
     if (m.role === 'user') lines.push(`${conv.partner ?? owner}${m.meta?.steer ? ' (while you worked)' : ''}: ${m.content}`);
@@ -74,8 +76,10 @@ export async function answerAside(app: AppContext, conv: Conversation, question:
   const user = [transcript ? `The conversation so far (most recent last):\n\n${transcript}` : '', doing.length ? `What you're doing right now:\n${doing.join('\n')}` : '', `The side question: ${q}`].filter(Boolean).join('\n\n');
   const cfg = whileBusySettings(app).btw;
   const r = await cheapCall(app, { source: 'btw', purpose: 'btw', conv, model: cfg.model, messages: [{ role: 'system', content: system }, { role: 'user', content: user }], maxTokens: BTW_MAX_TOKENS, temperature: 0.4, cap: { runs: cfg.dailyCap }, timeoutMs: BTW_TIMEOUT_MS });
-  if (pf.crisis) app.store.recordSafetyEvent('crisis_referral', conv.id);
+  // B4: the resources go with the answer once per conversation (every time for a child); the event every time.
+  const notice = pf.crisis ? app.store.crisisFlag(conv.id, { every: Boolean(app.member?.child?.()) }) : false;
   if (!r.ok) {
+    // No answer at all: the resources are the answer, shown before or not.
     if (pf.crisis) return { ok: true, text: CRISIS_RESOURCES, model: '', local: true, crisis: true };
     if (r.skipped === 'cap') return { ok: false, status: 429, text: BTW_LINES.cap, key: BTW_LINES.cap };
     if (r.skipped === 'no-model') return { ok: false, status: 503, text: BTW_LINES.none, key: BTW_LINES.none };
@@ -86,6 +90,6 @@ export async function answerAside(app: AppContext, conv: Conversation, question:
     app.store.recordSafetyEvent('minor_sexual_block', conv.id);
     text = MINOR_BLOCK_REPLY;
   } else if (!adultOn && detectExplicit(text)) text = BTW_LINES.explicit;
-  if (pf.crisis) text = `${text}\n\n${CRISIS_RESOURCES}`.trim();
+  if (notice) text = `${text}\n\n${CRISIS_RESOURCES}`.trim();
   return { ok: true, text: text || '…', model: r.model, local: r.local, ...(pf.crisis ? { crisis: true } : {}) };
 }

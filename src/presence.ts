@@ -20,7 +20,7 @@ import { bondContext, type AppContext } from './chat.ts';
 import { appLanguage, en, trOwner } from './i18n.ts';
 import { complete } from './life.ts';
 import { isGroupChannel } from './group.ts';
-import { guard } from './log.ts';
+import { everyJob, type EveryJob } from './tick-jobs.ts';
 import { netFetch } from './net-guard.ts';
 import { buildSystemPrompt } from './persona.ts';
 import { checkClaims } from './receipts.ts';
@@ -173,7 +173,7 @@ export class PresenceWorker {
   /** Last state seen per entity (memory only; the first look only learns). */
   readonly #seen = new Map<string, string>();
   #lastMinute: number | undefined;
-  #timer: NodeJS.Timeout | undefined;
+  #timer: EveryJob | undefined;
   #running = false;
   /** What happened lately (Settings shows it). */
   readonly log: { at: string; kind: PresenceKind; fired: boolean; why?: string }[] = [];
@@ -185,12 +185,11 @@ export class PresenceWorker {
   }
 
   start(intervalMs = 60_000): void {
-    this.#timer = setInterval(() => guard('presence', () => this.tick()), intervalMs);
-    this.#timer.unref();
+    this.#timer = everyJob('presence', intervalMs, () => this.tick());
   }
 
   stop(): void {
-    if (this.#timer) clearInterval(this.#timer);
+    this.#timer?.stop();
     this.#timer = undefined;
   }
 

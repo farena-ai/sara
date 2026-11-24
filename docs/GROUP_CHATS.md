@@ -46,8 +46,8 @@ and colour (1–4, by her place in the room). Replies stream one after the other
   in your language. A new companion's own first-use notice still applies in her one-to-one chats.
 - **Honesty**: each companion's instructions keep the rule to say she's an AI when sincerely asked.
 - **Crisis**: a message from you that sounds like a crisis shows the crisis resources at once (988
-  marked US-only, like everywhere); then every member answers, supportively, with no banter, whatever
-  the turn style.
+  marked US-only, like everywhere), the first time in the chat (B4: once per conversation); then every
+  member answers, supportively, with no banter, whatever the turn style, every time.
 - **Minors**: a message that fails the minors check gets no replies at all (one refusal for the room,
   no model is asked). A companion's reply that fails it is replaced in every copy and ends the round.
 - **Adult content** is allowed only when **every** companion in the room has Adult mode on (strictest

@@ -1,6 +1,7 @@
 // Models: providers, model jobs, subscriptions, local models, private local mode, usage.
 // Moved from src/server.ts unchanged (wave 3); shared state comes from the RouteCtx (src/routes/context.ts).
 import { hardTalkCheck } from '../model-checkup.ts';
+import { forgetModelTestResults } from '../model-tests.ts';
 import { policy } from '../policy-profile.ts';
 import { APNS_VAULT } from '../apns.ts';
 import { resolveChain, vaultKeyFor, type AppContext } from '../chat.ts';
@@ -30,6 +31,7 @@ import { AUTO_JOBS, autoChain, autoOn, newInstallAuto } from '../auto-route.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 import { ReplayError } from '../replay.ts';
 import { autoWebSearch } from '../web-search-auto.ts';
+import { meaningAdoptNote, meaningTooSlow } from '../meaning-auto.ts';
 
 /**
  * 3.0.3: a provider that is the default but has no default model (it just became the default: the
@@ -296,6 +298,9 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
           vectors: app.vectors?.status() ?? null,
           // S4: she stopped asking the embedding model for a while because it kept answering late (src/tool-meaning.ts).
           meaningResting: app.toolMeaning?.resting === true,
+          // T48: the embedding model is too slow for this computer (its index rests), or none was turned on because each was.
+          meaningTooSlow: meaningTooSlow(app),
+          meaningSkipped: s.routes?.embeddings ? [] : (meaningAdoptNote(app)?.tooSlow ?? []),
           costs: Object.fromEntries(s.providers.map((p) => [p.id, { local: Boolean(p.local), hint: costHint(p, p.defaultModel ?? '') }])),
           pictures: pictureNotices(app),
         });
@@ -571,6 +576,9 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
         });
         app.vault.delete(vaultKeyFor(b));
         app.modelCatalog?.forget(b);
+        // Model tests: its results go with it.
+        if (app.modelTests) app.modelTests.forgetProvider(b);
+        else forgetModelTestResults(app.store.db, b);
         return send(res, 200, providerView());
       }
       // Phase 56: the kept model list (checked again when a day old), Refresh, and its options.

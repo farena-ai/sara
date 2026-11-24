@@ -17,6 +17,7 @@ import type { Memory } from './memory.ts';
 import { localDate } from './memory-worker.ts';
 import { buildSystemPrompt } from './persona.ts';
 import { zonedParts } from './planner.ts';
+import { everyJob, type EveryJob } from './tick-jobs.ts';
 import { checkClaims } from './receipts.ts';
 import { detectMinorSexualContent, disclosureDue, disclosureText } from './safety.ts';
 import type { Conversation } from './store.ts';
@@ -298,7 +299,7 @@ const daysBetween = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00
 /** Yearly look back: on the anniversary of the first owner message (up to 7 days late if missed), once a year. */
 export class StoryWorker {
   readonly #app: AppContext;
-  #timer: NodeJS.Timeout | undefined;
+  #timer: EveryJob | undefined;
   #running = false;
   /** The on-demand look back running now (one at a time). */
   pending: Promise<Lookback> | undefined;
@@ -309,12 +310,11 @@ export class StoryWorker {
   }
 
   start(intervalMs = 30 * 60_000): void {
-    this.#timer = setInterval(() => void this.tick().catch((err: Error) => console.warn(`story: ${err.message}`)), intervalMs);
-    this.#timer.unref();
+    this.#timer = everyJob('story', intervalMs, () => this.tick());
   }
 
   stop(): void {
-    if (this.#timer) clearInterval(this.#timer);
+    this.#timer?.stop();
   }
 
   /** Starts an on-demand look back in the background (or returns the running one). */

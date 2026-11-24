@@ -19,6 +19,7 @@ import { ToolError } from './tools/types.ts';
 import { formatLocal } from './planner.ts';
 import { reminderDue } from './board-questions.ts';
 import { quietNow } from './life.ts';
+import { everyJob } from './tick-jobs.ts';
 import { trOwner } from './i18n.ts';
 import { identityOf } from './persona.ts';
 
@@ -141,7 +142,7 @@ export class CardWorker {
   /** After a restart: work that was running waits on you (Continue); queued work starts again. */
   start(o: { remind?: boolean } = {}): void {
     // C11: parked questions are checked hourly (a reminder after a day, outside quiet hours).
-    if (o.remind) setInterval(() => void this.remind().catch(() => undefined), 3600_000).unref();
+    if (o.remind) everyJob('card questions', 3600_000, () => this.remind().catch(() => undefined));
     for (const src of this.#sources) {
       for (const c of src.withWork(['running'])) {
         if (!this.#mine(c.work)) continue;

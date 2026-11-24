@@ -43,6 +43,7 @@ import * as netModule from './net.ts';
 import * as bridgeDbModule from './bridge-db.ts';
 import { rooms } from '../bridges/rooms.ts';
 import type { Settings, SettingsStore } from '../settings.ts';
+import { everyJob, type EveryJob } from '../tick-jobs.ts';
 
 export const PLUGIN_LIMITS: PackageLimits = { maxZipBytes: 10 * 1024 * 1024, maxFiles: 500, maxTotalBytes: 30 * 1024 * 1024, maxFileBytes: 5 * 1024 * 1024, maxDepth: 10 };
 const REVIEW_MS = 60 * 60_000;
@@ -494,7 +495,7 @@ export class PluginManager {
   readonly #jobs = new Map<string, { job: RunningJob; ctl: AbortController }>();
   /** Approvals that ended unanswered (their invocation ended): a late answer is told "expired". */
   readonly #expired = new Map<string, number>();
-  #tick: NodeJS.Timeout | undefined;
+  #tick: EveryJob | undefined;
   /** Phase 115: the pacer for plugin bridges' progress messages. */
   #bridgeQueue: import('../bridges/sendq.ts').SendQueue | undefined;
   readonly #lastRun = new Map<string, number>();
@@ -962,8 +963,7 @@ export class PluginManager {
     }
     for (const row of this.store.all()) if (row.status === 'installed' && this.enabledFor(row.id, companionId)) this.#start(a, row);
     if (!this.#tick) {
-      this.#tick = setInterval(() => this.#schedules(), 60_000);
-      this.#tick.unref?.();
+      this.#tick = everyJob('plugin schedules', 60_000, () => this.#schedules());
       this.store.prune();
     }
   }
@@ -1306,7 +1306,7 @@ export class PluginManager {
   }
 
   async stopAll(): Promise<void> {
-    clearInterval(this.#tick);
+    this.#tick?.stop();
     this.#tick = undefined;
     // Shutdown must not depend on the lifetime/order of the shared SQLite connection.
     const ids = new Set([

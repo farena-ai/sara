@@ -1,5 +1,5 @@
 // W1.5 (docs/HER_WEEK.md): her weekly "how am I doing" check-in. The card under her message (what
-// she did, what didn't work, what cost money, three ideas with one-tap Accept + Undo) and
+// she did, what didn't work, what cost money, how she did (F6), three ideas with one-tap Accept + Undo) and
 // Settings → You → Briefing → Her weekly check-in (on/off, day, time, Show me now).
 import { t } from './naming.js';
 
@@ -97,6 +97,13 @@ export function herWeekCard(w, api, messageId) {
   );
   box.append(list);
   if (w.failed?.tools?.length) box.append(el('p', 'muted small hw-failed', t('Failed most: {list}', { list: w.failed.tools.map((x) => `${x.name} × ${x.n}`).join(', ') })));
+  // F6: how she did this week, as plain sentences (counts and names only).
+  if (w.how?.lines?.length) {
+    box.append(el('p', 'small hw-how-title', t('How I did this week')));
+    const how = el('ul', 'hw-how');
+    for (const l of w.how.lines) how.append(el('li', 'small', t(l.key, l.params || {})));
+    box.append(how);
+  }
   if (w.tips?.length) {
     box.append(el('p', 'small hw-ideas', t('Three ideas for next week')));
     const ol = el('ol', 'hw-tips');

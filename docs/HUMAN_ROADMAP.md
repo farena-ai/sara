@@ -47,6 +47,10 @@ server): that is the quick way to answer "did the new thing work for you" after 
 12. **The crisis notice once per conversation?** (B4) Today the app's notice with the crisis lines
     comes on every flagged message of a conversation. Once, then again only after a gap or when a
     message says more, would be calmer. It is the legal layer, so it is his call.
+    **Decided 2026-11-24:** "yes once only not multiple times in a session". Built in T49: the app's
+    notice on the first flagged message of a conversation or session, not again there (no gap
+    rule); every flagged message is still recorded and her care in the reply is unchanged; child
+    accounts keep the notice every time. See docs/CRISIS_EVALS.md "Once per conversation (B4)".
 13. **App-defined function tools in the Open Responses API?** (C33) Needed for full compatibility;
     it lets another app hand her tools.
 14. **`OLLAMA_KEEP_ALIVE` on his PC**: left at five minutes (he said to leave the one-model limit

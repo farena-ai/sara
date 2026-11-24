@@ -9,6 +9,7 @@ import { realpathSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import type { EmbedTarget } from '../embeddings.ts';
 import { guard } from '../log.ts';
+import { everyJob, type EveryJob } from '../tick-jobs.ts';
 import { CodeMapStore, type RunReport } from './store.ts';
 
 /** Longest a single background step may run. */
@@ -30,7 +31,7 @@ export class CodeMaps {
   readonly #stores = new Map<string, CodeMapStore>();
   readonly #dirty = new Set<string>();
   readonly #used = new Map<string, number>();
-  #timer: NodeJS.Timeout | undefined;
+  #timer: EveryJob | undefined;
   #pending: NodeJS.Timeout | undefined;
   #busy = false;
   #ctl = new AbortController();
@@ -145,16 +146,15 @@ export class CodeMaps {
   }
 
   start(): void {
-    this.#timer = setInterval(() => {
+    this.#timer = everyJob('code maps', CHECK_MS, () => {
       const now = Date.now();
       for (const [key, at] of this.#used) if (now - at < IN_USE_MS && this.#stores.has(key)) this.#dirty.add(key);
       if (this.#dirty.size) this.#schedule(10);
-    }, CHECK_MS);
-    this.#timer.unref?.();
+    });
   }
 
   stop(): void {
-    clearInterval(this.#timer);
+    this.#timer?.stop();
     clearTimeout(this.#pending);
     this.#pending = undefined;
     this.#ctl.abort();

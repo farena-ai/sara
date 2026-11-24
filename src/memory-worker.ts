@@ -4,12 +4,13 @@
 import { dropFoldsCovering } from './compact.ts';
 import { attachSaved } from './memory-saved.ts';
 import { guard } from './log.ts';
+import { everyJob, type EveryJob } from './tick-jobs.ts';
 import type { MemoryKind } from './memory.ts';
 import { resolveChain, type AppContext } from './chat.ts';
 import type { Provider } from './providers/types.ts';
 import { parseOnDate, type MemoryStore } from './memory.ts';
 import { type DecayPolicy, type FadePreset, PRESET_HALF_LIFE } from './memory-rank.ts';
-import { importedName, importedOther, type Conversation, type StoredMessage } from './store.ts';
+import { importedName, importedOther, type Conversation, type Store, type StoredMessage } from './store.ts';
 import { DEFAULT_IDENTITY, type Identity, personalize } from './identity.ts';
 import { identityOf } from './persona.ts';
 import { usageScope } from './usage.ts';
@@ -85,6 +86,18 @@ export function localDate(when: string | Date, timeZone?: string): string {
 
 /** Messages Sara must not see or remember (forgotten by the owner). */
 export const isForgotten = (m: StoredMessage) => m.meta?.forgotten === true;
+
+/**
+ * C7: the messages a result was made from are all still there, with the same text, and none was
+ * forgotten. Checked after a wait (a model call), before the result is written: what the owner
+ * deleted, edited or had her forget meanwhile must not come back through it.
+ */
+export function stillSaid(store: Pick<Store, 'messageById'>, used: readonly StoredMessage[]): boolean {
+  return used.every((m) => {
+    const now = store.messageById(m.id);
+    return Boolean(now && now.conversationId === m.conversationId && now.content === m.content && !isForgotten(now));
+  });
+}
 
 /**
  * R1B: rows of a shared-scene turn: each reply saved with `meta.scene` and the owner's line it
@@ -306,7 +319,15 @@ export function summaryModels(app: AppContext, conv: Conversation): { provider: 
     }
   };
   add(() => resolveChain(app, conv, 'background'));
-  if (app.settings.get().adultMode?.on) add(() => resolveChain(app, conv, 'turn', true));
+  // A conversation with a model of its own answers every job with that one model, so the list above
+  // has one entry (the owner's stuck conversation was like this). The jobs' own models come next.
+  const free: Conversation = conv.providerId ? { ...conv, providerId: null, model: null } : conv;
+  if (free !== conv) add(() => resolveChain(app, free, 'background'));
+  if (app.settings.get().adultMode?.on) {
+    add(() => resolveChain(app, free, 'turn', true));
+    // Last, the Private model when one is set: it runs on the owner's own hardware.
+    if (app.settings.get().routes?.private) add(() => resolveChain(app, { ...free, private: true }, 'background'));
+  }
   return out.slice(0, 4);
 }
 
@@ -403,9 +424,8 @@ export async function summarizeConversation(app: AppContext, mem: MemoryStore, c
   }
   // The model call can take a minute or two: if the owner deleted the conversation or had her
   // forget something in it meanwhile, what was just written about it must not come back.
-  const now = app.store.getConversation(conversationId) ? app.store.messages(conversationId) : [];
-  const stillThere = new Set(now.filter((m) => !isForgotten(m)).map((m) => m.id));
-  if (!now.length || lines.some((l) => !stillThere.has(l.m.id))) {
+  // C7: an edit of one of them (its text changed) counts too.
+  if (!app.store.getConversation(conversationId) || !stillSaid(app.store, lines.map((l) => l.m))) {
     return { factIds: [], droppedFacts: 0, through: state.summarizedThrough, error: 'The conversation changed while it was being summarized; it will be done again.' };
   }
 
@@ -615,7 +635,7 @@ export class MemoryWorker {
   readonly #app: AppContext;
   readonly #mem: MemoryStore;
   readonly #isBusy: (conversationId: string) => boolean;
-  #timer: NodeJS.Timeout | undefined;
+  #timer: EveryJob | undefined;
   #running = false;
 
   constructor(app: AppContext, mem: MemoryStore, isBusy: (conversationId: string) => boolean = () => false) {
@@ -625,12 +645,11 @@ export class MemoryWorker {
   }
 
   start(intervalMs = 60_000): void {
-    this.#timer = setInterval(() => guard('memory', () => this.tick()), intervalMs);
-    this.#timer.unref();
+    this.#timer = everyJob('memory', intervalMs, () => this.tick());
   }
 
   stop(): void {
-    if (this.#timer) clearInterval(this.#timer);
+    this.#timer?.stop();
     if (this.#nudgeTimer) clearTimeout(this.#nudgeTimer);
   }
 

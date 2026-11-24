@@ -17,6 +17,7 @@ import { zonedParts } from './planner.ts';
 import { saverSettings } from './spend.ts';
 import { registerRevert, timelineOf, TimelineError, type TimelineRow } from './timeline.ts';
 import { asksHowAmIDoing } from './her-week-words.ts';
+import { howSheDid, type HowSheDid } from './how-she-did.ts';
 
 export { asksHowAmIDoing };
 
@@ -56,6 +57,8 @@ export interface HerWeek {
   did: { actions: number; byKind: Record<string, number>; toolCalls: number; turns: number };
   failed: { tools: { name: string; n: number }[]; failedCalls: number; claims: number; errors: number };
   cost: { usd: number; paidCalls: number; localCalls: number; topModel: string };
+  /** F6: how she did this week (src/how-she-did.ts): counts and plain sentences, no message text. */
+  how?: HowSheDid;
   tips: HerTip[];
 }
 
@@ -149,11 +152,18 @@ function gather(app: AppContext, now: Date): Omit<HerWeek, 'tips'> {
       }
     }
   }
+  let how: HowSheDid | undefined;
+  try {
+    how = howSheDid(app, from, to);
+  } catch (err) {
+    console.warn(`her week: how she did: ${(err as Error).message}`);
+  }
   return {
     week: { from, to: now.toISOString() },
     did: { actions, byKind, toolCalls, turns },
     failed: { tools, failedCalls: [...failedBy.values()].reduce((a, b) => a + b, 0), claims, errors },
     cost: { usd: Math.round(usd * 100) / 100, paidCalls, localCalls, topModel },
+    ...(how ? { how } : {}),
   };
 }
 
@@ -309,6 +319,7 @@ export function herWeekText(app: AppContext, w: HerWeek): string {
   const bad = w.failed.failedCalls + w.failed.claims + w.failed.errors;
   out.push(bad ? T(en('What didn’t work: failed tool runs {failed} · claims I couldn’t back up {claims} · replies that ended in an error {errors}.'), { failed: w.failed.failedCalls, claims: w.failed.claims, errors: w.failed.errors }) : T(en('What didn’t work: nothing failed this week.')));
   out.push(w.cost.usd > 0 ? T(en('What cost money: about ${usd} on paid models ({paid} paid calls; {local} free ones on this computer).'), { usd: w.cost.usd.toFixed(2), paid: w.cost.paidCalls, local: w.cost.localCalls }) : T(en('What cost money: nothing on paid models this week.')));
+  if (w.how?.lines.length) out.push(T(en('How I did this week:')), ...w.how.lines.map((l) => `- ${T(l.key, l.params)}`));
   if (w.tips.length) out.push(T(en('My ideas for next week (tap Accept on one to use it):')), ...w.tips.map((x, i) => `${i + 1}. ${T(x.text)}`));
   return out.join('\n');
 }

@@ -2,6 +2,45 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.45.0",
+   "date": "2026-11-24",
+   "title": "Test my models: a score for every model on every job",
+   "items": [
+    {
+     "id": "3-45-0-test-my-models-settings-models",
+     "kind": "new",
+     "text": "Test my models (Settings → Models & usage → Which model does what)."
+    },
+    {
+     "id": "3-45-0-test-new-models-when-they",
+     "kind": "new",
+     "text": "\"Test new models when they appear\" on the same page, off by default."
+    },
+    {
+     "id": "3-45-0-her-weekly-check-in-has-how",
+     "kind": "new",
+     "text": "Her weekly check-in has \"How I did this week\": replies that failed and why, the tools that failed most, how often a backup model took over and for which model."
+    },
+    {
+     "id": "3-45-0-auto-picks-the-best-model",
+     "kind": "new",
+     "text": "Auto picks the best model from your model tests for a job when there are scores, and says so; with no scores it picks as before."
+    },
+    {
+     "id": "3-45-0-chat-titles-side-questions-btw",
+     "kind": "fixed",
+     "text": "Chat titles, side questions (/btw) and second opinions no longer send messages you had her forget to a model.",
+     "link": "#view=msgs",
+     "owner": true
+    },
+    {
+     "id": "3-45-0-a-title-or-summary-that",
+     "kind": "fixed",
+     "text": "A title or summary that was being written while you deleted or edited a message it read is no longer saved."
+    }
+   ]
+  },
+  {
    "version": "3.44.0",
    "date": "2026-11-24",
    "title": "Research runs side by side, reports in more scripts, sent mail checked",
@@ -211,45 +250,6 @@
      "id": "3-39-0-on-a-phone-the-top",
      "kind": "fixed",
      "text": "On a phone, the top strip no longer takes a row just to repeat the model's name."
-    }
-   ]
-  },
-  {
-   "version": "3.38.0",
-   "date": "2026-11-23",
-   "title": "Sign in with a code anywhere, one home for her messages, no freeze after replies",
-   "items": [
-    {
-     "id": "3-38-0-one-home-for-what-she",
-     "kind": "new",
-     "text": "One home for what she sends on her own. The morning briefing, check-ins, weekly reviews, the roundup of smaller things and add-on notes arrive in From Sara."
-    },
-    {
-     "id": "3-38-0-the-chat-you-used-last",
-     "kind": "new",
-     "text": "The chat you used last is always at the top. Recent lists your five newest chats from every project, and projects are ordered by last use."
-    },
-    {
-     "id": "3-38-0-replies-are-cheaper-and-quicker",
-     "kind": "new",
-     "text": "Replies are cheaper and quicker with every model that caches."
-    },
-    {
-     "id": "3-38-0-several-look-ups-in-one-step",
-     "kind": "new",
-     "text": "Several look-ups in one step run at the same time (pages, searches, files, her memory) instead of one after another."
-    },
-    {
-     "id": "3-38-0-her-look-is-made-with",
-     "kind": "new",
-     "text": "Her look is made with the picture engine you picked.",
-     "link": "#view=library",
-     "owner": true
-    },
-    {
-     "id": "3-38-0-a-sign-in-code-from-settings",
-     "kind": "fixed",
-     "text": "A sign-in code from Settings now works on the sign-in page of a new computer."
     }
    ]
   }

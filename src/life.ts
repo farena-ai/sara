@@ -5,6 +5,7 @@
 //   hours, never double-texts, owner-tunable, AI disclosure still applies.
 import { homeChat } from './home-chat.ts';
 import { guard } from './log.ts';
+import { everyJob, type EveryJob } from './tick-jobs.ts';
 import { askNudge } from './nudges.ts';
 import { noteCall } from './trouble.ts';
 import { appLanguage, languageLine, talkLanguage } from './i18n.ts';
@@ -213,7 +214,7 @@ export class LifeWorker {
   readonly #life: LifeStore;
   readonly #inner: InnerStore;
   readonly #random: () => number;
-  #timer: NodeJS.Timeout | undefined;
+  #timer: EveryJob | undefined;
   #running = false;
   /** No proactive retry before this time (after a SKIP or an error). */
   #holdUntil = 0;
@@ -226,13 +227,12 @@ export class LifeWorker {
   }
 
   start(intervalMs = 10 * 60_000): void {
-    this.#timer = setInterval(() => guard('her life', () => this.tick()), intervalMs);
-    this.#timer.unref();
+    this.#timer = everyJob('her life', intervalMs, () => this.tick());
     setTimeout(() => guard('her life', () => this.tick()), 30_000).unref();
   }
 
   stop(): void {
-    if (this.#timer) clearInterval(this.#timer);
+    this.#timer?.stop();
   }
 
   tick(): Promise<{ day?: string; proactive?: string; skipped?: string; agenda?: import('./agenda.ts').TickResult; picture?: string }> {

@@ -61,3 +61,14 @@ test('T46 memory: a first model that works is the only one asked', async (t) => 
   assert.equal(r.factIds.length, 1);
   assert.deepEqual(app.requests.map((q) => q.model), ['bg']);
 });
+
+test('T47 memory: a conversation with a model of its own still has other models to ask', async (t) => {
+  const { app, conv, good } = setup(t, true);
+  app.store.updateConversation(conv.id, { providerId: 'p', model: 'pinned' });
+  const models = summaryModels(app, app.store.getConversation(conv.id)!).map((c) => c.model);
+  assert.deepEqual(models.slice(0, 3), ['pinned', 'bg', 'grown'], 'its own model first, then the jobs\' models');
+  app.script.push(text(''), text(''), text(''), text(''), good);
+  const r = await summarizeConversation(app, app.memory!, conv.id);
+  assert.equal(r.factIds.length, 1);
+  assert.deepEqual(app.requests.map((q) => q.model), ['pinned', 'pinned', 'bg', 'bg', 'grown']);
+});

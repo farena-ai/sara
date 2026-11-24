@@ -21,6 +21,7 @@ import type { AppContext } from './chat.ts';
 import { cheapCall, cheapRoute, fenceLines, ledgerOf, safeLines, type CheapModel } from './cheap.ts';
 import { isGroupChannel } from './group.ts';
 import { appLanguage, detectLanguage, LANGUAGE_NAMES, talkLanguage, tr, type Lang } from './i18n.ts';
+import { isForgotten, stillSaid } from './memory-worker.ts';
 import { detectExplicit, minorSexualMatch } from './safety.ts';
 import { isImportChannel, type Conversation, type StoredMessage, type TitleEntry, type TitleSource } from './store.ts';
 
@@ -399,7 +400,8 @@ function saveTitle(app: AppContext, conv: Conversation, title: string, through: 
 export async function retitle(app: AppContext, id: string, opts: { atNew?: boolean; now?: boolean; all?: boolean } = {}): Promise<TitleOutcome> {
   const conv = app.store.getConversation(id);
   if (!conv) return { changed: false, title: '', skipped: 'missing' };
-  const all = app.store.messages(id);
+  // C7: forgotten lines never reach the title model.
+  const all = app.store.messages(id).filter((m) => !isForgotten(m));
   const lines = talkLines(all);
   const first = lines.find((m) => m.role === 'user')?.content;
   const never = neverRetitled(conv, first);
@@ -458,6 +460,9 @@ export async function retitle(app: AppContext, id: string, opts: { atNew?: boole
   // The conversation may have been renamed by him while the model was thinking.
   const now = app.store.getConversation(id);
   if (!now || now.titleSource === 'owner') return { changed: false, title: now?.title ?? '', skipped: 'owner', reason };
+  // C7: a line it was written from was deleted, edited or forgotten meanwhile: the title is dropped
+  // (the next trigger names it from what is there then).
+  if (!stillSaid(app.store, lines)) return { changed: false, title: now.title, skipped: 'changed', reason, model: r.model };
   let out = cleanTitle(r.text);
   if (out && out !== 'SAME') out = sentenceCase(out, lang, lines.slice(-TOPIC_EVERY).map((m) => m.content).join('\n'));
   // The person in a partner chat is never named in its title ("Movie ideas for Mia" → "Movie ideas").

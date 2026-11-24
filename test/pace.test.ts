@@ -12,7 +12,7 @@ test('typing pace: longer messages take longer (capped); off by default; counts 
     cleanup();
   });
   assert.ok(typingMs('ok') < typingMs('a much longer message with several words in it'));
-  assert.equal(typingMs('x'.repeat(5000)), 9000);
+  assert.equal(typingMs('x'.repeat(5000)), 4000, 'C6: a few seconds at most');
   let typed = 0;
   let t0 = Date.now();
   await paceLikeTyping(app, 'hello there', Date.now(), () => typed++);

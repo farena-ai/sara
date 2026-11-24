@@ -10,6 +10,7 @@ import { cheapCall, isLocalModel } from './cheap.ts';
 import { resolveProvider, type AppContext } from './chat.ts';
 import { HttpError } from './http.ts';
 import { en } from './i18n.ts';
+import { isForgotten, stillSaid } from './memory-worker.ts';
 import { privateLocalOn } from './net-guard.ts';
 import type { ChatMessage } from './providers/types.ts';
 import type { Conversation, StoredMessage } from './store.ts';
@@ -72,11 +73,15 @@ const key = (p: { providerId: string; model: string }) => `${p.providerId}/${p.m
 
 /** The question her reply answered: the chat up to it (text only, her reply left out). */
 function questionOf(app: AppContext, conv: Conversation, reply: StoredMessage): ChatMessage[] {
-  const before = app.store.messages(conv.id).filter((m) => m.id < reply.id && (m.role === 'user' || m.role === 'assistant') && m.content.trim());
+  return [{ role: 'system', content: SYSTEM }, ...questionLines(app, conv, reply).map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content.slice(0, 6000) }))];
+}
+
+/** The messages `questionOf` is made from (C7: forgotten ones left out). */
+function questionLines(app: AppContext, conv: Conversation, reply: StoredMessage): StoredMessage[] {
+  const before = app.store.messages(conv.id).filter((m) => m.id < reply.id && (m.role === 'user' || m.role === 'assistant') && m.content.trim() && !isForgotten(m));
   const last = before.map((m) => m.role).lastIndexOf('user');
   if (last < 0) throw new HttpError(409, 'There is no question before this reply to ask about.');
-  const lines = before.slice(0, last + 1).slice(-HISTORY);
-  return [{ role: 'system', content: SYSTEM }, ...lines.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content.slice(0, 6000) }))];
+  return before.slice(0, last + 1).slice(-HISTORY);
 }
 
 /** A reply of hers in this chat (404 otherwise). */
@@ -135,6 +140,7 @@ export async function askSecondOpinion(app: AppContext, conv: Conversation, repl
       if (!picks.includes(c)) picks.push(c);
     }
   }
+  const used = [...questionLines(app, conv, reply), reply];
   const messages = questionOf(app, conv, reply);
   const answers = await Promise.all(
     picks.map(async (m): Promise<Omit<OpinionAnswer, 'parts'>> => {
@@ -155,6 +161,9 @@ export async function askSecondOpinion(app: AppContext, conv: Conversation, repl
   const diffs = diffAnswers(withText.map((a) => a.text));
   const out: OpinionAnswer[] = all.map((a) => ({ ...a, parts: a.text ? diffs[withText.indexOf(a)] : [] }));
   const result: OpinionResult = { at: app.now().toISOString(), answers: out, differ: out.reduce((n, a) => n + a.parts.filter((p) => p.kind !== 'same').length, 0) };
+  // C7: the models take a while. If the owner deleted, edited or had her forget a message they
+  // read, or her reply, meanwhile, what they wrote about it is neither kept nor shown.
+  if (!stillSaid(app.store, used)) throw new HttpError(409, en('The chat changed while the other models were answering. Ask again if you still want a second opinion.'));
   app.store.updateMessageMeta(reply.id, { secondOpinion: result });
   return result;
 }

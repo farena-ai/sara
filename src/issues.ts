@@ -4,7 +4,7 @@
 // issue can start a coding workflow: she clones the repository into its own workspace and her
 // team works it through to a reviewed pull request.
 import { netFetch } from './net-guard.ts';
-import { guard } from './log.ts';
+import { everyJob, type EveryJob } from './tick-jobs.ts';
 import type { AppContext } from './chat.ts';
 import { git, GITHUB_VAULT } from './tools/coding.ts';
 import { excludeOwnFiles } from './tools/sandbox.ts';
@@ -177,17 +177,16 @@ function issuesConversation(app: AppContext) {
 /** Polls on the owner's schedule (off by default). */
 export class IssueWatcher {
   readonly #app: AppContext;
-  #timer: NodeJS.Timeout | undefined;
+  #timer: EveryJob | undefined;
   #busy = false;
   constructor(app: AppContext) {
     this.#app = app;
   }
   start(): void {
-    this.#timer = setInterval(() => guard('issue watcher', () => this.tick()), 60_000);
-    this.#timer.unref?.();
+    this.#timer = everyJob('issue watcher', 60_000, () => this.tick());
   }
   stop(): void {
-    clearInterval(this.#timer);
+    this.#timer?.stop();
   }
   async tick(): Promise<void> {
     const w = watchSettings(this.#app);

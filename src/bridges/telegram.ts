@@ -17,7 +17,7 @@ import type { AppContext, ChatEvent } from '../chat.ts';
 import type { HubEvent } from '../events.ts';
 import { disclosureText } from '../safety.ts';
 import { speechOf } from '../speech.ts';
-import { paceLikeTyping } from './pace.ts';
+import { isSafetyText, paceLikeTyping, typedParts, typingPaced } from './pace.ts';
 import { identityOf } from '../persona.ts';
 import type { Conversation } from '../store.ts';
 import { takeChatDocument, type SharedDoc } from '../library/intake.ts';
@@ -929,6 +929,8 @@ export class TelegramBridge {
     const extras = where && isOwner ? afterTurnExtras(app, conv.id, where.place) : undefined;
     if (extras?.before) outgoing.unshift(extras.before);
     let since = started;
+    // C6: errors, safety replies and coding chats go at once and whole.
+    const paced = typingPaced(app, conv);
     for (const t of outgoing) {
       // S10: her pick-an-answer card goes as buttons (below), not as its numbered list.
       if (extras?.drop && t === extras.drop) continue;
@@ -937,9 +939,12 @@ export class TelegramBridge {
         void this.#call('sendChatAction', { chat_id: chatId, action: 'record_voice' }).catch(() => undefined);
         if (await this.sendVoice(chatId, t)) continue;
       }
-      await paceLikeTyping(app, t, since, () => void this.#call('sendChatAction', { chat_id: chatId, action: 'typing' }).catch(() => undefined));
-      await this.send(chatId, t);
-      since = Date.now();
+      const human = paced && !errorLines.has(t) && !isSafetyText(t) && t !== extras?.before;
+      for (const part of human ? typedParts(t) : [t]) {
+        if (human) await paceLikeTyping(app, part, since, () => void this.#call('sendChatAction', { chat_id: chatId, action: 'typing' }).catch(() => undefined));
+        await this.send(chatId, part);
+        since = Date.now();
+      }
     }
     await closing?.catch(() => undefined);
     for (const row of extras?.rows ?? []) await this.send(chatId, row.text, row.buttons.length ? { reply_markup: { inline_keyboard: row.buttons[0].data.startsWith('ch:') ? row.buttons.map((b) => [{ text: b.label.slice(0, 60), callback_data: b.data }]) : [row.buttons.map((b) => ({ text: b.label, callback_data: b.data }))] } } : {}).catch(() => undefined);

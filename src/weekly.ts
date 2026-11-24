@@ -5,6 +5,7 @@
 // - Her life threads: a book she's reading, a hobby, a little project move on a step each week;
 //   finished ones make room for new ones. Threads the owner gave her are never ended by her.
 import { guard } from './log.ts';
+import { everyJob, type EveryJob } from './tick-jobs.ts';
 import type { AppContext } from './chat.ts';
 import { innerEnabled } from './chat.ts';
 import { complete, targetConversation, type LifeStore } from './life.ts';
@@ -73,7 +74,7 @@ export class WeeklyWorker {
   readonly #mem: MemoryStore | undefined;
   readonly #life: LifeStore | undefined;
   readonly #random: () => number;
-  #timer: NodeJS.Timeout | undefined;
+  #timer: EveryJob | undefined;
   #running = false;
 
   constructor(app: AppContext, mem: MemoryStore | undefined, life: LifeStore | undefined, random: () => number = Math.random) {
@@ -84,13 +85,12 @@ export class WeeklyWorker {
   }
 
   start(intervalMs = 60 * 60_000): void {
-    this.#timer = setInterval(() => guard('weekly review', () => this.tick()), intervalMs);
-    this.#timer.unref();
+    this.#timer = everyJob('weekly review', intervalMs, () => this.tick());
     setTimeout(() => guard('weekly review', () => this.tick()), 5 * 60_000).unref();
   }
 
   stop(): void {
-    if (this.#timer) clearInterval(this.#timer);
+    this.#timer?.stop();
   }
 
   /** Runs whatever is due (each part at most once a week). */

@@ -21,7 +21,7 @@ import type { AppContext, ChatEvent } from '../chat.ts';
 import type { HubEvent } from '../events.ts';
 import { disclosureText } from '../safety.ts';
 import { speechOf } from '../speech.ts';
-import { paceLikeTyping } from './pace.ts';
+import { isSafetyText, paceLikeTyping, typedParts, typingPaced } from './pace.ts';
 import { identityOf } from '../persona.ts';
 import type { Conversation } from '../store.ts';
 import { takeChatDocument, type SharedDoc } from '../library/intake.ts';
@@ -1155,13 +1155,18 @@ export class DiscordBridge {
     const extras = where && isOwner ? afterTurnExtras(app, conv.id, where.place) : undefined;
     if (extras?.before) outgoing.unshift(extras.before);
     let since = started;
+    // C6: errors, safety replies and coding chats go at once and whole.
+    const paced = typingPaced(app, conv);
     for (const t of outgoing) {
       // S10: her pick-an-answer card goes as buttons (below), not as its numbered list.
       if (extras?.drop && t === extras.drop) continue;
       if (voice && t.length <= 1200 && !t.includes('```') && (await this.sendVoice(channelId, t))) continue;
-      await paceLikeTyping(app, t, since, () => void this.#rest('POST', `/channels/${channelId}/typing`).catch(() => undefined));
-      await this.send(channelId, t);
-      since = Date.now();
+      const human = paced && !errorLines.has(t) && !isSafetyText(t) && t !== extras?.before;
+      for (const part of human ? typedParts(t) : [t]) {
+        if (human) await paceLikeTyping(app, part, since, () => void this.#rest('POST', `/channels/${channelId}/typing`).catch(() => undefined));
+        await this.send(channelId, part);
+        since = Date.now();
+      }
     }
     await closing?.catch(() => undefined);
     for (const row of extras?.rows ?? []) await this.send(channelId, row.text, row.buttons.length ? { components: row.buttons[0].data.startsWith('ch:') ? choiceRows(row.buttons) : [{ type: 1, components: row.buttons.map((b, n) => ({ type: 2, style: n === 0 ? 1 : 2, label: b.label.slice(0, 80), custom_id: b.data })) }] } : {}).catch(() => undefined);

@@ -7,6 +7,7 @@ import { netFetch } from './net-guard.ts';
 import type { AppContext } from './chat.ts';
 import { PLACES, type LookMeta, type SavedLook } from './look.ts';
 import { adultModeOn } from './settings.ts';
+import { everyJob, type EveryJob } from './tick-jobs.ts';
 import type { Tool } from './tools/types.ts';
 import { str, ToolError } from './tools/types.ts';
 
@@ -132,7 +133,7 @@ type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 export class WardrobeWorker {
   readonly #app: AppContext;
   readonly #fetch: FetchLike;
-  #timer: NodeJS.Timeout | undefined;
+  #timer: EveryJob | undefined;
   #weather: { at: number; w?: Weather } = { at: 0 };
   /** Last automatic change, for the Closet page. */
   last: { at: string; scenario: string; look: string } | undefined;
@@ -143,12 +144,11 @@ export class WardrobeWorker {
   }
 
   start(intervalMs = 10 * 60_000): void {
-    this.#timer = setInterval(() => void this.tick().catch((err: Error) => console.warn(`wardrobe: ${err.message}`)), intervalMs);
-    this.#timer.unref();
+    this.#timer = everyJob('wardrobe', intervalMs, () => this.tick());
     setTimeout(() => void this.tick().catch(() => {}), 45_000).unref();
   }
   stop(): void {
-    if (this.#timer) clearInterval(this.#timer);
+    this.#timer?.stop();
   }
 
   async weather(): Promise<Weather | undefined> {

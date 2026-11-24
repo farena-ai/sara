@@ -5,6 +5,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, lstatSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { Vault } from '../vault.ts';
+import { everyJob, type EveryJob } from '../tick-jobs.ts';
 import { appendAudit } from './audit.ts';
 import type { BusinessAuth, BusinessSession } from './identity.ts';
 import { operatorVault } from './model-config.ts';
@@ -52,7 +53,7 @@ export class BusinessSso {
   readonly #pending = new Map<string, Pending>();
   readonly #tests = new Map<string, SsoTestResult>();
   #client?: { key: string; client: OidcClient };
-  #timer?: ReturnType<typeof setInterval>;
+  #timer?: EveryJob;
   #closed = false;
   #checking?: Promise<void>;
   /** EC16: an unlinked first sign-in may match a SCIM-provisioned account by email (scim.ts). */
@@ -369,8 +370,9 @@ export class BusinessSso {
     }
   }
   startTimer(): void {
-    this.#timer = setInterval(() => { void this.checkSessions().catch(() => {}); }, 60_000); this.#timer.unref();
+    // Failures stay quiet here, as before (checkSessions ends or retries each session itself).
+    this.#timer = everyJob('sso sessions', 60_000, () => this.checkSessions().catch(() => {}));
   }
-  close(): void { this.#closed = true; if (this.#timer) clearInterval(this.#timer); }
+  close(): void { this.#closed = true; this.#timer?.stop(); }
   closing(): Promise<void> { return this.#checking ?? Promise.resolve(); }
 }

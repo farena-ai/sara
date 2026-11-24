@@ -11,6 +11,15 @@ with one tap. Ask any time in chat: **"How am I doing?"**
   check couldn't back up, and replies that ended in an error.
 - **What cost money.** About how much the paid models cost this week, paid calls and the free calls
   on this computer. Subscription and local use count as $0.
+- **How I did this week** (F6). Plain sentences with counts: replies that failed and why, grouped
+  (too slow, server not reachable, a limit or budget, a key or sign-in refused, the chat too long
+  for the model, the model service's error, other); the tools that failed most; how often a backup
+  model took over and for which model; replies that took over 60 seconds and on which model;
+  corrections the receipt check added; chats whose memory notes could not be written; and, for the
+  owner, the no-model eval page of the version he runs (`docs/results/<version>-evals.md` from
+  `npm run eval:all -- --save`), if there is one. A week with none of these says so in one sentence.
+  Counts and model or tool names only, from this space's own database; no message text, and nothing
+  leaves the server.
 - **Three ideas.** Each has **Accept** (applies it at once) and **Not now** (not suggested again for
   eight weeks). Accepted ideas show **Done · Undo** on the card and on Settings → Privacy & system →
   Action timeline, so Undo works there too.
@@ -41,6 +50,13 @@ Problems the week showed come first (cost, flagged claims), then helpful default
   and `meta.unverified`, `runs` errors, `usage` without eval replays), the tip table, `herWeekAccept`
   / `herWeekSkip` (timeline row `her_week`, revert type `herweek`), `herWeekText` (owner's language via
   `trOwner`), `herWeekTick`, `sendHerWeek`. State in `<dataDir>/her-week.json` (per person).
+- `src/how-she-did.ts` (F6): `howSheDid` reads the week's `turnerror:` and `fallback:` notices in
+  `messages` (error class and words go through `failReason` into a group; the words are never kept or
+  shown; the fallback's `params.was` names the model), failed tool results and `meta.unverified` in
+  `messages`, chat-turn `runs` over `SLOW_TURN_MS` (60 s) with the model of their last `run_steps`
+  row, `memory_state` rows whose last try this week failed, and `evalPageOf` (the owner only). The
+  result is `herWeek.how`: counts and `lines` (en() keys with numbers and names) that her message
+  (`trOwner`) and the card (`t()`) both word. Tests: `test/t49-how-she-did.test.ts`.
 - **Weekly:** `ReminderScheduler.tick` → `herWeekTick`. The first look only remembers this week's
   slot (a fresh install or a changed day never sends an old week); a later slot change sends once if
   it is less than 24 h late. It goes out through `postAlert(app, 'herweek', …)` as a scored W1.2

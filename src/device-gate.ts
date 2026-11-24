@@ -14,6 +14,7 @@ import { policy } from './policy-profile.ts';
 import { todayChanged } from './today.ts';
 import { telegramSettings } from './bridges/telegram.ts';
 import { discordSettings } from './bridges/discord.ts';
+import { everyJob } from './tick-jobs.ts';
 
 export interface DeviceGate {
   approvals: DeviceApprovals;
@@ -84,7 +85,7 @@ export function createDeviceGate(o: { app: AppContext; auth: OwnerAuth; demo: bo
       if (auth.approveSession(r.sessionId, settings().maxDevices) && isNew) newAddress(r.label, r.ip);
     } else auth.signOut(r.sessionId);
   });
-  setInterval(() => approvals.sweep(), 30_000).unref();
+  everyJob('device approvals', 30_000, () => approvals.sweep());
 
   auth.signedOut.add((ids) => {
     for (const id of ids) {

@@ -38,6 +38,7 @@ import type { Scrapbook } from './scrapbook.ts';
 import type { LookBuilder } from './look.ts';
 import {
   CRISIS_RESOURCES,
+  CRISIS_ALREADY_SHARED_NOTE,
   CRISIS_SYSTEM_NOTE,
   CLASSIFIER_PROMPT,
   claimJudgePrompt,
@@ -79,14 +80,14 @@ import { recipesSection } from './recipes.ts';
 import { loadedSkills, SKILL_KEEP_MESSAGES, skillsSection } from './skill-tools.ts';
 import { CodeRun, codeOutput, RUN_CODE, runCodeSpec, runCodeTool } from './code-mode.ts';
 import { codeModeOffer, ensureLeanTables, familyOf, FIND_TOOLS, findToolsTool, leanFor, leanOff, leanSettings, loadRows, schemaHint, argErrorHint, writeLoad, type TurnTools } from './lean.ts';
-import { autoFold, foldFor } from './compact.ts';
+import { autoFold, currentFold, foldFor } from './compact.ts';
 import { RECALL_MARK, recallHooks, recallMode } from './triggers.ts';
 import { CHANGES_FILES } from './codemap/tools.ts';
 import { checksAllowed, TurnChecks, type ChecksCard, type ChecksChip } from './diagnostics.ts';
 import { expandRefs, refsBlock, refsPlace, refStore, type RefChip } from './refs.ts';
 import { ToolStreamTracker, type ToolBuilding } from './tool-stream.ts';
 import { docsNote, type SharedDoc } from './library/intake.ts';
-import { importedName, importedOther, movedFrom, type Conversation, type StoredMessage, type Store } from './store.ts';
+import { importedName, importedOther, messagesPrint, movedFrom, type Conversation, type StoredMessage, type Store } from './store.ts';
 import { PluginTurn, pluginTurnAllowed, type PluginCard, type PluginEvent } from './hooks.ts';
 import type { ApprovalBroker, ToolRegistry } from './tools/registry.ts';
 import { checkClaims, confirmClaims, correctionNote, JUDGE_KINDS, judgedClaim, unsureClaims, type Claim, type Receipt } from './receipts.ts';
@@ -97,7 +98,7 @@ import { asksWhyThat, ruleOf, type ActionCause } from './action-why.ts';
 import { alwaysAllowOn, noteAlwaysAllowed } from './always-allow.ts';
 import { secondOpinionOffer } from './second-opinion.ts';
 import { applySandbox, changesLine, discardSandbox, gateVerdict, sandboxCard, sandboxOutput, sandboxRecord, type ApplyResult, type CommandRisk, type SandboxCard, type SandboxDecision, type SandboxGate, type SandboxPlan, type SandboxRecord, type SandboxResult } from './sandbox-run.ts';
-import { datesNote, followUps, followUpsNote, selectMemories, type Injection, type MemoryStore } from './memory.ts';
+import { datesNote, followUps, followUpsNote, selectMemories, withoutNotes, type Injection, type MemoryStore } from './memory.ts';
 import { ownerCueNote } from './owner-cues.ts';
 import { linkedFriendsNote } from './link-aware.ts';
 import { noteCall, slowTrouble, troubleOf } from './trouble.ts';
@@ -387,6 +388,8 @@ export interface AppContext {
   evals?: import('./evals.ts').Evals;
   /** V1.5: Cost autopilot (owner companions with the eval loop; src/cost-autopilot.ts). */
   costAutopilot?: import('./cost-autopilot.ts').CostAutopilot;
+  /** Model tests ("Test my models"; src/model-tests.ts): scores per job, which Auto prefers. */
+  modelTests?: import('./model-tests.ts').ModelTests;
   /** Phase 78: run snapshots (per companion; unset off the record and in bare test apps). */
   runs?: import('./runs.ts').RunStore;
   /** Phase 85 (harness M10): run signatures, lessons and trigger weights (src/triggers.ts). */
@@ -2637,12 +2640,16 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   const { voiceRoom, adultOn } = scopeAdult(app, conv, opts);
   const safetyNotes: string[] = scopeSafetyNotes(app, conv, text, opts, adultOn, voiceRoom);
   if (detectCrisis(text) || label === 'CRISIS' || opts.group?.crisis || opts.roomCrisis) {
+    // B4: the app's notice once per conversation (every time for a child); the event every time.
+    let again = false;
     if ((!opts.resume || opts.replay?.messageEdited) && !opts.group) {
-      store.recordSafetyEvent('crisis_referral', conv.id);
-      store.addMessage(conv.id, 'notice', `crisis:${CRISIS_RESOURCES}`);
-      yield { type: 'notice', kind: 'crisis', text: CRISIS_RESOURCES };
+      if (store.crisisFlag(conv.id, { every: Boolean(app.member?.child?.() || opts.kidSafe) })) {
+        store.addMessage(conv.id, 'notice', `crisis:${CRISIS_RESOURCES}`);
+        yield { type: 'notice', kind: 'crisis', text: CRISIS_RESOURCES };
+      } else again = true;
     }
     safetyNotes.push(CRISIS_SYSTEM_NOTE);
+    if (again) safetyNotes.push(CRISIS_ALREADY_SHARED_NOTE);
   }
   // 3.3.0: web search is off and he asks her to look something up: she says so (never promises to
   // look), and the chat shows one button to turn it on (in one tap with an Ollama Cloud key).
@@ -2672,7 +2679,11 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     if (f) yield { type: 'notice', kind: 'compact', text: `✂ ${f.folded} earlier messages tidied`, key: '✂ {n} earlier messages tidied', params: { n: f.folded } };
   }
   /** Phase 123: the active fold (the history after it, its note first). */
-  const activeFold = opts.clientHistory || opts.group || opts.replay ? undefined : foldFor(app, conv);
+  // C7: undone mid-turn (a forget or a delete drops it), it is replaced by the one in force then.
+  let activeFold = opts.clientHistory || opts.group || opts.replay ? undefined : foldFor(app, conv);
+  let foldStamp = store.changeStamp();
+  /** C7: the stamp her memory notes were last checked at (`freshInputs` below). */
+  let notesStamp = '';
 
   let provider: Provider;
   let model: string;
@@ -2970,11 +2981,24 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   // 3.4.5: the slow-model notice comes once a turn.
   let slowSaid = false;
   // Earlier tool receipts in this conversation (for recaps that name the same files).
-  const priorReceipts: Receipt[] = store
+  const priorRows = store
     .messages(conv.id)
     .filter((m) => m.role === 'tool' && !isForgotten(m))
-    .slice(-HISTORY_LIMIT)
-    .map((m) => ({ name: String(m.meta?.name ?? ''), status: (m.meta?.status ?? 'ok') as Receipt['status'], args: (m.meta?.args ?? {}) as Record<string, unknown>, output: m.content }));
+    .slice(-HISTORY_LIMIT);
+  let priorReceipts: Receipt[] = priorRows.map((m) => ({ name: String(m.meta?.name ?? ''), status: (m.meta?.status ?? 'ok') as Receipt['status'], args: (m.meta?.args ?? {}) as Record<string, unknown>, output: m.content }));
+  let priorIds = priorRows.map((m) => m.id);
+  let priorStamp = store.changeStamp();
+  /** C7: earlier tool results deleted or forgotten since the turn began leave the plan and claim checks (some ask a model). */
+  const freshPrior = (): Receipt[] => {
+    const stamp = store.changeStamp();
+    if (stamp === priorStamp || !priorIds.length) return priorReceipts;
+    priorStamp = stamp;
+    const live = store.liveMessageIds(priorIds);
+    if (live.size === priorIds.length) return priorReceipts;
+    priorReceipts = priorReceipts.filter((_, i) => live.has(priorIds[i]!));
+    priorIds = priorIds.filter((id) => live.has(id));
+    return priorReceipts;
+  };
   let correction: string | undefined;
   let corrected = false;
   // Phase 100 (STAPLES §8.3): after another agent's answer reached her in this turn, every tool that
@@ -3058,7 +3082,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
           summary: c.summary,
           conversationId: conv.id,
           workspaceDir: wsDir,
-          prior: [...priorReceipts, ...receipts],
+          prior: [...freshPrior(), ...receipts],
           ...(appSafe ? { allow: appSafe } : {}),
           now,
         });
@@ -3400,10 +3424,14 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         return;
       }
       if (pf.crisis) {
-        store.recordSafetyEvent('crisis_referral', conv.id);
-        store.addMessage(conv.id, 'notice', `crisis:${CRISIS_RESOURCES}`);
-        yield { type: 'notice', kind: 'crisis', text: CRISIS_RESOURCES };
+        // B4: the notice once per conversation (every time for a child); the event every time.
+        const shownNow = store.crisisFlag(conv.id, { every: Boolean(app.member?.child?.() || opts.kidSafe) });
+        if (shownNow) {
+          store.addMessage(conv.id, 'notice', `crisis:${CRISIS_RESOURCES}`);
+          yield { type: 'notice', kind: 'crisis', text: CRISIS_RESOURCES };
+        }
         if (!safetyNotes.includes(CRISIS_SYSTEM_NOTE)) safetyNotes.push(CRISIS_SYSTEM_NOTE);
+        if (!shownNow && !safetyNotes.includes(CRISIS_ALREADY_SHARED_NOTE)) safetyNotes.push(CRISIS_ALREADY_SHARED_NOTE);
         // She answers the person now: no more tools in this turn.
         tools = [];
         crisisSteer = true;
@@ -3521,7 +3549,11 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     const historyEpoch = sessionContinuity ? store.getConversation(conv.id)?.dialogueEpoch : undefined;
     // 3.4.1: a fallback model that holds less than the turn's model gets a shorter history.
     const stepBudget = ci === 0 ? budget : Math.min(budget, Math.round(budgetOf({ provider, model }).chars * (saver.on ? SAVER.historyShare : 1)));
-    const hist = stepHistory({ app, store, conv, opts, userMsg, stepBudget, canSee: sees(provider, model), s, refsText, activeFold, clock: turnClock });
+    if (activeFold && store.changeStamp() !== foldStamp) {
+      foldStamp = store.changeStamp();
+      activeFold = liveFold(app, conv, activeFold);
+    }
+    let hist = stepHistory({ app, store, conv, opts, userMsg, stepBudget, canSee: sees(provider, model), s, refsText, activeFold, clock: turnClock });
     // A forget/edit tool can invalidate the source mid-turn. Recheck before every new injection.
     const nowGate = { external: checkpointExternal, group: Boolean(opts.group), replay: Boolean(opts.replay) };
     const nowPath = projectNowPath(app, conv, nowGate);
@@ -3563,30 +3595,63 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // plainly (never a bare "photo shared" she might play along with). Phase 115 (BR1, §4.5): in a
     // private conversation the picture model isn't on this computer.
     pictureMissed = Boolean(turnPhotoIds.length && !sees(provider, model) && !userMsg.meta?.readout);
-    if (pictureMissed) {
-      const i = hist.messages.findLastIndex((m) => m.role === 'user');
-      if (i >= 0) {
-        const m = hist.messages[i] as Extract<ChatMessage, { role: 'user' }>;
-        const priv = Boolean(conv.private || privateLocalOn());
-        hist.messages[i] = { ...m, content: `${m.content.replace(/ \[\d+ photo\(s\) shared earlier\]/, '')}${privateVisionOff ? ` ${PRIVATE_PHOTO_NOTE}` : ''}${missedPictureNote(s.ownerName?.trim() || 'the owner', turnPhotoIds.length, priv)}` };
+    /** The step's history as it is sent (C7: done again when the history is built again before the call). */
+    const sendable = (h: typeof hist): ChatMessage[] => {
+      if (pictureMissed) {
+        const i = h.messages.findLastIndex((m) => m.role === 'user');
+        if (i >= 0) {
+          const m = h.messages[i] as Extract<ChatMessage, { role: 'user' }>;
+          const priv = Boolean(conv.private || privateLocalOn());
+          h.messages[i] = { ...m, content: `${m.content.replace(/ \[\d+ photo\(s\) shared earlier\]/, '')}${privateVisionOff ? ` ${PRIVATE_PHOTO_NOTE}` : ''}${missedPictureNote(s.ownerName?.trim() || 'the owner', turnPhotoIds.length, priv)}` };
+        }
       }
-    }
-    // Phase 69: the camera picture of a classic video call rides on this message (never stored).
-    if (opts.liveFrame && sees(provider, model)) {
-      const i = hist.messages.findLastIndex((m) => m.role === 'user');
-      if (i >= 0) {
-        const m = hist.messages[i] as Extract<ChatMessage, { role: 'user' }>;
-        hist.messages[i] = { ...m, content: `${m.content}\n\n${frameNote(s.ownerName?.trim() || 'the owner', opts.liveFrame.ask)}`, images: [...(m.images ?? []), opts.liveFrame.image] };
+      // Phase 69: the camera picture of a classic video call rides on this message (never stored).
+      if (opts.liveFrame && sees(provider, model)) {
+        const i = h.messages.findLastIndex((m) => m.role === 'user');
+        if (i >= 0) {
+          const m = h.messages[i] as Extract<ChatMessage, { role: 'user' }>;
+          h.messages[i] = { ...m, content: `${m.content}\n\n${frameNote(s.ownerName?.trim() || 'the owner', opts.liveFrame.ask)}`, images: [...(m.images ?? []), opts.liveFrame.image] };
+        }
+      } else if (opts.videoCall) {
+        const i = h.messages.findLastIndex((m) => m.role === 'user');
+        if (i >= 0) {
+          const m = h.messages[i] as Extract<ChatMessage, { role: 'user' }>;
+          h.messages[i] = { ...m, content: `${m.content}\n\n${noFrameNote(s.ownerName?.trim() || 'the owner')}` };
+        }
       }
-    } else if (opts.videoCall) {
-      const i = hist.messages.findLastIndex((m) => m.role === 'user');
-      if (i >= 0) {
-        const m = hist.messages[i] as Extract<ChatMessage, { role: 'user' }>;
-        hist.messages[i] = { ...m, content: `${m.content}\n\n${noFrameNote(s.ownerName?.trim() || 'the owner')}` };
+      // Phase 100: the asker's words (every user line of an outside conversation) as untrusted text.
+      return opts.outside ? h.messages.map((m) => (m.role === 'user' && typeof m.content === 'string' ? { ...m, content: untrustedPeer(opts.outside!.label, m.content, opts.outside!.source) } : m)) : h.messages;
+    };
+    const histAt = messages.length;
+    let histSent = sendable(hist);
+    messages.push(...histSent);
+    /**
+     * C7: the owner may delete, edit or have her forget something while this step waits (hooks, an
+     * approval, another reply's turn, a busy server's retry). Before each model call the history is
+     * built again when, and only when, a row it came from changed; her memory notes in the
+     * instructions lose a note that was removed meanwhile.
+     */
+    const freshInputs = (): void => {
+      if (injection?.lines && app.memory) {
+        const stamp = store.changeStamp();
+        if (stamp !== notesStamp) {
+          notesStamp = stamp;
+          const gone = new Set(injection.ids.filter((id) => !app.memory!.get(id)));
+          if (gone.size) {
+            const old = injection.text;
+            injection = withoutNotes(injection, gone);
+            const kept = injection.text;
+            if (old) messages[0] = { ...messages[0], content: messages[0].content.replace(old, () => kept) } as ChatMessage;
+          }
+        }
       }
-    }
-    // Phase 100: the asker's words (every user line of an outside conversation) as untrusted text.
-    messages.push(...(opts.outside ? hist.messages.map((m) => (m.role === 'user' && typeof m.content === 'string' ? { ...m, content: untrustedPeer(opts.outside!.label, m.content, opts.outside!.source) } : m)) : hist.messages));
+      if (!historyChanged(app, store, conv.id, hist.source)) return;
+      if (activeFold) activeFold = liveFold(app, conv, activeFold);
+      hist = stepHistory({ app, store, conv, opts, userMsg, stepBudget, canSee: sees(provider, model), s, refsText, activeFold, clock: turnClock });
+      const next = sendable(hist);
+      messages.splice(histAt, histSent.length, ...next);
+      histSent = next;
+    };
     if (correction) {
       messages.push({ role: 'system', content: correction });
       correction = undefined;
@@ -3775,6 +3840,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // LINKAWARE: who is linked and who wrote (never what), the owner's own chats only (src/link-aware.ts).
     const linked = directOwnerInput && !opts.group && !opts.externalApp && !opts.outside ? linkedFriendsNote(app) : undefined;
     if (linked) messages.push({ role: 'system', content: linked });
+    // C7: every wait of this step is behind us; nothing removed meanwhile goes out.
+    freshInputs();
     // The recorder opened its existing step before the caller's hook. Refresh that step,
     // including late hook notes, without rerunning hooks or creating another step.
     const finalLean = turnTools.lean ? turnTools.stepRecord(tools) : undefined;
@@ -3814,7 +3881,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       if (steerable) app.pending?.setPhase(conv.id, { kind: 'model' });
       const stepOut: ModelStepOut = { reply, reasoningChars, calls, thinking: stepThinking, stopReason, slowSaid };
       try {
-        yield* streamModelStep({ app, p, m, messages, keptThinking, offered, outMax, callThink, callCtx, lastInChain: ci >= chain.length - 1, auto: chain[ci]?.from === 'auto', signal: AbortSignal.any([signal, cut.signal]), building }, stepOut);
+        yield* streamModelStep({ app, p, m, messages, keptThinking, offered, outMax, callThink, callCtx, lastInChain: ci >= chain.length - 1, auto: chain[ci]?.from === 'auto', signal: AbortSignal.any([signal, cut.signal]), building, fresh: freshInputs }, stepOut);
       } finally {
         // Also when the call failed part way: what she had written is kept by the catch below.
         ({ reply, reasoningChars, stopReason, slowSaid } = stepOut);
@@ -4017,9 +4084,10 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       // Phase 120 (PRECISE §4.4): a check still running is waited for once before her reply counts.
       if (checks) await checks.settle();
       const claimReceipts = checks ? [...receipts, ...checks.receipts()] : receipts;
+      freshPrior();
       let claims = checkClaims(reply, claimReceipts, priorReceipts, { attached: attachedThisTurn > 0, pictureMissed });
       if (!claims.length) claims = await judgeUnsure(app, reply, receipts, priorReceipts, { private: Boolean(conv.private) }, rec);
-      if (!claims.length) claims = await judgeClaims(app, reply, receipts, priorReceipts, rec);
+      if (!claims.length) claims = await judgeClaims(app, reply, receipts, freshPrior(), rec);
       if (!claims.length) {
         // Phase 120 (§4.7): her own new errors are left: one more step with the app's note (≤ nudges a turn).
         const stage = meter?.state().stage;
@@ -4091,7 +4159,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       get peerAnswered() { return peerAnswered; }, set peerAnswered(v) { peerAnswered = v; },
       get turnOutputs() { return turnOutputs; },
       get approvedHosts() { return approvedHosts; },
-      get priorReceipts() { return priorReceipts; },
+      get priorReceipts() { return freshPrior(); },
       get mentionHits() { return mentionHits; },
       get webTurn() { return webTurn; },
       get guard() { return guard; },
@@ -4284,7 +4352,7 @@ interface StepHistoryEnv {
   canSee: boolean;
   s: Settings;
   refsText: Parameters<typeof buildHistory>[4];
-  activeFold: Parameters<typeof buildHistory>[5];
+  activeFold: ReturnType<typeof foldFor>;
   clock: Date;
 }
 
@@ -4293,12 +4361,18 @@ interface StepHistoryEnv {
  * A client that keeps its own history (Open Responses) gets that history and this turn's own rows;
  * everyone else gets the stored conversation, cut to the budget, with the tidied part folded.
  */
-function stepHistory(env: StepHistoryEnv): ReturnType<typeof buildHistory> {
+function stepHistory(env: StepHistoryEnv): ReturnType<typeof buildHistory> & { source: HistorySource } {
   const { app, store, conv, opts, userMsg, stepBudget, canSee, s, refsText, activeFold, clock } = env;
-  return opts.clientHistory
+  // C7: what this history is read from, so the turn can tell before each model call if it changed.
+  const stamp = store.changeStamp();
+  const rows = store.messages(conv.id);
+  const fromId = opts.clientHistory ? userMsg.id : 0;
+  const toId = rows.at(-1)?.id ?? 0;
+  const source: HistorySource = { fromId, toId, print: messagesPrint(rows, fromId, toId), stamp, foldId: activeFold?.id };
+  const hist = opts.clientHistory
     ? (() => {
         // C5: this turn's own pictures (an Open Responses input_image) still reach a model that can see.
-        const own = buildHistory(store.messages(conv.id).filter((m) => m.id >= userMsg.id), stepBudget, app.uploads && canSee ? (id) => app.uploads!.load(id) : undefined, undefined, refsText).messages;
+        const own = buildHistory(rows.filter((m) => m.id >= userMsg.id), stepBudget, app.uploads && canSee ? (id) => app.uploads!.load(id) : undefined, undefined, refsText).messages;
         let room = stepBudget - own.reduce((n, m) => n + m.content.length, 0);
         const earlier: ChatMessage[] = [];
         for (const m of [...opts.clientHistory].reverse()) {
@@ -4307,7 +4381,41 @@ function stepHistory(env: StepHistoryEnv): ReturnType<typeof buildHistory> {
         }
         return { messages: [...earlier, ...own], firstKeptId: userMsg.id, dropped: 0 };
       })()
-    : buildHistory(store.messages(conv.id), stepBudget, app.uploads && canSee ? (id) => app.uploads!.load(id) : undefined, opts.group ? { ownerName: s.ownerName?.trim() || 'the owner' } : undefined, opts.group ? undefined : refsText, activeFold, opts.replay ? undefined : { now: clock, timeZone: s.timeZone });
+    : buildHistory(rows, stepBudget, app.uploads && canSee ? (id) => app.uploads!.load(id) : undefined, opts.group ? { ownerName: s.ownerName?.trim() || 'the owner' } : undefined, opts.group ? undefined : refsText, activeFold, opts.replay ? undefined : { now: clock, timeZone: s.timeZone });
+  return { ...hist, source };
+}
+
+/** C7: what one step's history was read from (`stepHistory`). */
+interface HistorySource {
+  fromId: number;
+  toId: number;
+  /** `messagesPrint` of the rows from `fromId` through `toId`, as they were read. */
+  print: string;
+  /** `Store.changeStamp` when they were read (moved on each time it is checked). */
+  stamp: string;
+  /** The tidied part (fold) the history used. */
+  foldId: number | undefined;
+}
+
+/**
+ * C7: the rows a step's history was built from were deleted, edited or forgotten since, or its fold
+ * was undone (a forget or a delete drops it). Nothing is read when nothing in the database changed;
+ * otherwise one small count in the database, never the rows themselves.
+ */
+function historyChanged(app: AppContext, store: Store, conversationId: string, src: HistorySource): boolean {
+  const stamp = store.changeStamp();
+  if (stamp === src.stamp) return false;
+  src.stamp = stamp;
+  if (store.messagesPrintNow(conversationId, src.fromId, src.toId) !== src.print) return true;
+  if (src.foldId === undefined) return false;
+  const fold = currentFold(app, conversationId);
+  return fold?.id !== src.foldId || fold.summary === null;
+}
+
+/** C7: the fold a turn started with while it holds, else the one in force now (or none). */
+function liveFold(app: AppContext, conv: Conversation, f: NonNullable<ReturnType<typeof foldFor>>): ReturnType<typeof foldFor> {
+  const row = currentFold(app, conv.id);
+  return row && row.id === f.id && row.summary !== null ? f : foldFor(app, conv);
 }
 
 /**
@@ -4331,6 +4439,8 @@ interface ModelStepEnv {
   /** The turn's stop signal and "interrupt now", as one. */
   signal: AbortSignal;
   building: ToolStreamTracker;
+  /** C7: brings `messages` up to date (in place) before each try; cheap when nothing changed. */
+  fresh?: () => void;
 }
 /** What the call has produced so far. Filled as it streams, so a call that fails keeps what it wrote. */
 interface ModelStepOut {
@@ -4345,13 +4455,14 @@ interface ModelStepOut {
 
 /** One model call of a step: streams it, passes her words and tool-call previews on, fills `step`. */
 async function* streamModelStep(env: ModelStepEnv, step: ModelStepOut): AsyncGenerator<ChatEvent> {
-  const { app, p, m, messages, keptThinking, offered, outMax, callThink, callCtx, lastInChain, auto, signal, building } = env;
+  const { app, p, m, messages, keptThinking, offered, outMax, callThink, callCtx, lastInChain, auto, signal, building, fresh } = env;
   // 3.4.5: a model on the processor (or just slow) gets a plain notice while she waits.
   const onCpu = isOllamaDaemon(p.config) && !isCloudModelName(m) && (app.modelContext ? app.modelContext.hardware(p.config, m) : daemonHardware(p.config.baseUrl, m)).kind === 'cpu';
   const slowMs = step.slowSaid ? 0 : onCpu ? slowNoticeTiming.cpuMs : slowNoticeTiming.anyMs;
   // X1: a busy server gets two more tries only when no other model is waiting to take over (Phase 38
   // hands over at once when one is).
-  const stream = streamWithin((sig) => retryingStream(() => p.stream({ model: m, messages: withKeptThinking(messages, keptThinking), tools: offered, signal: sig, ...(outMax ? { maxTokens: outMax } : {}), ...(callThink ? { reasoning: callThink } : {}), ...(callCtx ? { numCtx: callCtx } : {}) }), sig, { ...(lastInChain ? {} : { tries: 0 }), onRetry: (err, n, ms) => console.warn(`retry ${n} for ${p.config.label} (${m}) in ${ms} ms: ${String((err as Error)?.message ?? err).slice(0, 160)}`) }), signal, auto && !lastInChain ? Math.min(autoTiming.firstMs, fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) })) : fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) }), onCpu ? streamIdleTiming.cpuMs : streamIdleTiming.anyMs);
+  // C7: a busy server's retry comes after a wait, so `fresh` runs before each try.
+  const stream = streamWithin((sig) => retryingStream(() => (fresh?.(), p.stream({ model: m, messages: withKeptThinking(messages, keptThinking), tools: offered, signal: sig, ...(outMax ? { maxTokens: outMax } : {}), ...(callThink ? { reasoning: callThink } : {}), ...(callCtx ? { numCtx: callCtx } : {}) })), sig, { ...(lastInChain ? {} : { tries: 0 }), onRetry: (err, n, ms) => console.warn(`retry ${n} for ${p.config.label} (${m}) in ${ms} ms: ${String((err as Error)?.message ?? err).slice(0, 160)}`) }), signal, auto && !lastInChain ? Math.min(autoTiming.firstMs, fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) })) : fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) }), onCpu ? streamIdleTiming.cpuMs : streamIdleTiming.anyMs);
   for await (const ev of slowMs ? markSlow(stream, slowMs) : stream) {
     if (ev.type === 'slow_mark') {
       step.slowSaid = true;

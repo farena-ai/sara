@@ -3,7 +3,7 @@
 // model from facts gathered in code (so nothing is invented). If the model fails, the plain facts
 // are sent instead. Delivered like her other messages: chat, push, Telegram/Discord mirrors.
 import { isPrivateLocalError, netFetch } from './net-guard.ts';
-import { guard } from './log.ts';
+import { everyJob, type EveryJob } from './tick-jobs.ts';
 import { appLanguage, languageLine, talkLanguage } from './i18n.ts';
 import type { AppContext } from './chat.ts';
 import { askNudge } from './nudges.ts';
@@ -152,7 +152,7 @@ export function plainBriefing(f: BriefingFacts): string {
 export class BriefingWorker {
   readonly #app: AppContext;
   readonly #fetch: FetchLike;
-  #timer: NodeJS.Timeout | undefined;
+  #timer: EveryJob | undefined;
   #running = false;
   #inflight: Promise<string> | undefined;
   /** V2.4: the audio recording of the last briefing, while it is being made (tests await it). */
@@ -164,12 +164,11 @@ export class BriefingWorker {
   }
 
   start(intervalMs = 60_000): void {
-    this.#timer = setInterval(() => guard('briefing', () => this.tick()), intervalMs);
-    this.#timer.unref();
+    this.#timer = everyJob('briefing', intervalMs, () => this.tick());
   }
 
   stop(): void {
-    if (this.#timer) clearInterval(this.#timer);
+    this.#timer?.stop();
   }
 
   /** Sends today's briefing if it's time. Returns the text when one was sent. */

@@ -317,12 +317,30 @@ export function spendLimitHit(app: AppContext): boolean {
   return Boolean((sp.dayUsd && spent.day >= sp.dayUsd) || (sp.monthUsd && spent.month >= sp.monthUsd));
 }
 
+/**
+ * Model tests (src/model-tests.ts): when the connected models have scores for this job, the best
+ * tested ones that may be used here go first (best, then backups) and the rest of Auto's picks
+ * after them. No scores: Auto's picks as they are.
+ */
+function preferTested(app: AppContext, job: AutoJob, cands: AutoCand[], opts: AutoOpts, picks: AutoPick[]): AutoPick[] {
+  const tested: AutoPick[] = [];
+  for (const t of app.modelTests?.bestFor(job) ?? []) {
+    const c = cands.find((x) => x.providerId === t.providerId && x.model === t.model);
+    const r = c && scoreCandidate(c, job, opts);
+    if (!c || !r) continue;
+    const how = tested.length ? 'next best' : 'best';
+    tested.push({ providerId: c.providerId, provider: c.provider, model: c.model, score: r.score, why: `Auto for ${JOB_WORD[job]}: ${how} in your model tests (${t.passed} of ${t.total}).` });
+  }
+  if (!tested.length) return picks;
+  return [...tested, ...picks.filter((p) => !tested.some((x) => x.providerId === p.providerId && x.model === p.model))].slice(0, AUTO_CHAIN);
+}
+
 /** Auto's chain for a job here and now (empty when nothing connected fits). */
 export function autoChain(app: AppContext, job: AutoJob, o: { private?: boolean } = {}): AutoPick[] {
   const localOnly = Boolean(o.private) || privateLocalOn();
   const cands = autoCandidates(app);
   const opts = { localOnly, spendHit: spendLimitHit(app) };
-  const picks = autoChoose(cands, job, opts);
+  const picks = preferTested(app, job, cands, opts, autoChoose(cands, job, opts));
   // V1.5 (src/cost-autopilot.ts): a job moved down to a cheaper model that passed its trial gets
   // that model first and Auto's own pick as its backup, when it may be used here (private chats
   // and the spend limit filter it like any other model).

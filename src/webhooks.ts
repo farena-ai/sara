@@ -26,6 +26,7 @@ import { localDate } from './memory-worker.ts';
 import { checkPublicTarget, isPrivateLocalError, netFetch, privateLocalOn } from './net-guard.ts';
 import { minorSexualMatch } from './safety.ts';
 import type { Vault } from './vault.ts';
+import { everyJob, type EveryJob } from './tick-jobs.ts';
 import {
   bodyType,
   cleanFilters,
@@ -502,7 +503,7 @@ export class HookManager {
   readonly #queue = new Map<string, Incoming[]>();
   /** Background actions still going (tests wait for them). */
   readonly pending = new Set<Promise<unknown>>();
-  #pruneTimer?: ReturnType<typeof setInterval>;
+  #pruneTimer?: EveryJob;
 
   constructor(opts: ManagerOptions) {
     this.opts = opts;
@@ -517,12 +518,11 @@ export class HookManager {
     this.#apps.set(companionId, app);
     if (!this.#pruneTimer) {
       this.store.prune(this.opts.keepDays?.() ?? KEEP_DAYS);
-      this.#pruneTimer = setInterval(() => this.store.prune(this.opts.keepDays?.() ?? KEEP_DAYS), 3600_000);
-      this.#pruneTimer.unref?.();
+      this.#pruneTimer = everyJob('webhooks prune', 3600_000, () => this.store.prune(this.opts.keepDays?.() ?? KEEP_DAYS));
     }
   }
   stop(): void {
-    if (this.#pruneTimer) clearInterval(this.#pruneTimer);
+    this.#pruneTimer?.stop();
     this.#pruneTimer = undefined;
   }
   /** The companion a hook works for (the main one when its companion is gone). */

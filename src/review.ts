@@ -4,6 +4,7 @@
 // is invented; the background model only writes them up in her voice (plain facts if it fails).
 // Also on demand ("Review my week" on the Planner page).
 import { qualityCounts, qualityReport } from './quality.ts';
+import { everyJob, type EveryJob } from './tick-jobs.ts';
 import type { AppContext } from './chat.ts';
 import { appLanguage, languageLine, talkLanguage } from './i18n.ts';
 import { complete, targetConversation } from './life.ts';
@@ -119,7 +120,7 @@ export function plainReview(f: ReviewFacts): string {
 
 export class ReviewWorker {
   readonly #app: AppContext;
-  #timer: NodeJS.Timeout | undefined;
+  #timer: EveryJob | undefined;
   #running = false;
 
   constructor(app: AppContext) {
@@ -127,12 +128,11 @@ export class ReviewWorker {
   }
 
   start(intervalMs = 60_000): void {
-    this.#timer = setInterval(() => void this.tick().catch((err: Error) => console.warn(`review: ${err.message}`)), intervalMs);
-    this.#timer.unref();
+    this.#timer = everyJob('review', intervalMs, () => this.tick());
   }
 
   stop(): void {
-    if (this.#timer) clearInterval(this.#timer);
+    this.#timer?.stop();
   }
 
   /** Sends this week's review if it's time. */

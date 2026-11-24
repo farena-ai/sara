@@ -4,6 +4,7 @@
 import { freemem, loadavg } from 'node:os';
 import { statfsSync } from 'node:fs';
 import type { DatabaseSync } from 'node:sqlite';
+import { everyJob, type EveryJob } from './tick-jobs.ts';
 
 export const SAMPLE_MS = 5 * 60_000;
 const KEEP_DAYS = 31;
@@ -26,7 +27,7 @@ export class HealthHistory {
   readonly #now: () => Date;
   readonly #problems: () => number;
   readonly #dataDir: string;
-  #timer: NodeJS.Timeout | undefined;
+  #timer: EveryJob | undefined;
   #turns = 0;
   #failed = 0;
   #replyMsSum = 0;
@@ -64,12 +65,11 @@ export class HealthHistory {
   start(): void {
     this.#lastProblems = this.#problems();
     this.sample();
-    this.#timer = setInterval(() => this.sample(), SAMPLE_MS);
-    this.#timer.unref();
+    this.#timer = everyJob('health history', SAMPLE_MS, () => this.sample());
   }
 
   stop(): void {
-    if (this.#timer) clearInterval(this.#timer);
+    this.#timer?.stop();
   }
 
   /** Writes one sample (what happened since the last one) and drops old ones. */

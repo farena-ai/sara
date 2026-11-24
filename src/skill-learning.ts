@@ -37,7 +37,7 @@ import { resolveChain, type AppContext } from './chat.ts';
 import { cosine, embedTarget, embedTexts } from './embeddings.ts';
 import { ALPHA, CORRECTION, evalSchedule, feedbackOf, signTest, similarity, tasksFromRuns, TIE_EPSILON, WEIGHTS, type EvalKind, type EvalResult, type VariantSpec } from './evals.ts';
 import { complete, proactiveSettings } from './life.ts';
-import { localDate } from './memory-worker.ts';
+import { isForgotten, localDate } from './memory-worker.ts';
 import { zonedParts } from './planner.ts';
 import { sharedWithApps } from './recall.ts';
 import type { RunView, StepView, ToolStep } from './runs.ts';
@@ -46,6 +46,7 @@ import type { SkillView } from './skill-store.ts';
 import { MAX_DESCRIPTION, serializeSkill, SKILL_NAME_RE, slugify, uniqueName } from './skills.ts';
 import type { Conversation } from './store.ts';
 import { normalizeCommand, sigOf, stepFailed } from './triggers.ts';
+import { everyJob, type EveryJob } from './tick-jobs.ts';
 
 // ------------------------------------------------------------------------------------------------
 // Settings (per companion: `skillLearning`; Settings → Skills & tools → Skills → Skills she learns)
@@ -701,7 +702,7 @@ export class SkillLearner {
   readonly #app: AppContext;
   /** Background work (drafts, checks); tests wait on it. */
   work: Promise<unknown> = Promise.resolve();
-  #timer: NodeJS.Timeout | undefined;
+  #timer: EveryJob | undefined;
   #drafts = new Map<number, Promise<Draft | null>>();
 
   constructor(app: AppContext, db: DatabaseSync = app.store.db) {
@@ -744,7 +745,9 @@ export class SkillLearner {
       if (Date.parse(e.at) < cutoff) return false;
       const conv = store.getConversation(e.conversationId);
       if (!learnable(conv)) return false;
-      return Boolean(store.messageById(e.messageId));
+      // C7: a forgotten ask counts as gone.
+      const m = store.messageById(e.messageId);
+      return Boolean(m && !isForgotten(m));
     });
     if (ok.length !== c.examples.length) {
       this.store.patch(c.id, { examples: ok, days: new Set(ok.map((e) => e.day)).size });
@@ -971,6 +974,10 @@ export class SkillLearner {
         } catch (err) {
           console.warn(`skill draft: ${(err as Error).message}`);
         }
+        // C7: an ask it was written from was deleted, edited or forgotten during the call: the
+        // model's draft is dropped and the plain one is made again from what is there now.
+        const now = this.store.candidate(id);
+        if (!now || this.material(now).asks.join('\n') !== m.asks.join('\n')) draft = now ? this.plainDraft(now) : plain;
       }
       this.store.patch(id, { draft });
       this.#app.events?.publish({ type: 'skills' });
@@ -1340,11 +1347,10 @@ export class SkillLearner {
   }
 
   start(intervalMs = 15 * 60_000): void {
-    this.#timer = setInterval(() => this.tick(), intervalMs);
-    this.#timer.unref?.();
+    this.#timer = everyJob('skill learning', intervalMs, () => this.tick());
   }
   stop(): void {
-    clearInterval(this.#timer);
+    this.#timer?.stop();
   }
 }
 

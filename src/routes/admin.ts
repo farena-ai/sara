@@ -119,6 +119,8 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
           fallbackAfterSec: s.fallbackAfterSec ?? 60,
           defaultFallbacks: s.defaultFallbacks ?? [],
           autoJobs: s.autoJobs ?? [],
+          // Model tests: test new models on your own hardware when they appear (off by default).
+          modelTests: { autoNew: s.modelTests?.autoNew === true },
           companionModel: s.companionModel ?? null,
           // Phase 56: retired models in use switch to their replacement (default on).
           modelAutoSwitch: s.modelAutoSwitch !== false,
@@ -232,6 +234,11 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
           if (!Array.isArray(body.autoJobs)) throw new HttpError(400, 'autoJobs must be a list');
           patch.autoJobs = AUTO_JOBS.filter((j) => (body.autoJobs as unknown[]).includes(j));
         }
+        if (body.modelTests !== undefined) {
+          const autoNew = (body.modelTests as { autoNew?: unknown } | null)?.autoNew;
+          if (typeof autoNew !== 'boolean') throw new HttpError(400, 'modelTests.autoNew must be true or false.');
+          patch.modelTests = { ...app.settings.get().modelTests, autoNew };
+        }
         if (body.fallbackAfterSec !== undefined) {
           const n = Math.round(Number(body.fallbackAfterSec));
           if (!Number.isFinite(n) || n < 10 || n > 300) throw new HttpError(400, 'Switch after: between 10 and 300 seconds.');
@@ -287,7 +294,10 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
           };
         }
         const langBefore = appLanguage(app.settings.get());
+        const autoNewBefore = app.settings.get().modelTests?.autoNew === true;
         app.settings.update(patch);
+        // Model tests: turning "test new models" on looks at the models on your own hardware now.
+        if (!autoNewBefore && patch.modelTests?.autoNew === true) for (const p of app.settings.get().providers) void app.modelTests?.afterListRefresh(p.id).catch(() => undefined);
         // Phase 107: the owner's command menus follow his app language.
         if (appLanguage(app.settings.get()) !== langBefore) for (const b of [app.bridges?.telegram, app.bridges?.discord]) void b?.registerMenus().catch(() => undefined);
         return send(res, 200, { ok: true });

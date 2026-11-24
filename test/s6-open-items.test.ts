@@ -83,8 +83,9 @@ test('S6 cases: a second other-language set, and conversations in the crisis eva
 
 test('S6 turn function: the history of a step is its own function', () => {
   const src = readFileSync(join(ROOT, 'src', 'chat.ts'), 'utf8');
-  assert.match(src, /\nfunction stepHistory\(env: StepHistoryEnv\): ReturnType<typeof buildHistory> \{/);
-  assert.match(src, /const hist = stepHistory\(\{ app, store, conv, opts, userMsg, stepBudget, canSee: sees\(provider, model\), s, refsText, activeFold, clock: turnClock \}\);/);
+  // C7: it also says what it was read from (`source`), and the turn may build it again before a call.
+  assert.match(src, /\nfunction stepHistory\(env: StepHistoryEnv\): ReturnType<typeof buildHistory> & \{ source: HistorySource \} \{/);
+  assert.match(src, /let hist = stepHistory\(\{ app, store, conv, opts, userMsg, stepBudget, canSee: sees\(provider, model\), s, refsText, activeFold, clock: turnClock \}\);/);
   const inner = src.slice(src.indexOf('async function* runTurnInner('), src.indexOf('\nfunction stepHistory('));
   assert.ok(!/const hist = opts\.clientHistory/.test(inner), 'and no longer written out inside the turn');
 });

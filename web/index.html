@@ -836,6 +836,18 @@
       <div id="cmpx-results" class="cmp-results"></div>
     </div>
   </dialog>
+  <dialog id="model-tests-dialog" aria-label="Test my models">
+    <div class="settings-body mtest-dialog">
+      <h2>Test my models</h2>
+      <p class="muted small">Each model gets the same small tasks for each job, checked by code, not by another model. You see how many it passed. Nothing runs until you press Start.</p>
+      <div id="mtest-setup"></div>
+      <div id="mtest-plan" class="mtest-plan" aria-live="polite"></div>
+      <div id="mtest-go" class="add-row"><button id="mtest-start" type="button">Start</button></div>
+      <p id="mtest-status" class="muted small" role="status"></p>
+      <div id="mtest-progress" class="mtest-progress" hidden></div>
+      <div id="mtest-done" class="mtest-results" hidden></div>
+    </div>
+  </dialog>
 
   <!-- Phase 37: things to do together -->
   <dialog id="help-menu" aria-label="Help">
@@ -3712,8 +3724,11 @@
       <p id="jobs-default-line" class="jobs-default-line" data-raw></p>
       <div class="jobs-top">
         <button id="jobs-recommend" type="button" class="ghost">✨ Use recommended</button>
+        <button id="mtest-open" type="button" class="ghost" data-mtest hidden>Test my models…</button>
         <span id="jobs-status" class="muted small" role="status"></span>
       </div>
+      <!-- T49: model tests (web/model-tests.js): the live line while a run goes on. -->
+      <p id="mtest-live" class="mtest-live small" role="status" data-mtest hidden></p>
       <div id="jobs-companion" class="job-row"></div>
       <div id="jobs-list"></div>
       <details class="jobs-more">
@@ -3727,6 +3742,9 @@
         <div id="jobs-default-backups"></div>
         <label class="inline">Switch after <select id="jobs-after"><option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option></select> <button type="button" class="tip" data-tip="How long to wait for a model's first word before the next one takes over. Big models on your own computer can take a while to load the first time.">?</button></label>
       </details>
+      <!-- T49: the model test results stay here; an older server without them hides this. -->
+      <div id="mtest-results" class="mtest-results" data-mtest hidden></div>
+      <label class="row" data-mtest hidden><input id="mtest-auto-new" type="checkbox"> Test new models when they appear</label>
       <p class="muted small">Pictures she makes: <a href="#" data-goto="her-pictures">Pictures from her</a>. Hearing you and her voice: <a href="#" data-goto="her-voice">Voice</a>.</p>
       <!-- V1.5: Cost autopilot, a quality bar per job (web/cost-autopilot.js). -->
       <h3 id="cap-box">Cost autopilot <button type="button" class="tip" data-tip="Good enough: for a job on Auto, she tries a cheaper model (one on this computer first) on your past tasks and switches only when it does as well. Best: no switching.">?</button></h3>
@@ -3992,7 +4010,7 @@
       </div>
       <label class="row"><input id="rv-life" type="checkbox" data-nodirty data-noauto> Also send a life review: people, health log, money and moments</label>
       <p class="small"><button id="rv-life-now" type="button" class="ghost">Life review now</button> <span id="rv-life-status" class="muted small" role="status"></span></p>
-      <h3>Her weekly check-in <button type="button" class="tip" data-tip="Once a week she tells you how she did for you: what she did, what failed, what cost money, and three ideas you can accept with one tap.">?</button></h3>
+      <h3>Her weekly check-in <button type="button" class="tip" data-tip="Once a week she tells you how she did for you: what she did, what failed and why, slow replies and backup models, what cost money, and three ideas you can accept with one tap.">?</button></h3>
       <p class="muted small">What she did, what failed or she couldn't do, what cost money, and three ideas you can accept with one tap (each can be undone). Ask any time in chat: "How am I doing?"</p>
       <label class="row"><input id="hw-on" type="checkbox" checked data-nodirty data-noauto> Send me her weekly check-in</label>
       <div class="row-grid">

@@ -562,6 +562,16 @@
     "Changed your mind? Press Undo."
    ],
    "show": "#cap-box"
+  },
+  {
+   "id": "tests",
+   "q": "How do I find the best model for each job?",
+   "steps": [
+    "Press Test my models… and pick what to test.",
+    "Read the plan: how many calls, which are paid, about how long. Press Start.",
+    "When it ends, press Use the best for every job. Undo puts the old models back."
+   ],
+   "show": "#mtest-open"
   }
  ],
  "models-providers": [

@@ -62,6 +62,11 @@ at release.
 `src/safety.ts` has no off switch, and none may be added: disclosure timing, crisis handling and the
 minor-content block. Tests in `test/core.test.ts` and `test/server.test.ts` cover each one.
 
+Crisis handling, since B4 (owner decision 2026-11-24, docs/DECISIONS.md): the app's notice with
+the resources shows on the first flagged message of each conversation (every one for a child
+account); detection, the care instruction to the model and the `crisis_referral` count run on every
+flagged message (repeats marked `notice_already_shown`). Details: docs/CRISIS_EVALS.md.
+
 ## Phase 4 additions (2026-10-24)
 
 - **Proactive messages** (Sara texts first): the same disclosure schedule applies; if 3 hours have

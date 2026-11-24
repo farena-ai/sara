@@ -5,6 +5,21 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.45.0 (2026-11-24): Test my models: a score for every model on every job
+
+- New: Test my models (Settings → Models & usage → Which model does what). Every connected model gets the same small tasks for each job, 10 to 12 a job, checked by code on your own computer: the right tool called with the right details, code that is run and must give the right results, a schedule that keeps its rules, an answer taken from a text and not made up, staying with someone who is sad. You see a score for each model on each job ("11 of 12"), the best one for a job is one tap away and the next two become its backups. Test all your models, one provider, or two or three side by side for one job. Before a run the page says how many calls it will make; models you pay for by use are left out unless you tick them; a model that could not answer is shown as "could not be tested", not as a zero. A run can be stopped and goes on from where it was.
+- New: "Test new models when they appear" on the same page, off by default. When it is on, a new model on your own computer is tested by itself, at no cost. Models that are not tested yet are listed with a Test them button.
+- Better: after the crisis lines have been shown once in a conversation, she does not list them again in her own replies either. She stays and listens, and gives them again at once if you ask, or if something new shows danger right now.
+- New: her weekly check-in has "How I did this week": replies that failed and why, the tools that failed most, how often a backup model took over and for which model, replies slower than a minute and on which model, corrections the receipt check added, memory notes that could not be written, and the checks for the version you run. Counts only, from your own server; a quiet week says so in one sentence.
+- Better: the crisis help notice shows once per conversation, on the first message that needs it, and not again in that conversation (a new conversation or /new starts fresh). She still offers help in her replies every time, every such message is still counted, and a child's account still gets the notice every time.
+- New: Auto picks the best model from your model tests for a job when there are scores, and says so; with no scores it picks as before.
+- Better: Meaning search turns itself on only with an embedding model that answers a short sentence within 4 seconds on this computer (bge-m3 first, else the next one, such as nomic-embed-text), and Settings says plainly when the model in use is too slow and a smaller one is needed.
+- Better: "Typed, like a person" (Settings → Appearance) waits a little longer before a long reply and pauses after a paragraph or two; on Telegram and Discord a long reply comes as two or three messages and the wait is a few seconds at most. Never in coding chats, calls or spoken replies, and errors and safety replies always show at once.
+- Fixed: chat titles, side questions (/btw) and second opinions no longer send messages you had her forget to a model.
+- Fixed: a title or summary that was being written while you deleted or edited a message it read is no longer saved. The same holds for memory summaries, skill drafts and second opinions, and for a message you had her forget; it is made again from what is there now.
+- Fixed: a message deleted, edited or forgotten while she is still working on a reply no longer reaches the model in that reply's later steps, retries or fallbacks; a memory note removed meanwhile leaves her instructions too.
+- Fixed: memory notes for a conversation that has a model of its own. When that model answers with nothing, the models for the Background job, for adult replies and for Private are asked next; before, such a conversation had no other model to ask and its notes stopped.
+
 ## 3.44.0 (2026-11-24): Research runs side by side, reports in more scripts, sent mail checked
 
 - Fixed: her "Time to leave" message in the hour the clocks go back now says which of the two times it means, such as "1:30 AM (1st)" or "1:30 AM (2nd)", like the Today page.

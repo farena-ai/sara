@@ -474,6 +474,8 @@ export interface Injection {
   picks: PickNote[];
   /** Phase 76: the decay policy used (M3 records it per step). */
   policyId: string;
+  /** C7: the lines of `text`, the first `ids.length` of them one per note in `ids` (others' lines after). */
+  lines?: string[];
 }
 
 /**
@@ -565,5 +567,23 @@ export function selectMemories(
     lines.push(line);
     chars += line.length + 1;
   }
-  return { text: lines.join('\n'), ids, chars, picks, policyId: 'id' in policy ? (policy as PolicyWithId).id : policyId(policy) };
+  return { text: lines.join('\n'), ids, chars, picks, policyId: 'id' in policy ? (policy as PolicyWithId).id : policyId(policy), lines };
+}
+
+/**
+ * C7: the same notes without the ones removed since they were picked (forgotten or deleted while a
+ * turn was running). Needs `lines`; without them the injection is returned as it is.
+ */
+export function withoutNotes(inj: Injection, gone: ReadonlySet<number>): Injection {
+  if (!inj.lines) return inj;
+  const keep = inj.ids.map((id) => !gone.has(id));
+  const lines = inj.lines.filter((_, i) => i >= inj.ids.length || keep[i]);
+  return {
+    ...inj,
+    ids: inj.ids.filter((_, i) => keep[i]),
+    picks: inj.picks.filter((_, i) => keep[i]),
+    lines,
+    text: lines.join('\n'),
+    chars: lines.reduce((n, l) => n + l.length + 1, 0),
+  };
 }

@@ -375,6 +375,15 @@ export const CRISIS_SYSTEM_NOTE =
   ' Never encourage, describe methods of, or validate self-harm or suicide.';
 
 /**
+ * B4 (owner, 2026-11-24: "once only not multiple times in a session"): added after the note above
+ * on a later flagged message of a conversation that already has the app's notice with the lines.
+ * She stays and listens; the lines come back only when asked for, or when what is said is new and
+ * shows danger now.
+ */
+export const CRISIS_ALREADY_SHARED_NOTE =
+  'Those resources were already given to them earlier in this conversation and are still on their screen. Do not list them again in this reply. Stay with them, keep listening and stay on what they are telling you. Give the resources again only if they ask for them, or if they now say something new that shows they are in danger right now (a plan, a means, a time, a goodbye); then give them at once.';
+
+/**
  * Phase 28: the optional local judge also checks her replies for claims of actions no tool did
  * (backing up the patterns, in any language). It can only add a flag, never clear one. Small
  * models follow "answer with a number" far better than "quote the sentence", so the reply goes

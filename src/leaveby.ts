@@ -4,6 +4,7 @@
 // travel time + a buffer before the start. Online meetings and events without an address are
 // skipped. Travel times don't include traffic, so the buffer matters.
 import { netFetch } from './net-guard.ts';
+import { everyJob, type EveryJob } from './tick-jobs.ts';
 import type { AppContext } from './chat.ts';
 import { appLanguage } from './i18n.ts';
 import { targetConversation } from './life.ts';
@@ -84,7 +85,7 @@ export function repeatedHour(at: number, tz: string | undefined): '' | '1st' | '
 export class LeaveByWorker {
   readonly #app: AppContext;
   readonly #fetch: FetchLike;
-  #timer: NodeJS.Timeout | undefined;
+  #timer: EveryJob | undefined;
   #running = false;
   /** Address → place (or null when it couldn't be found), for the life of the process. */
   readonly #places = new Map<string, Place | null>();
@@ -97,12 +98,11 @@ export class LeaveByWorker {
   }
 
   start(intervalMs = 3 * 60_000): void {
-    this.#timer = setInterval(() => void this.tick().catch((err: Error) => console.warn(`leave-by: ${err.message}`)), intervalMs);
-    this.#timer.unref();
+    this.#timer = everyJob('leave-by', intervalMs, () => this.tick());
   }
 
   stop(): void {
-    if (this.#timer) clearInterval(this.#timer);
+    this.#timer?.stop();
   }
 
   /**

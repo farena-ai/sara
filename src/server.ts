@@ -177,6 +177,7 @@ import { badgeCount } from './shortcuts.ts';
 import { phoneMayApprove } from './phone-actions.ts';
 import type { ReportSource, UsageBudgets } from './usage-report.ts';
 import { createModelsRoutes } from './routes/models.ts';
+import { createModelTestsRoutes } from './routes/model-tests.ts';
 import { createHerRoutes } from './routes/her.ts';
 import { createVoiceRoutes } from './routes/voice.ts';
 import { createLiveUpgrade } from './routes/live.ts';
@@ -192,6 +193,7 @@ import { createPrereqRoutes } from './routes/prereqs.ts';
 import { createPackRoutes } from './routes/packs.ts';
 import { createWakeRoutes } from './routes/wake.ts';
 import { createAppUpdateRoutes } from './routes/app-updates.ts';
+import { everyJob } from './tick-jobs.ts';
 
 // Kept exported from here for main.ts and the tests.
 export { clientIp, fromPhoneApp, fromSaraApp, proxyTrust } from './http.ts';
@@ -529,7 +531,7 @@ export function createSaraServer(opts: ServerOptions): Server {
    */
   const DEMO_READS = new Set(['live', 'session', 'conversations', 'events', 'persona', 'look', 'sara', 'memories', 'memory', 'projects', 'tasks', 'notes', 'reminders', 'planner', 'scrapbook', 'today', 'tags', 'find', 'approvals', 'jobs', 'setup', 'checklist', 'review', 'briefing', 'providers', 'tools', 'settings', 'uploads', 'reports', 'boards']);
   if (opts.demo) {
-    setInterval(() => {
+    everyJob('demo sweep', 10 * 60_000, () => {
       const cutoff = Date.now() - DEMO_IDLE_MS;
       for (const c of offStore.listConversations()) if (Date.parse(c.updatedAt) < cutoff && !active.has(c.id)) (offStore.deleteConversation(c.id), demoOwner.delete(c.id));
       // Demo sign-ins last a day.
@@ -541,7 +543,7 @@ export function createSaraServer(opts: ServerOptions): Server {
         demoAccepted.delete(d.id);
       }
       prunePush();
-    }, 10 * 60_000).unref();
+    });
   }
 
   async function serveStatic(req: IncomingMessage, res: ServerResponse, asked: string): Promise<void> {
@@ -1291,6 +1293,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   const selfTestRoutes = createSelfTestRoutes(ctx);
   const telemetryRoutes = createTelemetryRoutes(ctx, telemetry);
   const modelsRoutes = createModelsRoutes(ctx);
+  const modelTestsRoutes = createModelTestsRoutes(ctx);
   const herRoutes = createHerRoutes(ctx);
   const voiceRoutes = createVoiceRoutes(ctx);
   const homeAssistantApi = createHomeAssistantApi(ctx);
@@ -1759,6 +1762,8 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await phoneRoutes.routes(req, res, method, parts)) !== NEXT) return;
     if ((await shortcutRoutes.routes(req, res, method, parts)) !== NEXT) return;
     if ((await modelsRoutes(req, res, method, parts)) !== NEXT) return;
+    // Model tests ("Test my models"): src/routes/model-tests.ts.
+    if ((await modelTestsRoutes(req, res, method, parts)) !== NEXT) return;
     // Admin: settings, backups, logs, doctor, status, health history, updates, access, desktop apps, safety stats, search, tools, MCP, checklist: src/routes/admin.ts.
     if ((await carryRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await adminRoutes(req, res, method, parts)) !== NEXT) return;

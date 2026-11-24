@@ -124,7 +124,7 @@ replies fail. In Company mode the technical checks fold away behind *Show techni
 
 - Every page has a **How do I…?** box at the top, with numbered steps and a **Show me** button. All 218
 - Every page has a **How do I…?** box at the top, with numbered steps and a **Show me** button. All 224
-- Every page has a **How do I…?** box at the top, with numbered steps and a **Show me** button. All 255
+- Every page has a **How do I…?** box at the top, with numbered steps and a **Show me** button. All 256
   answers in one list: [How do I…?](HOW_DO_I.md).
 - Every setting has a **?** with an example; or simply ask her how something works.
 - [Questions and answers](FAQ.md), the [how-to videos](VIDEOS.md), and

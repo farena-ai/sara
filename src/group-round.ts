@@ -98,11 +98,15 @@ export async function* runGroupRound(o: RoundOptions): AsyncGenerator<GroupEvent
   // 3. Crisis: the help shows at once, every companion answers with care, no banter.
   const crisis = detectCrisis(text) || label === 'CRISIS';
   if (crisis) {
+    // B4: each member's copy shows the notice once per conversation (every time for a child); the
+    // event is recorded every time. The viewer sees it when their own copy showed it.
+    let shown = false;
     all((x) => {
-      x.app.store.recordSafetyEvent('crisis_referral', x.convId);
+      if (!x.app.store.crisisFlag(x.convId, { every: Boolean(x.app.member?.child?.()) })) return;
       x.app.store.addMessage(x.convId, 'notice', `crisis:${CRISIS_RESOURCES}`);
+      if (x === viewer) shown = true;
     });
-    yield { type: 'notice', kind: 'crisis', text: CRISIS_RESOURCES };
+    if (shown) yield { type: 'notice', kind: 'crisis', text: CRISIS_RESOURCES };
   }
 
   // 4. Who answers.

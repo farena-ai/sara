@@ -534,7 +534,7 @@
       "start"
     ],
     "ap-typing": [
-      "Show her replies as they arrive, or typed out like a person texting.",
+      "Show her replies as they arrive, or typed out like a person texting: a short pause first (longer for a long reply) and a break between paragraphs. Never in coding chats, calls or spoken replies.",
       "start"
     ],
     "ap-size": [
@@ -1290,7 +1290,7 @@
       "shaping"
     ],
     "sd-typing": [
-      "How fast she answers on Telegram and Discord: right away, or at a person's typing pace.",
+      "How fast she answers on Telegram and Discord: right away, or at a person's typing pace (a few seconds at most; a long reply comes as two or three messages). Errors and coding chats always go at once.",
       "shaping"
     ],
     "sd-pro-enabled": [
@@ -1984,6 +1984,10 @@
     "td-rooms-on": [
       "Off by default. On: a Rooms tile shows what is going on in the Discord channels and Telegram groups where Keep up is on, from her own room summary. Only for you, never for household members.",
       "today"
+    ],
+    "mtest-auto-new": [
+      "Off by default. On: a model that shows up later is tested by itself, but only models on your own computer, so it costs nothing. Models you pay for are tested only when you ask.",
+      "jobs"
     ]
 
   },

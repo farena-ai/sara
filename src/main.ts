@@ -98,7 +98,7 @@ import { createGiftTools } from './gifts.ts';
 import { localDate, memorySettings, MemoryWorker } from './memory-worker.ts';
 import { HistoryImporter } from './history-import/index.ts';
 import { embedTarget, MemoryVectors } from './embeddings.ts';
-import { adoptMeaningSearch } from './meaning-auto.ts';
+import { adoptMeaningSearchTimed, meaningAdoptNote } from './meaning-auto.ts';
 import { ToolMeaning } from './tool-meaning.ts';
 import { createTeamTools, TeamManager } from './team.ts';
 import { createTeamRunTools, TeamRuns } from './team-runs.ts';
@@ -209,6 +209,7 @@ import { budgetAlerter, UsageBudgets, type ReportSource } from './usage-report.t
 import { Store } from './store.ts';
 import { Vault } from './vault.ts';
 import { guard, Log, logOptions } from './log.ts';
+import { everyJob, type EveryJob } from './tick-jobs.ts';
 import { PrivateLocalStore } from './private-local.ts';
 import { ledgerHints, PrivacyLedger, privacyLedger, setPrivacyLedger } from './privacy-ledger.ts';
 import { detectHardware, ModelPuller } from './local-models.ts';
@@ -276,6 +277,7 @@ import { HomeSso } from './home-sso.ts';
 import { ssoPeople } from './routes/sso.ts';
 import { Evals } from './evals.ts';
 import { CostAutopilot } from './cost-autopilot.ts';
+import { ModelTests } from './model-tests.ts';
 import { HostedSettings, hostedKey, hostedVault } from './hosted.ts';
 import { cookieValue, HouseholdStore, MEMBER_TOKEN_PREFIX, MemberPolicy, MemberSettings, memberDirs, memberOfToken, memberUsage, memberVault, PairRegistry, peekJson, type MemberRecord, type ModelPick } from './household.ts';
 import type { Vault as VaultT } from './vault.ts';
@@ -1511,6 +1513,10 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   if (!isMember) app.evals = new Evals(app);
   // V1.5: Cost autopilot, a quality bar per job (tries cheaper models with the eval loop).
   if (app.evals) app.costAutopilot = new CostAutopilot(app);
+  // Model tests ("Test my models"): scores per job for Auto and the page; with modelTests.autoNew on,
+  // new models on the owner's own hardware are tested after a list refresh (main companion only).
+  if (!isMember) app.modelTests = new ModelTests(app);
+  if (!isMember && main && modelCatalog) modelCatalog.onRefreshed((id) => void app.modelTests?.afterListRefresh(id).catch(() => undefined));
   // Phase 97 (ST2): skills she learns (offers after repeated asks or step chains, fixes, M9 checks).
   // Every person's own space learns from their own conversations only; the demo never learns.
   if (!isDemo) app.learning = new SkillLearner(app);
@@ -1628,7 +1634,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   app.vectors = new MemoryVectors(store.db, memory, () => embedTarget(app));
   // Z7: the same embedding model also finds tools by what a message means (src/tool-meaning.ts).
   app.toolMeaning = new ToolMeaning(() => embedTarget(app));
-  let vectorTimer: NodeJS.Timeout | undefined;
+  let vectorTimer: EveryJob | undefined;
   // Q-ADDONS: her delayed start-up work is cancelled by stop(), so a companion retired right after
   // she was added never runs it on a closed database (that stopped the whole server).
   const startupTimers: NodeJS.Timeout[] = [];
@@ -1637,8 +1643,12 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     if (isDemo || !modelCatalog || app.settings.get().meaningAuto === 'done') return;
     // A provider on this computer whose list was never read is read now (the daily check comes later).
     for (const p of app.settings.get().providers) if (p.local === true && p.kind === 'openai-compatible' && !modelCatalog.known(p.id)) await modelCatalog.list(p.id).catch(() => undefined);
-    const got = adoptMeaningSearch(app, (pid) => modelCatalog.present(pid));
+    // T48: only a model that answers a short sentence in a few seconds here.
+    const before = meaningAdoptNote(app);
+    const got = await adoptMeaningSearchTimed(app, (pid) => modelCatalog.present(pid));
     if (got) console.log(`meaning search: on, with ${got.model} on this computer (Settings → Which model does what turns it off)`);
+    const slow = meaningAdoptNote(app);
+    if (!got && slow && slow !== before) console.log(`meaning search: not turned on; too slow on this computer: ${slow.tooSlow.join(', ')}`);
   };
   const indexVectors = () => guard('embeddings', async () => {
     await adoptMeaning();
@@ -1915,7 +1925,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       }
       memoryWorker.start();
       libraryWorker?.start();
-      vectorTimer = setInterval(indexVectors, 60_000);
+      vectorTimer = everyJob('embeddings', 60_000, indexVectors);
       if (!isDemo) issueWatcher?.start();
       // Interrupted team work stays held until an explicit recovery review.
       startupTimers.push(setTimeout(indexVectors, 5_000).unref());
@@ -1944,7 +1954,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       await app.stopAllTurns?.().catch(() => {});
       memoryWorker.stop();
       libraryWorker?.stop();
-      clearInterval(vectorTimer);
+      vectorTimer?.stop();
       for (const timer of startupTimers.splice(0)) clearTimeout(timer);
       issueWatcher?.stop();
       app.story?.stop();
@@ -2125,8 +2135,7 @@ function backupTick(): Promise<void> {
   return backupTickRunning;
 }
 // Checked hourly (and 2 minutes after start); a backup is made when the last one is a day old.
-const backupTimer = setInterval(() => void backupTick(), 3600_000);
-backupTimer.unref();
+const backupTimer = everyJob('backups', 3600_000, () => backupTick());
 setTimeout(() => void backupTick(), 120_000).unref();
 
 // Phase 71: removed members' spaces are deleted when their download window is over.
@@ -2143,25 +2152,22 @@ function householdSweep(): void {
 }
 // Phase 84: "Re-check monthly" for evals. OFF by default (the owner's explicit yes in Settings);
 // when on, it runs only when nobody has talked to her for 20 minutes, within its own token budget.
-const evalTimer = setInterval(() => guard('evals', () => {
+everyJob('evals', 3600_000, () => {
   for (const c of ownerSpace.companions.all()) {
     c.app.evals?.tick();
     c.app.costAutopilot?.tick();
   }
   // W2.4: the monthly re-check of free local models (off by default; src/model-recheck.ts).
   void recheckOf(ownerSpace.companions.main.app).tick().catch((err: Error) => console.warn(`model re-check: ${err.message}`));
-}), 3600_000);
-evalTimer.unref();
+});
 
 // Phase 110 (CH4, §7.7): the nightly fold of the rooms she keeps up with (04:00 local, or the next
 // start after a missed night): archive into the Library, room memory, then delete the raw lines.
 const foldTick = () => guard('rooms', () => void ownerSpace.companions.main.app.roomKeeper?.tick().then((rs) => rs.filter((r) => r.archived || r.memories.length).forEach((r) => console.log(`Rooms: folded room ${r.roomId} (${r.archived} lines archived, ${r.memories.length} weeks of room memory, ${r.deleted} raw lines deleted).`))));
-const foldTimer = setInterval(foldTick, 15 * 60_000);
-foldTimer.unref();
+everyJob('rooms', 15 * 60_000, foldTick);
 if (!isDemo) setTimeout(foldTick, 90_000).unref();
 
-const householdTimer = setInterval(() => guard('household', householdSweep), 3600_000);
-householdTimer.unref();
+const householdTimer = everyJob('household', 3600_000, householdSweep);
 
 // Phase 115 (BR1 §4.10): the hourly sweep of pictures and files that crossed a chat app (other
 // people's picture bytes after 7 days, copies of files she sent after 30, rows after a year).
@@ -2169,7 +2175,7 @@ const mediaSweep = () => guard('media', () => {
   const r = sweepShared(ownerSpace.companions.main.app);
   if (r.photos || r.files || r.rows) console.log(`Chat apps: removed ${r.photos} picture(s) from other people, ${r.files} shared file copy(ies), ${r.rows} old row(s).`);
 });
-const mediaTimer = setInterval(() => {
+const mediaTimer = everyJob('hourly sweeps', 3600_000, () => {
   mediaSweep();
   // EC4: the audit trail's retention (hourly; cheap when nothing is old enough).
   guard('audit', () => void pruneAudit());
@@ -2182,8 +2188,7 @@ const mediaTimer = setInterval(() => {
       c.app.loops?.prune();
     }
   });
-}, 3600_000);
-mediaTimer.unref();
+});
 if (!isDemo) setTimeout(mediaSweep, 120_000).unref();
 if (!isDemo) setTimeout(() => guard('household', householdSweep), 60_000).unref();
 
@@ -2320,14 +2325,14 @@ async function shutdown(): Promise<void> {
   // Phase 87: the computers' connections close (their apps reconnect when Sara is back).
   ownerSpace.hands?.closeAll();
   for (const sp of memberSpaces.values()) sp.hands?.closeAll();
-  clearInterval(householdTimer);
-  clearInterval(mediaTimer);
+  householdTimer.stop();
+  mediaTimer.stop();
   await browsers.closeAll().catch(() => {});
   codemaps.stop();
   modelCatalog?.stop();
   healthHistory?.stop();
   hubPinger?.stop();
-  clearInterval(backupTimer);
+  backupTimer.stop();
   // A running tick's snapshot is drained by beginBackupShutdown below; its maintenance stops at shuttingDown.
   await Promise.race([backupTickRunning, new Promise((r) => setTimeout(r, 5000).unref())]);
   bridges?.telegram?.stop();

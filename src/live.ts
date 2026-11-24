@@ -897,11 +897,17 @@ export class LiveCall {
       this.#block();
       return true;
     }
-    if (this.#crisis) return false;
+    if (this.#crisis) {
+      // B4: later flagged words on the same call are still recorded; the notice is not repeated.
+      store.recordSafetyEvent('crisis_referral', this.#convId, 'notice_already_shown');
+      return false;
+    }
     this.#crisis = true;
-    store.recordSafetyEvent('crisis_referral', this.#convId);
-    store.addMessage(this.#convId, 'notice', `crisis:${CRISIS_RESOURCES}`);
-    this.#tell({ type: 'notice', kind: 'crisis', text: CRISIS_RESOURCES });
+    // B4: the notice once per conversation (every time for a child); the event every time.
+    if (store.crisisFlag(this.#convId, { every: Boolean(this.#app.member?.child?.()) })) {
+      store.addMessage(this.#convId, 'notice', `crisis:${CRISIS_RESOURCES}`);
+      this.#tell({ type: 'notice', kind: 'crisis', text: CRISIS_RESOURCES });
+    }
     // Answer again with the crisis guidance in her instructions.
     this.#send({ type: 'session.update', session: this.#engine.update(this.instructions(store.messages(this.#convId).filter((m) => m.role === 'user').at(-1)?.content ?? '')) });
     if (this.#replying) {

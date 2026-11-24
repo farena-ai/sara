@@ -16,6 +16,7 @@
 import { netFetch, outboundAllowed, privateLocalOn } from './net-guard.ts';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { writeFileAtomic } from './fs-util.ts';
+import { everyJob, type EveryJob } from './tick-jobs.ts';
 import { dirname, join } from 'node:path';
 import { isOllama } from './providers/openai-compatible.ts';
 import { instanceName } from './updates.ts';
@@ -396,7 +397,7 @@ export class ModelCatalog {
   readonly #running = new Map<string, Promise<ModelListView>>();
   readonly #pulling = new Map<string, Promise<void>>();
   #ticking = false;
-  #timer: NodeJS.Timeout | undefined;
+  #timer: EveryJob | undefined;
 
   constructor(dataDir: string, o: ModelCatalogOptions) {
     this.#file = join(dataDir, CATALOG_FILE);
@@ -514,7 +515,26 @@ export class ModelCatalog {
     if (running) return running;
     const job = this.#check(id).finally(() => this.#running.delete(id));
     this.#running.set(id, job);
+    void job.then(
+      () => {
+        for (const fn of this.#refreshed) {
+          try {
+            fn(id);
+          } catch {
+            /* a listener's problem is its own */
+          }
+        }
+      },
+      () => undefined,
+    );
     return job;
+  }
+
+  readonly #refreshed = new Set<(providerId: string) => void>();
+  /** Model tests (modelTests.autoNew): told after each provider list check. */
+  onRefreshed(fn: (providerId: string) => void): () => void {
+    this.#refreshed.add(fn);
+    return () => this.#refreshed.delete(fn);
   }
 
   /** A provider was removed: forget its list. */
@@ -802,12 +822,11 @@ export class ModelCatalog {
   start(guard: (name: string, fn: () => unknown) => void): void {
     const run = () => guard('model lists', () => this.tick());
     setTimeout(run, 180_000).unref?.();
-    this.#timer = setInterval(run, 600_000);
-    this.#timer.unref?.();
+    this.#timer = everyJob('model lists', 600_000, () => this.tick());
   }
 
   stop(): void {
-    clearInterval(this.#timer);
+    this.#timer?.stop();
   }
 
   /** The provider as used for requests: Ollama daemons pull an unpulled cloud model first. */

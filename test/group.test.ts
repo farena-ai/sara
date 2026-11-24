@@ -268,6 +268,12 @@ test('a crisis message: help at once, every companion answers supportively, no b
     assert.match(systemOf(i), /no jokes and no banter/);
   }
   for (const m of r.members) assert.equal(m.app.store.safetyEventCounts().crisis_referral >= 1, true);
+  // B4: a second one in the same room: no notice again, the care still there, the event recorded.
+  mainApp.script.push(text('Still here.'), text('With you.'), text('Right here.'), text('extra'), text('extra'));
+  const again = await round(r, 'I still want to die');
+  assert.ok(!again.some((e) => e.type === 'notice' && e.kind === 'crisis'), 'not repeated in this conversation');
+  assert.deepEqual(speakersOf(again), ['Sara', 'Mia', 'Zoë'], 'everyone answers with care again');
+  for (const m of r.members) assert.deepEqual(m.app.store.crisisEvents(m.convId).map((e) => e.detail), [null, 'notice_already_shown']);
 });
 
 test('the minors block covers the whole room: nobody is asked, nobody answers', async () => {

@@ -29,6 +29,7 @@ import type { Tool } from './tools/types.ts';
 import { str, ToolError } from './tools/types.ts';
 import { billingOf, costOf, findPrice, priceTable, usageScope } from './usage.ts';
 import { modelSeesByName, ollamaSees } from './video.ts';
+import { everyJob, type EveryJob } from './tick-jobs.ts';
 
 export type MomentsMode = 'all' | 'pinned' | 'off';
 export const MOMENTS_MODES: readonly MomentsMode[] = ['all', 'pinned', 'off'];
@@ -632,7 +633,7 @@ export class MomentsWorker {
   readonly #app: AppContext;
   readonly #book: MomentsStore;
   readonly hints: SyncHints;
-  #timer: NodeJS.Timeout | undefined;
+  #timer: EveryJob | undefined;
   #first: NodeJS.Timeout | undefined;
   #running = false;
   /** The step running now (tests await it). */
@@ -648,12 +649,11 @@ export class MomentsWorker {
   start(firstDelayMs = 30_000, everyMs = TICK_MS): void {
     this.#first = setTimeout(() => this.nudge(), firstDelayMs);
     this.#first.unref();
-    this.#timer = setInterval(() => this.nudge(), everyMs);
-    this.#timer.unref();
+    this.#timer = everyJob('moments', everyMs, () => this.nudge());
   }
 
   stop(): void {
-    if (this.#timer) clearInterval(this.#timer);
+    this.#timer?.stop();
     if (this.#first) clearTimeout(this.#first);
   }
 

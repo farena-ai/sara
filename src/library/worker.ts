@@ -4,6 +4,7 @@
 // write the key facts into her memory, each with the exact words it came from (a fact whose words
 // aren't in the document is dropped, like any other note); and make meaning-search vectors.
 import { guard } from '../log.ts';
+import { everyJob, type EveryJob } from '../tick-jobs.ts';
 import type { AppContext } from '../chat.ts';
 import { resolveFor } from '../chat.ts';
 import { embedTarget } from '../embeddings.ts';
@@ -272,7 +273,7 @@ export async function learnOne(
 export class LibraryWorker {
   readonly #app: AppContext;
   readonly #lib: () => LibraryStore | undefined;
-  #timer: NodeJS.Timeout | undefined;
+  #timer: EveryJob | undefined;
   #busy = false;
   #ctl = new AbortController();
 
@@ -282,12 +283,12 @@ export class LibraryWorker {
   }
 
   start(): void {
-    this.#timer = setInterval(() => guard('library', () => this.tick()), 20_000);
+    this.#timer = everyJob('library', 20_000, () => this.tick());
     setTimeout(() => guard('library', () => this.tick()), 3_000).unref();
   }
 
   stop(): void {
-    clearInterval(this.#timer);
+    this.#timer?.stop();
     this.#ctl.abort();
     this.#ctl = new AbortController();
     void closeAllPagers(this.#lib());

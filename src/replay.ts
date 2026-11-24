@@ -787,7 +787,7 @@ export async function* branchRun(app: AppContext, runId: number, opts: ReplayOpt
         // The branch's messages go with its run (the copied history too, so it can be rebuilt and
         // branched again); its safety events count like any turn's.
         runs.putMessages(rec.id, scratch.messages(r.conversation.id));
-        for (const e of scratch.db.prepare('SELECT kind FROM safety_events ORDER BY id').all() as { kind: string }[]) app.store.recordSafetyEvent(e.kind, r.conversation.id);
+        for (const e of scratch.db.prepare('SELECT kind, detail FROM safety_events ORDER BY id').all() as { kind: string; detail: string | null }[]) app.store.recordSafetyEvent(e.kind, r.conversation.id, e.detail ?? undefined);
         const lastCopied = r.stored.at(-1)?.id ?? 0;
         answer = [...scratch.messages(r.conversation.id)].reverse().find((m) => m.id > lastCopied && m.role === 'assistant' && m.content.trim() && !(m.meta?.toolCalls as unknown[] | undefined)?.length)?.content ?? '';
       }

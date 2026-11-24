@@ -191,7 +191,45 @@ function toMessage(r: Row): StoredMessage {
 
 type Stmt = ReturnType<DatabaseSync['prepare']>;
 /** S3: per database, the statements and the rows of the chats being read (Store.messages). */
-const MESSAGE_READS = new WeakMap<DatabaseSync, { changes: Stmt; version: Stmt; read: Stmt; rows: Map<string, { changes: number; version: number; rows: Row[] }> }>();
+const MESSAGE_READS = new WeakMap<DatabaseSync, { changes: Stmt; version: Stmt; read: Stmt; print: Stmt; full: number; rows: Map<string, { changes: number; version: number; rows: Row[] }> }>();
+
+function readsOf(db: DatabaseSync) {
+  let kept = MESSAGE_READS.get(db);
+  if (!kept) {
+    kept = {
+      changes: db.prepare('SELECT total_changes() AS n'),
+      version: db.prepare('PRAGMA data_version'),
+      read: db.prepare('SELECT * FROM messages WHERE conversation_id = ? ORDER BY id'),
+      print: db.prepare(`SELECT COUNT(*) AS n, TOTAL(id) AS ids, TOTAL(octet_length(content)) AS bytes, TOTAL(meta LIKE '%"forgotten":true%') AS gone FROM messages WHERE conversation_id = ? AND id >= ? AND id <= ?`),
+      full: 0,
+      rows: new Map(),
+    };
+    MESSAGE_READS.set(db, kept);
+  }
+  return kept;
+}
+
+/** C7 tests: how many times `Store.messages` really went to the database (not served from what was kept). */
+export function fullMessageReads(db: DatabaseSync): number {
+  return MESSAGE_READS.get(db)?.full ?? 0;
+}
+
+/**
+ * C7: a short print of the rows from `fromId` through `toId`: how many, their ids, the bytes of
+ * their text, how many are forgotten. A delete, an edit (delete and add again), a forget or a new
+ * text of another length changes it. `Store.messagesPrintNow` works out the same in the database.
+ */
+export function messagesPrint(rows: readonly StoredMessage[], fromId: number, toId: number): string {
+  let n = 0, ids = 0, bytes = 0, gone = 0;
+  for (const m of rows) {
+    if (m.id < fromId || m.id > toId) continue;
+    n++;
+    ids += m.id;
+    bytes += Buffer.byteLength(m.content, 'utf8');
+    if (m.meta?.forgotten === true) gone++;
+  }
+  return `${n}:${ids}:${bytes}:${gone}`;
+}
 
 /** Additive migrations only (rollback-safe): add columns that older versions ignore. */
 function migrate(db: DatabaseSync): void {
@@ -231,6 +269,11 @@ END;`);
   if (!cols('conversations').has('lean_off')) db.exec('ALTER TABLE conversations ADD COLUMN lean_off INTEGER');
   // T43 (C3): a thinking level of its own for one chat (NULL = the one in Settings).
   if (!cols('conversations').has('thinking')) db.exec('ALTER TABLE conversations ADD COLUMN thinking TEXT');
+  // B4 (docs/CRISIS_EVALS.md): when the app's crisis notice was shown in this conversation (once per
+  // conversation). Kept on this row only: never copied to a new session, an import or an export copy.
+  if (!cols('conversations').has('crisis_notice_at')) db.exec('ALTER TABLE conversations ADD COLUMN crisis_notice_at TEXT');
+  // B4: a flagged message whose notice was not repeated is still recorded, marked here.
+  if (!cols('safety_events').has('detail')) db.exec('ALTER TABLE safety_events ADD COLUMN detail TEXT');
   ensureLeanTables(db);
   db.exec(`CREATE TABLE IF NOT EXISTS compactions (
   id INTEGER PRIMARY KEY, conversation_id TEXT NOT NULL, from_id INTEGER NOT NULL, through_id INTEGER NOT NULL,
@@ -690,21 +733,43 @@ export class Store {
    * through those. That, not stale rows, is what broke the first try (test/phase89.test.ts).
    */
   messages(conversationId: string): StoredMessage[] {
-    let kept = MESSAGE_READS.get(this.db);
-    if (!kept) {
-      kept = { changes: this.db.prepare('SELECT total_changes() AS n'), version: this.db.prepare('PRAGMA data_version'), read: this.db.prepare('SELECT * FROM messages WHERE conversation_id = ? ORDER BY id'), rows: new Map() };
-      MESSAGE_READS.set(this.db, kept);
-    }
+    const kept = readsOf(this.db);
     const changes = Number((kept.changes.get() as Row).n);
     const version = Number((kept.version.get() as Row).data_version);
     const hit = kept.rows.get(conversationId);
     if (hit && hit.changes === changes && hit.version === version) return hit.rows.map(toMessage);
+    kept.full++;
     const rows = kept.read.all(conversationId) as Row[];
     kept.rows.delete(conversationId);
     kept.rows.set(conversationId, { changes, version, rows });
     // A handful of chats at most (the ones with a turn running now); the oldest goes first.
     if (kept.rows.size > 8) kept.rows.delete(kept.rows.keys().next().value!);
     return rows.map(toMessage);
+  }
+
+  /**
+   * C7: changes whenever anything in the database changes (the same signal `messages` keeps its
+   * rows by). Two tiny reads, no rows.
+   */
+  changeStamp(): string {
+    const kept = readsOf(this.db);
+    return `${Number((kept.changes.get() as Row).n)}:${Number((kept.version.get() as Row).data_version)}`;
+  }
+
+  /** C7: which of these messages are still there and not forgotten. */
+  liveMessageIds(ids: readonly number[]): Set<number> {
+    if (!ids.length) return new Set();
+    const rows = this.db.prepare(`SELECT id FROM messages WHERE id IN (${ids.map(() => '?').join(',')}) AND (meta IS NULL OR meta NOT LIKE '%"forgotten":true%')`).all(...ids) as Row[];
+    return new Set(rows.map((r) => Number(r.id)));
+  }
+
+  /**
+   * C7: the print of a conversation's rows from `fromId` through `toId` (see `messagesPrint`),
+   * worked out in the database: no rows are loaded.
+   */
+  messagesPrintNow(conversationId: string, fromId: number, toId: number): string {
+    const r = readsOf(this.db).print.get(conversationId, fromId, toId) as Row;
+    return `${Number(r.n)}:${Number(r.ids)}:${Number(r.bytes)}:${Number(r.gone)}`;
   }
 
   /** Only the trusted ordinary owner runtime calls this after its current context gates. */
@@ -759,8 +824,41 @@ ORDER BY m.id DESC LIMIT 200`).all(iso, opts.until, opts.workspace, ...(opts.con
   }
 
   /** Counts only (no message content) so the owner can meet any reporting duty without exposing chats. */
-  recordSafetyEvent(kind: string, conversationId?: string): void {
-    this.db.prepare('INSERT INTO safety_events (kind, conversation_id, created_at) VALUES (?, ?, ?)').run(kind, conversationId ?? null, this.#now().toISOString());
+  recordSafetyEvent(kind: string, conversationId?: string, detail?: string): void {
+    this.db.prepare('INSERT INTO safety_events (kind, conversation_id, created_at, detail) VALUES (?, ?, ?, ?)').run(kind, conversationId ?? null, this.#now().toISOString(), detail ?? null);
+  }
+
+  /**
+   * B4 (owner, 2026-11-24: "yes once only not multiple times in a session"): one flagged message in
+   * a conversation. Always records a `crisis_referral` event. Returns true when the app's crisis
+   * notice is to be shown: the first flagged message of this conversation, or every one with `every`
+   * (child accounts). Later ones are recorded with detail `notice_already_shown`. Fails safe: if the
+   * mark can't be read or written, or the conversation row is missing, the notice is shown.
+   */
+  crisisFlag(conversationId: string, opts: { every?: boolean } = {}): boolean {
+    let show = true;
+    try {
+      const at = this.#now().toISOString();
+      const claimed = Number(this.db.prepare('UPDATE conversations SET crisis_notice_at = ? WHERE id = ? AND crisis_notice_at IS NULL').run(at, conversationId).changes) > 0;
+      if (!claimed && !opts.every) show = !this.crisisNoticeShownAt(conversationId);
+    } catch (err) {
+      console.warn(`safety: crisis notice mark: ${(err as Error).message}`);
+      show = true;
+    }
+    this.recordSafetyEvent('crisis_referral', conversationId, show ? undefined : 'notice_already_shown');
+    return show;
+  }
+
+  /** B4: when the crisis notice was first shown in this conversation, or undefined. */
+  crisisNoticeShownAt(conversationId: string): Date | undefined {
+    const r = this.db.prepare('SELECT crisis_notice_at FROM conversations WHERE id = ?').get(conversationId) as Row | undefined;
+    return r?.crisis_notice_at ? new Date(String(r.crisis_notice_at)) : undefined;
+  }
+
+  /** B4: the crisis events of one conversation, oldest first (counts and marks only, no text). */
+  crisisEvents(conversationId: string): { at: string; detail: string | null }[] {
+    const rows = this.db.prepare("SELECT created_at, detail FROM safety_events WHERE kind = 'crisis_referral' AND conversation_id = ? ORDER BY id").all(conversationId) as Row[];
+    return rows.map((r) => ({ at: String(r.created_at), detail: r.detail == null ? null : String(r.detail) }));
   }
 
   /** Phase 69: when this kind of safety event last happened in a conversation (the camera pauses after a block). */

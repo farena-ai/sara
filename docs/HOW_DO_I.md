@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 255 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 256 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -615,6 +615,12 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Under Cost autopilot, set a job to Good enough.
 2. Press Try now, or wait: she tries once a week.
 3. Changed your mind? Press Undo.
+
+**How do I find the best model for each job?**
+
+1. Press Test my models… and pick what to test.
+2. Read the plan: how many calls, which are paid, about how long. Press Start.
+3. When it ends, press Use the best for every job. Undo puts the old models back.
 
 ### Providers and plans
 

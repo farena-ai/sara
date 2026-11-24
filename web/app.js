@@ -143,6 +143,7 @@ import { initWorkProfile } from './work-profile.js';
 import { initUsageReport } from './usage-report.js';
 import { initSpend, priceText, refreshSaverBadge, spendLines } from './spend.js';
 import { initCostAutopilot } from './cost-autopilot.js';
+import { initModelTests, modelTestsRoutes, modelTestsSettings, onModelTestsEvent } from './model-tests.js';
 import { initTrustReport } from './trust-report.js';
 import { checksCard, checksChip, initRefs, loadPreciseSettings, refChipsSent, savePreciseSettings } from './refs.js';
 import { askAside, guardLine, initBusy, refreshPending, renderPending, sayingFold, sendBusy, setBusy, setBusyDefault, steerBubble, typedBusy } from './busy.js';
@@ -228,6 +229,7 @@ import { secondOpinionButton, secondOpinionOffer } from './second-opinion.js';
 import { nudgeLine } from './nudges.js';
 import { herWeekCard, initHerWeek, loadHerWeek } from './her-week.js';
 import { enterSend, enterSendsOn, setEnterSends } from './enter-send.js';
+import { PAUSE, partBreaks, startPause, TYPING_KEY, typingOn } from './human-typing.js';
 import { Drafts, busy, extraShortcut, menuKeys, msgWhen } from './paper-cuts.js';
 /** Phase 113: web/hub.js is wired (after the first sign-in). */
 let getStartedReady = false;
@@ -1986,31 +1988,44 @@ function setReply(div, raw, { partial = false } = {}) {
 // While streaming, re-render at most once per frame.
 // Phase 27: optional human-feeling typing (Settings → Appearance). A short pause before she
 // starts, a varied pace, small pauses after commas and sentences; long replies catch up faster.
-const humanTyping = () => localStorage.getItem('sara.typing') === 'human' && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+// C6 (web/human-typing.js): the first pause grows with the reply, a long one pauses after a
+// paragraph or two, and never in a coding chat, a call or spoken replies.
+const humanTyping = () =>
+  typingOn({ choice: localStorage.getItem(TYPING_KEY), coding: $('#main')?.classList.contains('coding-chat'), voice: voiceOn(), reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches });
 function typeReply(div, raw) {
   div._raw = raw;
   if (div._typer) return;
   div._shown ??= 0;
+  div._born ??= Date.now();
   const tick = () => {
     const target = div._raw ?? '';
+    // "typing…" first, longer for a longer reply (more of it has arrived meanwhile).
+    if (!div._shown && !document.hidden && Date.now() - div._born < startPause(target.length)) {
+      div._typer = setTimeout(tick, 120);
+      return;
+    }
     if (div._shown >= target.length) {
       div._typer = null;
       for (const r of div._typed?.splice(0) ?? []) r();
       return;
     }
     const backlog = target.length - div._shown;
+    const from = div._shown;
     // Nobody is watching (tab in the background, where timers crawl): show it all.
     if (document.hidden) div._shown = target.length;
     else div._shown = Math.min(target.length, div._shown + 1 + Math.floor(Math.random() * 3) + Math.floor(backlog / 250));
+    // A long reply stops after a paragraph, as if the rest came as her next message.
+    const part = document.hidden ? undefined : partBreaks(target).find((p) => p > from && p <= div._shown);
+    if (part) div._shown = part;
     // P3FIXES: scrolled up to read? The text keeps coming without pulling the view down.
     // LAGFIX: block by block, and "at the newest line" from the scroll tracker (no layout read first).
     const box = $('#messages');
     streamFrame(box, () => setReply(div, target.slice(0, div._shown), { partial: true }), followTracker(box).at);
     const last = target[div._shown - 1];
-    const delay = backlog > 600 ? 20 : /[.!?…]/.test(last) ? 220 + Math.random() * 260 : /[,;:]/.test(last) ? 90 + Math.random() * 90 : last === '\n' ? 160 : 28 + Math.random() * 40;
+    const delay = part ? PAUSE.partMs + Math.random() * 500 : backlog > 600 ? 20 : /[.!?…]/.test(last) ? 220 + Math.random() * 260 : /[,;:]/.test(last) ? 90 + Math.random() * 90 : last === '\n' ? 160 : 28 + Math.random() * 40;
     div._typer = setTimeout(tick, delay);
   };
-  div._typer = setTimeout(tick, div._shown ? 0 : 350 + Math.random() * 500);
+  div._typer = setTimeout(tick, div._shown ? 0 : PAUSE.minMs);
 }
 /** Resolves when a typed reply has caught up (at once if it isn't typing). */
 function typedOut(div) {
@@ -5147,7 +5162,10 @@ async function renderRoutes() {
   );
   const v = info?.vectors;
   const emb = jobsUi.rows.get('embeddings');
-  if (emb && v?.model) jobHint(emb, v.error ? `${t('Not reachable')}: ${v.error}` : info?.meaningResting ? t('This model has been answering slowly, so for a few minutes she picks tools by your words alone. If it shares a graphics card with her chat model, let Ollama keep two models loaded (OLLAMA_MAX_LOADED_MODELS=2).') : `${v.indexed} ${t('of')} ${v.total} ${t('notes ready for meaning search')}`, Boolean(v.error) || Boolean(info?.meaningResting));
+  // T48: an embedding model too slow for this computer says so in one plain sentence.
+  if (emb && v?.model && info?.meaningTooSlow) jobHint(emb, t('This embedding model is too slow for this computer, so meaning search is resting: pick a smaller one, such as nomic-embed-text.'), true);
+  else if (emb && !v?.model && info?.meaningSkipped?.length) jobHint(emb, t('Not turned on by itself: {models} answered too slowly on this computer, so pick a smaller embedding model.', { models: info.meaningSkipped.join(', ') }), true);
+  else if (emb && v?.model) jobHint(emb, v.error ? `${t('Not reachable')}: ${v.error}` : info?.meaningResting ? t('This model has been answering slowly, so for a few minutes she picks tools by your words alone. If it shares a graphics card with her chat model, let Ollama keep two models loaded (OLLAMA_MAX_LOADED_MODELS=2).') : `${v.indexed} ${t('of')} ${v.total} ${t('notes ready for meaning search')}`, Boolean(v.error) || Boolean(info?.meaningResting));
   // The safety and truth check (its own setting, kept as before).
   const cls = jobRow({ id: 'classifier', testAs: 'background', label: t('Safety and truth check'), tip: t('Optional small local model (for example a small Ollama model). It double-checks messages for crisis or minors in any language, and checks that she really did what she says she did. It can only add protection, never remove it. Off: the built-in checks still run (English, Spanish, French, German, Portuguese and Italian).') }, s.safetyClassifier, { noBackups: true, noCompare: true, blank: t('Off') });
   // Phase 62: the claim judge (off by default; only the model picked here, never filled in for you).
@@ -5170,6 +5188,8 @@ async function renderRoutes() {
   );
   $('#jobs-after').value = String([30, 60, 120].includes(s.fallbackAfterSec) ? s.fallbackAfterSec : 60);
   $('#jobs-status').textContent = '';
+  // T49: the model tests tick and each row's score (web/model-tests.js).
+  modelTestsRoutes(s);
 }
 async function saveRoutes() {
   const routes = {};
@@ -5194,6 +5214,7 @@ async function saveRoutes() {
     companionModel: jobsUi.companion?.pick.value() ?? null,
     defaultFallbacks: jobsUi.defaults.map((b) => b.value()).filter(Boolean),
     fallbackAfterSec: Number($('#jobs-after').value),
+    ...modelTestsSettings(),
   };
   await api('/settings', { method: 'PUT', body });
 }
@@ -7853,6 +7874,8 @@ function startEvents() {
   });
   // S8: a team run moved on (web/team-runs.js: its chat card and the Team dialog).
   es.addEventListener('team-run', (e) => onTeamRunEvent(JSON.parse(e.data).run));
+  // T49: a model test run moved on (web/model-tests.js).
+  es.addEventListener('model-tests', (e) => onModelTestsEvent(JSON.parse(e.data)));
   // Phase 52: an app (terminal, VS Code) asks to sign in: the Devices page shows it.
   es.addEventListener('device', (e) => {
     const { pending } = JSON.parse(e.data);
@@ -11248,6 +11271,31 @@ initUsageReport({ api, el, isMember });
 initSpend({ api, el, isMember });
 // V1.5: Cost autopilot (web/cost-autopilot.js).
 initCostAutopilot({ api, el });
+// T49: Test my models (web/model-tests.js); Use fills a job row like the side-by-side test does.
+initModelTests({
+  api,
+  providers: () => state.providers.providers,
+  jobs: () => jobsUi.jobs ?? [],
+  modelPick,
+  providerSelect,
+  rows: () => jobsUi.rows,
+  currentModel: (job) => {
+    const r = jobsUi.rows.get(job);
+    if (!r || r.pick.sel.value === '__auto') return null;
+    return r.pick.value() ?? (state.defaultModel ? { providerId: state.defaultProviderId, model: state.defaultModel } : null);
+  },
+  useModel: async (job, providerId, model) => {
+    const r = jobsUi.rows.get(job);
+    if (!r) return false;
+    await r.pick.set(providerId, model);
+    r.refresh?.();
+    r.el.classList.add('picked');
+    markSettingsArea('models-routes');
+    markDirty($('#settings'));
+    return true;
+  },
+  reload: () => renderRoutes(),
+});
 // EC25: Settings → Household → Trust report (web/trust-report.js).
 initTrustReport({ api, el });
 // Phase 120: the @ menu and chips; who may use references here is decided again by the server.

@@ -64,6 +64,8 @@ export type HubEvent = (
   | { type: 'story'; what: 'lookback' | 'lane'; id?: number; error?: string }
   /** Phase 81: findings changed (a security pass ended, a fix branch moved on, a finding was dismissed). */
   | { type: 'findings'; conversationId: string | null; workspace: string | null; summary?: unknown; findingId?: number }
+  /** Model tests: a run moved on (src/model-tests.ts; the same object as GET /api/model-tests/status `run`). */
+  | { type: 'model-tests'; run: import('./model-tests.ts').RunView }
   /** Phase 84: an eval moved on (a run finished, the judge, the result). */
   | { type: 'eval'; id: number; status: string; progress?: unknown }
   /** Phase 87: Sara's hands on a computer: online/offline, a new live-view frame, Stop pressed there. */

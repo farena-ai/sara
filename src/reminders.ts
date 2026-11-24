@@ -8,7 +8,7 @@ import { familyTick } from './family.ts';
 import { giftsTick } from './gifts.ts';
 import { trimTick } from './money/trim.ts';
 import { guard } from './log.ts';
-import { tickJob } from './tick-jobs.ts';
+import { everyJob, tickJob, type EveryJob } from './tick-jobs.ts';
 import type { AppContext } from './chat.ts';
 import { formatLocal, nextOccurrence, type PlannerStore, type Reminder, zonedParts } from './planner.ts';
 import { healthTick } from './health-log.ts';
@@ -29,7 +29,7 @@ export class ReminderScheduler {
   readonly #app: AppContext;
   readonly #planner: PlannerStore;
   readonly #owns: (r: Reminder) => boolean;
-  #timer: NodeJS.Timeout | undefined;
+  #timer: EveryJob | undefined;
 
   /**
    * `owns`: Phase 31, with a planner shared by several companions, each delivers only the
@@ -43,12 +43,11 @@ export class ReminderScheduler {
 
   start(intervalMs = 15_000): void {
     guard('reminders', () => this.tick());
-    this.#timer = setInterval(() => guard('reminders', () => this.tick()), intervalMs);
-    this.#timer.unref();
+    this.#timer = everyJob('reminders', intervalMs, () => this.tick());
   }
 
   stop(): void {
-    if (this.#timer) clearInterval(this.#timer);
+    this.#timer?.stop();
   }
 
   /** Returns the number of reminders delivered. */
