@@ -90,3 +90,47 @@ Measured in a desktop browser against a local server: a repeat load made 250 req
 changed" before, and makes none now; the first load after a change fetches all 250 once. Through a
 tunnel or on a phone each of those requests was a round trip, so that is where the gain is. Not
 measured on a phone or through the owner's tunnel.
+
+## The page's weight at start (D7, T51, 2026-11-24)
+
+How: headless Chromium over CDP against a local server on a fresh data folder: a 300-message chat
+(150 questions, 150 Markdown replies with lists, some code and tables; the page draws the newest 150),
+opened by its link (`/#c=<id>`). Each number is the median of 5 runs after one warm-up, at 1440 x 900,
+at 390 x 844 (phone, 3x) and at 390 x 844 with the CPU slowed 4x. "Chat shown" is when 50+ messages
+are in a visible chat; "usable" is when the message box shows and the last long task has ended.
+
+What the start costs: the page has about 15,900 elements; 6,582 (41%) are in Settings. Settings is a
+closed `<dialog>`, so the browser does no style or layout for it; its cost at start was the pass in
+`web/naming.js` that puts her name and the app language into the page's own words, which walked the
+whole page twice (once for the language, once for her name) before the chat was drawn.
+
+| Step | Kept? | Desktop | Phone 390 px | Phone, CPU 4x |
+|---|---|---|---|---|
+| Before: chat shown / usable, cold load | | 833 / 858 ms | 785 / 785 ms | 4,721 / 5,276 ms |
+| Before: reload | | 734 / 734 ms | 759 / 759 ms | 5,081 / 5,639 ms |
+| Before: open the 300-message chat from another chat | | 112 ms | 98 ms | 796 ms |
+| `content-visibility: auto` on each chat row | **No** | open 57 ms; first scroll through 150 rows 144 → 321 ms | open 55 ms | open 437 ms, chat shown 4,228 ms; scroll up 601 → 1,306 ms, p95 frame 14.5 → 21.8 ms |
+| `content-visibility: auto` on each reply's text only | **No** | open 102 ms; scroll down 300 rows 327 → 906 ms | open 90 ms | open 657 ms; scroll down 2,123 → 6,071 ms, worst frame 34 → 63 ms |
+| Settings named on first open, not at start (`nameNow`) | **Yes** | cold 643 / 643 ms, reload 598 ms | cold 613 / 613 ms, reload 643 ms | cold 3,743 / 4,198 ms, reload 4,019 / 4,509 ms |
+
+Settings named on first open: the chat shows about 20-23% sooner (desktop 833 → 643 ms, phone at 4x
+4,721 → 3,743 ms), script time at start 246 → 173 ms (desktop) and 1,673 → 1,133 ms (4x), the longest
+task 1,622 → 1,120 ms (4x). What it moves: the first opening of Settings does that work, 423 → 453 ms
+on a desktop and 1,690 → 1,837 ms at 4x (later openings are as before). DOM size, JS heap (about 6 MB
+after GC) and the 300-message chat's open and scroll times are unchanged by it.
+
+Why `content-visibility` was dropped: it halves the time to open a long chat, but every row is then
+drawn when it scrolls into view, so the first scroll through a chat takes twice as long and frames at
+4x go over 16 ms. On whole rows it also clips what sits outside a row (her face beside each reply and
+your icon in the V4 looks are drawn outside the bubble); `overflow-clip-margin` would fix that in
+Chromium but not in Safari (the iPhone app), and Safari has no scroll anchoring, so rows growing above
+the view would make the chat jump while you scroll up. With the newest 20 rows always drawn the jump
+to the bottom was right; on reply text only, "jump to message" landed up to 160 px off centre.
+
+Not done, and why: moving Settings' markup into `<template>`s or wiring each page on first open. The
+markup is parsed either way, a closed dialog has no style or layout cost, and the only per-element
+work at start was the naming pass, now gone. The wiring is about 3,150 listeners at start, 612 of
+them on Settings elements; adding those 612 took 0.1-0.2 ms (all 3,150: 1.2-1.9 ms; measured by
+wrapping `addEventListener`, desktop). Settings' data is already fetched only when it opens
+(`loadSettingsPages`). Deferring the wiring means changing how dozens of `web/settings-*.js` modules
+and `web/app.js` start, and the tests that read those files, for well under a millisecond.

@@ -9,7 +9,8 @@ that appear later are tested honestly against the same tasks.
 Words: in the app this is "Test my models" / "model tests" and "score". Never "benchmark".
 
 Server: `src/model-tests.ts` (engine, storage, scores), `src/model-test-tasks.ts` (the tasks),
-`src/routes/model-tests.ts` (routes). Tests: `test/t49-model-tests-*.test.ts`.
+`src/routes/model-tests.ts` (routes). Tests: `test/t49-model-tests-*.test.ts`, and the follow-ups
+(why a score, Use for backups, the last run, the learned estimate) in `test/t51-*.test.ts`.
 
 ## Principles
 
@@ -34,7 +35,7 @@ Server: `src/model-tests.ts` (engine, storage, scores), `src/model-test-tasks.ts
 `JobId` = the ids of JOBS in src/modelpicks.ts (chat, coding, vision, screen, planning, writing, research, quick, background, private, adult, review, embeddings).
 
 - `POST /api/model-tests/plan` body `{ scope: Scope, jobs?: JobId[], includePaid?: boolean }`
-  → `{ models: { providerId, model, label, billing: 'local'|'subscription'|'api', included: boolean, why?: string }[], jobs: JobId[], calls: number, paidCalls: number, minutes: number }`
+  → `{ models: { providerId, model, label, billing: 'local'|'subscription'|'api', included: boolean, why?: string }[], jobs: JobId[], calls: number, paidCalls: number, minutes: number, estimate: 'measured'|'mixed'|'guess' }`
   (nothing runs; `why` says why a model is left out: paid and not ticked, not an embedding model, cannot see pictures, adult mode off, not on this computer for Private.)
 - `POST /api/model-tests/start` same body → `{ runId: string }`; 409 `{ error }` when a run is already going.
 - `GET /api/model-tests/status` → `{ run: null | { id, state: 'running'|'done'|'stopped'|'failed', done: number, total: number, current?: { providerId, model, job: JobId }, startedAt: string, endedAt?: string, error?: string } }`
@@ -49,6 +50,16 @@ Server: `src/model-tests.ts` (engine, storage, scores), `src/model-test-tasks.ts
     untested: { providerId, model, label }[] }
   ```
   `stale` = tested with an older task set. `why` is one plain sentence ("Highest score (11 of 12)"; "Tied with X; faster"; "Tied with X; runs on this computer").
+- `GET /api/model-tests/details?providerId=…&model=…&job=…` (T51) →
+  `{ providerId, model, label, job, taskSet, stale: boolean, testedAt?, passed, total, tasks: { id, title, pass: boolean, reason, params?, ms? }[] }`:
+  why a model got its score. The job's tasks (in the job's order) from the model's newest task set
+  that have a result. `title` is one plain sentence per task (an `en()` text, translated on the
+  page). `reason` is the stored reason through `plainReason` (src/model-tests.ts): the fixed ones
+  become plain sentences ("empty reply" → "It gave no answer."; a timeout → "No answer within {s}
+  seconds." with `params`; an error → "It could not be asked: {error}"); any other is the check's
+  own words, kept as they are. `ms` is the time for the whole answer. Never a task's prompt or a
+  model's reply. 400 without a model or with an unknown job; 404 when the model has no results for
+  that job (or is not for it, such as Private on a cloud model).
 - `POST /api/model-tests/apply` body `{ jobs?: JobId[] }` → `{ changed: { job: JobId, providerId, model, backups: { providerId, model }[] }[] }`
   Sets each job's model to the best tested one and its backups (the route's `fallbacks`) to the next two. Jobs with no scores are left alone. The owner can Undo (the previous routes are returned by the existing settings history if there is one; otherwise `apply` returns `previous` too).
 - A live event on the existing server-sent events channel when progress changes: type `model-tests`, payload = the `run` object of `/status`.
@@ -59,9 +70,14 @@ Server: `src/model-tests.ts` (engine, storage, scores), `src/model-test-tasks.ts
 On Which model does what: a "Test my models…" button next to "Use recommended models"; a dialog
 with the three choices (All my models / One provider / Compare two or three for one job), the plan
 (models, calls, which are paid, about how long) and Start; progress with Stop; then the results:
-per job the best model with its score and "Use", the backups, a table of every model's score per
+per job the best model with its score and "Use", the backups (each with its own "Use", T51), a table of every model's score per
 job (a tie marked), "Use the best for every job", and a line for models not tested yet with "Test
 them". Each job row on the page shows the current model's score when it has one.
+
+**Why this score** (T51): a score in the table (or "could not be tested") is a button, and the best
+model of each job has a "Why?" next to its Use. Both open a small window (`#mtest-why`) from
+`/details`: a line "qwen3:8b for Talking: passed 11 of 12, tested Nov 20.", then each task with a
+tick or a cross, its title, the reason and the time.
 
 ## As built (server, 2026-11-24)
 
@@ -84,11 +100,22 @@ route, a field name or a shape above.
   Adult mode is off.
 - **`calls`** counts every call: each (model, task) once, plus one warm-up call for each model on the
   owner's own hardware (a local model may need to load; the warm-up has a long limit and is not
-  scored). `paidCalls` is the part on `api` models. `minutes` is a rough guess: about 10 s a call on
-  the owner's hardware and 6 s elsewhere, two providers at once, at least 1 when anything runs.
+  scored). `paidCalls` is the part on `api` models. `minutes` (T51: learned): each model's calls at
+  the median time of its earlier answers (`total_ms` of every earlier result without an error, any
+  task set); a model never tested at the fixed guess of about 10 s a call on the owner's hardware and
+  6 s elsewhere; two providers at once, at least 1 when anything runs. `estimate` says which:
+  `measured` (every model had earlier results), `mixed` or `guess`. The first real run took 41
+  minutes for 742 calls where the fixed guess said 75. The page says "About N minutes." and how it
+  was worked out.
 - **`status.run.total`** counts (model, task) pairs only (no warm-ups); `done` goes up by one per
-  pair. `current.job` is the first of the run's jobs the current task belongs to. After a server
-  restart `run` is `null` until the next start.
+  pair. `current.job` is the first of the run's jobs the current task belongs to.
+- **The last run after a restart** (T51): `model_test_runs` keeps `done`, `total` and `error` (kept
+  as the run goes, so a restart in the middle still says how far it got). When nothing runs and this
+  server has not run anything since it started, `status.run` is the last run that ended in the last
+  day (`LAST_RUN_MS`), else `null`. A run the server stopped in the middle is `stopped` with `error`
+  "The server restarted during the run." A run stopped by the owner or that finished has no `error`.
+  The page shows a run it did not see live as "The last run stopped: <reason>", "The last run was
+  stopped after 14 of 96. What finished is kept." or "The last run finished 2 hours ago."
 - **Stop and carry on**: `stop` ends the run as `stopped`; every finished pair is kept. The next
   `start` (and `plan`) after a stopped or failed run skips the pairs that run finished, so the plan's
   `calls` drop and the run carries on. After a run that ended `done`, a start tests everything again.
@@ -295,4 +322,5 @@ fails), write-no-e and write-exact (letter and word counting are hard for tokeni
 meant to be), review-big-a and review-big-b (a careful reviewer may flag something real we did not
 seed), see-lines (small 5×7 text) and bg-update (3 or 4 notes allowed). Also still open from task
 set 1: that the warm-up is enough for a big local model (180 s), and how long a full run really
-takes against `minutes` now that a model is asked up to 100 tasks.
+takes against `minutes` now that a model is asked up to 100 tasks (since T51 `minutes` learns from
+earlier results, so a second run of the same models should be close).

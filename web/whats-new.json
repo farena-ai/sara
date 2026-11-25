@@ -2,6 +2,18 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.46.0",
+   "date": "2026-11-24",
+   "title": "Why a model got its score, and a quicker start",
+   "items": [
+    {
+     "id": "3-46-0-test-my-models-says-why",
+     "kind": "new",
+     "text": "Test my models says why a model got its score."
+    }
+   ]
+  },
+  {
    "version": "3.45.0",
    "date": "2026-11-24",
    "title": "Test my models: a score for every model on every job",
@@ -223,33 +235,6 @@
      "id": "3-40-0-the-newest-claude-models-work",
      "kind": "fixed",
      "text": "The newest Claude models work with an API key."
-    }
-   ]
-  },
-  {
-   "version": "3.39.0",
-   "date": "2026-11-23",
-   "title": "Quicker to open, a tidier screen, Sara's own installer look",
-   "items": [
-    {
-     "id": "3-39-0-the-windows-installer-shows-saras",
-     "kind": "new",
-     "text": "The Windows installer shows Sara's own picture and colors instead of the stock setup pictures."
-    },
-    {
-     "id": "3-39-0-opening-or-reloading-the-app",
-     "kind": "fixed",
-     "text": "Opening or reloading the app is quicker. Your browser now keeps the app's own files."
-    },
-    {
-     "id": "3-39-0-the-notice-bar-for-updates",
-     "kind": "fixed",
-     "text": "The notice bar for updates and known issues no longer covers the end of the chat."
-    },
-    {
-     "id": "3-39-0-on-a-phone-the-top",
-     "kind": "fixed",
-     "text": "On a phone, the top strip no longer takes a row just to repeat the model's name."
     }
    ]
   }

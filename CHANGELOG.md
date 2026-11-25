@@ -5,6 +5,16 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.46.0 (2026-11-24): Why a model got its score, and a quicker start
+
+- Better: the crisis check `npm run eval:crisis -- --model …` now also measures a conversation that already has the crisis lines. It checks that she does not list them again for the same feeling, and gives them at once when asked or when something new shows danger now (`--only shared` runs just these).
+- Better: the help explains Test my models in plain words. It says what a score is, what "tied" and "could not be tested" mean, why models you pay for by use are left out unless ticked, and that scores come from your own computer on that date; How do I… has "see why a model got its score".
+- Better: the time Test my models gives before a run now learns from how long your models took in earlier tests. It still says "about", and says when it is only a rough guess for models never tested.
+- Better: Test my models says how the last run ended when you open the page, even if the page was closed or the server restarted. It says why a run stopped, or when it finished, for a day.
+- Better: in the Test my models results, each backup model has its own Use button, not only the best one.
+- New: Test my models says why a model got its score. Tap a score in the table, or "Why?" next to a job's best model, to see each small task in plain words with a tick or a cross, why it failed and how long it took.
+- Better: the app shows your chat sooner when it opens. It no longer prepares all of Settings' words before the chat appears, only when you open Settings: about 20% sooner on a desktop (833 to 643 ms) and on a slow phone (4.7 to 3.7 s), measured on a local server.
+
 ## 3.45.0 (2026-11-24): Test my models: a score for every model on every job
 
 - New: Test my models (Settings → Models & usage → Which model does what). Every connected model gets the same small tasks for each job, 10 to 12 a job, checked by code on your own computer: the right tool called with the right details, code that is run and must give the right results, a schedule that keeps its rules, an answer taken from a text and not made up, staying with someone who is sad. You see a score for each model on each job ("11 of 12"), the best one for a job is one tap away and the next two become its backups. Test all your models, one provider, or two or three side by side for one job. Before a run the page says how many calls it will make; models you pay for by use are left out unless you tick them; a model that could not answer is shown as "could not be tested", not as a zero. A run can be stopped and goes on from where it was.

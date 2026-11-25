@@ -246,6 +246,30 @@ Live voice calls don't use these: they run on the voice service you choose (Grok
 Settings → Sara → Voice. Pictures of her are made by xAI Grok Imagine (Settings → Sara → Pictures
 from her).
 
+## Test my models: what a score means
+
+On the same page, **Test my models…** gives each of your models the same small tasks for each job
+(10 to 12 a job) and checks every answer with code on your own computer, not with another model.
+
+- **A score** is how many of a job's tasks a model passed, shown as "11 of 12 (92)". Tap a score in
+  the table, or **Why?** next to a job's best model, to see each task in plain words with a tick or
+  a cross, and why it failed.
+- **Tied** means two scores are within 3 points. With 10 to 12 tasks a job that means the same
+  number passed. A tie goes to the faster model for Quick replies, to the one on this computer for
+  Private, and to the cheaper one for every other job (your own hardware first, then a
+  subscription, then paid by use). The page says which way it went.
+- **Could not be tested** means the model did not answer more than half of a job's tasks: an error,
+  no answer in time, or it could not be reached. That is not a score of 0, and such a model is never
+  suggested. Test it again when it is running.
+- **Models you pay for by use** (your API key, paid per token) are left out unless you tick *Also
+  test models I pay for by use*. Before anything runs, the plan says how many calls that would be.
+  Models on your own computer cost nothing; a subscription counts toward its limits.
+- **Scores are from your computer, on that date.** The same model can do better or worse on another
+  computer, with other settings or after an update. When the tasks change, older scores are marked
+  "tested before the tests changed". Test again any time.
+- **How long it takes:** the plan says about how long a run will take. After a first run it uses
+  how long your models really took.
+
 ## A few setups that work
 
 - **All local, one good GPU (24-32 GB):** a 27-32B model for everything, `nomic-embed-text` for

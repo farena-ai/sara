@@ -3197,6 +3197,8 @@ dialog#mx-editor:not(#_) { width: min(1180px, 96vw); max-height: 94vh; overflow:
 .mtest-job-name { font-size: var(--fs-meta); }
 .mtest-job-main { display: grid; gap: var(--s-1); min-width: 0; }
 .mtest-job-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1) var(--s-2); overflow-wrap: anywhere; }
+.mtest-backups { display: grid; gap: var(--s-1); min-width: 0; }
+.mtest-backup { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1) var(--s-2); overflow-wrap: anywhere; }
 .mtest-applied { display: grid; gap: var(--s-1); justify-items: start; padding: var(--s-2) var(--s-3); border-radius: var(--r-control); background: var(--surface-2); }
 .mtest-untested { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
 .mtest-table-wrap { max-width: 100%; overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-control); }
@@ -3213,6 +3215,15 @@ dialog#mx-editor:not(#_) { width: min(1180px, 96vw); max-height: 94vh; overflow:
 .mtest-table td.mtest-top { font-weight: 600; color: var(--accent-text); }
 .mtest-table td.mtest-err { color: var(--muted); font-style: italic; }
 .job-row .mtest-row-score { grid-column: 2 / -1; font-size: var(--fs-small); color: var(--muted); }
+/* A score in the table opens "Why this score". */
+.mtest-table .mtest-cell { display: block; width: 100%; margin: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: inherit; cursor: pointer; border-radius: var(--r-control); }
+.mtest-table .mtest-cell:hover > span:first-child, .mtest-table .mtest-cell:focus-visible > span:first-child { text-decoration: underline dotted; }
+.mtest-why-list { display: grid; gap: var(--s-2); margin: var(--s-2) 0; padding: 0; list-style: none; }
+.mtest-why-item { display: grid; grid-template-columns: 1.5em minmax(0, 1fr); gap: var(--s-2); align-items: start; }
+.mtest-why-mark { font-weight: 700; color: var(--success); text-align: center; }
+.mtest-why-fail .mtest-why-mark { color: var(--danger); }
+.mtest-why-text { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+#mtest-why-head.bad { color: var(--danger); }
 @media (max-width: 700px) {
   .mtest-job { grid-template-columns: minmax(0, 1fr); gap: var(--s-1); }
   .job-row .mtest-row-score { grid-column: auto; }

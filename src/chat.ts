@@ -30,7 +30,8 @@ import { createProvider } from './providers/registry.ts';
 import { missedPictureNote, modelSees, pictureReaders, primePictureProviders, readoutNote, readPictures, type PictureReader } from './picture-reader.ts';
 import { VERIFY_TOOLS, verifyAction, type VerifyDeps } from './verify-action.ts';
 import { madeDocs } from './documents/make.ts';
-import { autoChain, autoTiming, autoOn, forgetStats, isAutoJob, modelStats } from './auto-route.ts';
+import { autoChain, autoTiming, autoOn, forgetStats, modelStats } from './auto-route.ts';
+import { resolveRoute, routeIsLocal, routePlan, turnJob, type Job as RouteJob, type RouteFrom } from './route-resolve.ts';
 import { isToolsUnsupported, seesPictures, withKeptThinking, type ChatMessage, type ChatRequest, type KeptThinking, type ImageData, type Provider, type ProviderConfig, type ToolCall, type ToolSpec } from './providers/types.ts';
 import type { UploadStore } from './uploads.ts';
 import type { BriefingWorker } from './briefing.ts';
@@ -580,12 +581,8 @@ export function resolveProvider(app: AppContext, providerId: string | null, mode
   return { provider: app.usage ? metered(provider, app.usage, tag) : provider, model: chosen };
 }
 
-/** Phase 38: a job a model can be asked to do ('turn' and 'background' are the older names). */
-export type Job = RoutePurpose | 'turn';
-/** Where a job without its own model goes (in the end: the default model). */
-// Phase 81: Reviewing (the security pass's second look) falls back to the Coding model (§7 #5).
-const INHERIT: Partial<Record<RoutePurpose, RoutePurpose>> = { background: 'chat', planning: 'background', quick: 'background', writing: 'background', research: 'chat', vision: 'chat', adult: 'chat', coding: 'chat', review: 'coding', screen: 'vision' };
-// Phase 92: "Seeing your screen" (pictures of the owner's desktop) falls back to Looking at pictures, then the talking model.
+/** Phase 38: a job a model can be asked to do (T51: decided in src/route-resolve.ts). */
+export type Job = RouteJob;
 /** Asks that are web research ("look up", "research", "find out…"), for the research job. */
 // Z6 (scripts/eval-tools.ts): six languages; and "research" counts when it is asked of her ("research the
 // best…", "can you research…"), not when it is a thing someone does ("my brother does cancer research").
@@ -605,120 +602,28 @@ export interface ModelChoice {
   provider: Provider;
   model: string;
   /** The job whose model this is (for notices), or 'default'. */
-  from: RoutePurpose | 'default' | 'conversation' | 'companion' | 'auto';
+  from: RouteFrom;
   /** N1: why Auto picked this model (one line, English). */
   why?: string;
 }
 
 /**
  * Phase 38: the models to try for a job, in order: the conversation's own choice (alone); else the
- * companion's own model (talking jobs), the job's model, the job it inherits from, the default;
- * then that model's fallbacks. Private conversations only ever use local providers.
+ * companion's own model (talking jobs), Auto, the job's model, the job it inherits from, the default;
+ * then that model's fallbacks. Private conversations only ever use local providers. T51: the rules
+ * are in src/route-resolve.ts (shared with modelAuthorityOf); this makes the providers.
  */
 export function resolveChain(app: AppContext, conv: Conversation, job: Job, adult = false, dry = false): ModelChoice[] {
-  const chain = pictureChain(app, conv, job, resolveChainAll(app, conv, job, adult, dry), adult);
-  if (!privateLocalOn()) return chain;
-  // Phase 67: "Nothing leaves this computer": only models on this computer (loopback, not Ollama
-  // Cloud, not a subscription program). The network guard would block the rest anyway; this keeps
-  // the turn on a model that works and says plainly why the others are paused.
-  const here = chain.filter((c) => onThisComputer(c.provider.config, c.model));
-  if (here.length) return here;
-  const priv = app.settings.get().routes?.private;
-  const privConfig = priv && app.settings.get().providers.find((p) => p.id === priv.providerId);
-  if (priv && privConfig && onThisComputer(privConfig, priv.model)) {
-    const r = resolveProvider(app, priv.providerId, priv.model, { purpose: 'private', ...(conv.id ? { conversationId: conv.id } : {}) }, dry);
-    return [{ ...r, from: 'private' }];
-  }
-  throw new Error(`${chain[0]?.provider.config.label ?? 'This model'} is paused in private local mode: it isn't on this computer. Pick a model on this computer in Settings → Models & usage → On this computer, or turn "Nothing leaves this computer" off.`);
-}
-
-/**
- * 2.52.1 fix (owner report: "I sent Sara a picture and she told me she could not see it"): a picture
- * job (vision, screen) never goes to a model that can't see. Subscription command-line agents get text
- * only, so they're skipped for the job's next model; with none left, the talking model takes the
- * picture if it can see. Only if nothing in reach can see does the blind model answer (and it says so).
- */
-function pictureChain(app: AppContext, conv: Conversation, job: Job, chain: ModelChoice[], adult: boolean): ModelChoice[] {
-  if ((job !== 'vision' && job !== 'screen') || conv.providerId) return chain;
-  // Leftover 6: a model its provider's list says takes no pictures (an API Grok text model) is skipped too.
-  const sees = (c: ModelChoice) => seesPictures(c.provider.config) && modelSees(app, c.provider.config, c.model) !== false;
-  const seeing = chain.filter(sees);
-  if (seeing.length) return seeing;
-  try {
-    const talking = resolveChainAll(app, conv, 'turn', adult).filter(sees);
-    if (talking.length) return talking;
-  } catch {
-    /* no talking model either: keep the picture chain */
-  }
-  return chain;
-}
-
-function resolveChainAll(app: AppContext, conv: Conversation, job: Job, adult: boolean, dry = false): ModelChoice[] {
-  const s = app.settings.get();
-  const routes = s.routes ?? {};
-  const has = (r?: { providerId: string }) => Boolean(r && s.providers.some((p) => p.id === r.providerId));
   // Phase 66: every model call in a group chat is metered as 'group' (per companion).
-  const tagFor = (p: string) => ({ purpose: isGroupChannel(conv.channel) ? 'group' : p, ...(conv.id ? { conversationId: conv.id } : {}) });
-  if (conv.providerId) {
-    const r = resolveProvider(app, conv.providerId, conv.model, tagFor(job === 'turn' ? (conv.mode === 'coding' ? 'coding' : 'chat') : job), dry);
-    if (conv.private && (!r.provider.config.local || isCloudModelName(r.model))) throw new Error(`This conversation is private, so it only uses models on your own hardware. ${r.provider.config.label} isn't marked local: pick a local model for this conversation, or set a Private route in Settings.`);
-    return [{ ...r, from: 'conversation' }];
-  }
-  let purpose: RoutePurpose = job === 'turn' ? (adult && has(routes.adult) ? 'adult' : conv.mode === 'coding' ? 'coding' : 'chat') : job;
-  if (purpose === 'background' && !has(routes.background) && conv.mode === 'coding' && has(routes.coding)) purpose = 'coding';
-  if (conv.private) purpose = 'private';
-  // The companion's own model stands in for the talking jobs (not coding, private or adult).
-  const companion = purpose === 'chat' || purpose === 'vision' && !has(routes.vision) || purpose === 'research' && !has(routes.research) ? s.companionModel : undefined;
-  // N1: Auto picks the job's models from what is connected (src/auto-route.ts); a private chat
-  // without its own Private model picks only among models on this computer.
-  const autoJob = purpose === 'private' ? (has(routes.private) ? undefined : conv.mode === 'coding' ? 'coding' : 'chat') : purpose;
-  if (autoJob && !(companion && has(companion)) && autoOn(s, autoJob) && isAutoJob(autoJob)) {
-    const picks = autoChain(app, autoJob, { private: conv.private });
-    const out: ModelChoice[] = [];
-    for (const p of picks) {
-      try {
-        out.push({ ...resolveProvider(app, p.providerId, p.model, tagFor(purpose), dry), from: 'auto', why: p.why });
-      } catch {
-        /* not usable now (a member's limit, a policy): the next */
-      }
-    }
-    if (out.length) return out;
-  }
-  let primary: { providerId: string; model: string; fallbacks?: { providerId: string; model: string }[] } | undefined;
-  let from: ModelChoice['from'] = 'default';
-  if (companion && has(companion)) {
-    primary = { ...companion, fallbacks: routes.chat?.fallbacks };
-    from = 'companion';
-  } else {
-    for (let p: RoutePurpose | undefined = purpose; p; p = INHERIT[p]) {
-      if (has(routes[p])) {
-        primary = routes[p];
-        from = p;
-        break;
-      }
-      if (p === 'private') break;
-    }
-  }
-  const chain: ModelChoice[] = [];
-  const first = primary ? resolveProvider(app, primary.providerId, primary.model, tagFor(purpose), dry) : resolveProvider(app, null, null, tagFor(purpose), dry);
-  if (conv.private && isCloudModelName(first.model)) throw new Error(`This conversation is private, but ${first.model} is an Ollama cloud model (it runs on Ollama's servers). Pick a model that runs on your own hardware for Private conversations in Settings → Which model does what.`);
-  if (conv.private && !first.provider.config.local) {
-    throw new Error(`This conversation is private, so it only uses models on your own hardware. ${first.provider.config.label} isn't marked local: pick a local model for this conversation, or set a Private route in Settings.`);
-  }
-  chain.push({ ...first, from });
-  const more = primary ? (primary.fallbacks ?? []) : (s.defaultFallbacks ?? []);
-  for (const f of more.slice(0, 2)) {
-    if (!has(f)) continue;
-    try {
-      const r = resolveProvider(app, f.providerId, f.model, tagFor(purpose), dry);
-      if (conv.private && (!r.provider.config.local || isCloudModelName(r.model))) continue;
-      if (chain.some((c) => c.provider.config.id === r.provider.config.id && c.model === r.model)) continue;
-      chain.push({ ...r, from });
-    } catch {
-      /* a fallback without its key is skipped */
-    }
-  }
-  return chain;
+  const tag = (purpose: string, plain?: boolean) => ({ purpose: !plain && isGroupChannel(conv.channel) ? 'group' : purpose, ...(conv.id ? { conversationId: conv.id } : {}) });
+  return resolveRoute(app.settings.get(), conv, job, adult, {
+    pick: (id, model, purpose, plain) => resolveProvider(app, id, model, tag(purpose, plain), dry),
+    // The talking chain a picture job falls back to was never made dry; kept as it was.
+    pickTalking: (id, model, purpose) => resolveProvider(app, id, model, tag(purpose)),
+    configOf: (c) => c.provider.config,
+    auto: (j, priv) => autoChain(app, j, { private: priv }),
+    seeCtx: app,
+  });
 }
 
 /**
@@ -1057,8 +962,7 @@ export const PRIVATE_PHOTO_NOTE = "[a photo was shared; the picture model isn't 
 
 /** Phase 115: the picture route runs on the owner's own hardware (what a private conversation may use). */
 export function visionOnThisComputer(app: AppContext, route: { providerId: string; model: string }): boolean {
-  const config = app.settings.get().providers.find((p) => p.id === route.providerId);
-  return Boolean(config?.local) && !isCloudModelName(route.model);
+  return routeIsLocal(app.settings.get(), route);
 }
 
 // Phase 115: send_file shares a file out of the server (a chat app), so it is off in private chats too.
@@ -2116,7 +2020,8 @@ function noteTurnError(app: AppContext, conversationId: string, rec: { on: boole
   }
 }
 
-interface ModelAuthorityInput { photos: boolean; explicit: boolean; text: string; quick: boolean }
+/** T51: what the turn knew: `explicit` is an explicit turn where adult is allowed; `research` its research yes (words or meaning). */
+interface ModelAuthorityInput { photos: boolean; explicit: boolean; research: boolean; quick: boolean }
 /** The exact budget handed to the meter, including explicit overrides and its default ladder. */
 function effectiveTurnBudget(s: ReturnType<SettingsStore['get']>, c: Conversation, opts: TurnOptions): Budget | undefined {
   const settings = turnBudgetSettings(s);
@@ -2130,10 +2035,9 @@ function quickPriceInput(table: ReturnType<typeof priceTable>, config: ProviderC
   return { billing: billingOf(config), model, providerId: config.id, pricePerM: row ? row.inPerM + row.outPerM : undefined };
 }
 /** Project routing authorization only. Never construct providers, consult catalogs or call models. */
-function modelAuthorityOf(app: AppContext, s: ReturnType<SettingsStore['get']>, c: Conversation, input: ModelAuthorityInput, opts: TurnOptions): string {
+export function modelAuthorityOf(app: AppContext, s: ReturnType<SettingsStore['get']>, c: Conversation, input: ModelAuthorityInput, opts: TurnOptions): string {
   const routes = s.routes ?? {};
   const configFor = (id: string | undefined) => s.providers.find(p => p.id === id);
-  const has = (r?: { providerId: string }) => Boolean(r && configFor(r.providerId));
   const pick = (id: string | null, model: string | null) => {
     const config = configFor(id ?? s.defaultProviderId);
     const chosen = model ?? (id ? undefined : s.defaultModel) ?? config?.defaultModel;
@@ -2145,46 +2049,24 @@ function modelAuthorityOf(app: AppContext, s: ReturnType<SettingsStore['get']>, 
   };
   type Choice = NonNullable<ReturnType<typeof pick>>;
   const adult = adultModeOn(s) && input.explicit;
-  const all = (job: Job): Choice[] => {
-    if (c.providerId) {
-      const chosen = pick(c.providerId, c.model);
-      return chosen ? [chosen] : [];
-    }
-    let purpose: RoutePurpose = job === 'turn' ? adult && has(routes.adult) ? 'adult' : c.mode === 'coding' ? 'coding' : 'chat' : job;
-    if (purpose === 'background' && !has(routes.background) && c.mode === 'coding' && has(routes.coding)) purpose = 'coding';
-    if (c.private) purpose = 'private';
-    const companion = purpose === 'chat' || purpose === 'vision' && !has(routes.vision) || purpose === 'research' && !has(routes.research) ? s.companionModel : undefined;
-    let primary: { providerId: string; model: string; fallbacks?: { providerId: string; model: string }[] } | undefined;
-    if (companion && has(companion)) primary = { ...companion, fallbacks: routes.chat?.fallbacks };
-    else for (let p: RoutePurpose | undefined = purpose; p; p = INHERIT[p]) {
-      if (has(routes[p])) { primary = routes[p]; break; }
-      if (p === 'private') break;
-    }
-    const first = primary ? pick(primary.providerId, primary.model) : pick(null, null);
-    if (!first || c.private && (!first.config.local || isCloudModelName(first.model))) return [];
-    const selected = [first];
-    for (const f of (primary ? primary.fallbacks ?? [] : s.defaultFallbacks ?? []).slice(0, 2)) {
-      const next = pick(f.providerId, f.model);
-      if (!next || c.private && (!next.config.local || isCloudModelName(next.model)) || selected.some(p => p.config.id === next.config.id && p.model === next.model)) continue;
-      selected.push(next);
-    }
-    return selected;
-  };
-  const visionSet = has(routes.vision);
-  const privateVisionOff = c.private && input.photos && visionSet && !onThisComputer(configFor(routes.vision!.providerId)!, routes.vision!.model);
-  const job: Job = adult && routes.adult ? 'turn' : input.photos && visionSet && !privateVisionOff ? 'vision' : c.mode !== 'coding' && routes.research && RESEARCH_RE.test(input.text) ? 'research' : input.quick ? 'quick' : 'turn';
-  let selected = all(job);
-  if (job === 'vision' && !c.providerId) {
-    const sees = (p: Choice) => seesPictures(p.config) && modelSees(app, p.config, p.model) !== false;
-    const seeing = selected.filter(sees);
-    const talking = seeing.length ? [] : all('turn').filter(sees);
-    if (seeing.length || talking.length) selected = seeing.length ? seeing : talking;
+  // T51: the same decision as the turn (src/route-resolve.ts); only the pick differs, Auto is
+  // recorded (`auto`) and not asked, and a turn that would be refused is an empty list.
+  const { job } = turnJob(s, c, { photos: input.photos, adult, research: input.research, quick: input.quick });
+  let selected: Choice[];
+  try {
+    selected = resolveRoute<Choice>(s, c, job, adult, {
+      pick: (id, model) => {
+        const chosen = pick(id, model);
+        if (!chosen) throw new Error('not usable');
+        return chosen;
+      },
+      configOf: (p) => p.config,
+      seeCtx: app,
+    });
+  } catch {
+    selected = [];
   }
-  if (privateLocalOn()) {
-    const here = selected.filter(p => onThisComputer(p.config, p.model));
-    const privateChoice = !here.length && routes.private && pick(routes.private.providerId, routes.private.model);
-    selected = here.length ? here : privateChoice && onThisComputer(privateChoice.config, privateChoice.model) ? [privateChoice] : [];
-  }
+  const auto = c.providerId ? undefined : routePlan(s, c, job, adult).auto;
   const budgetSet = turnBudgetSettings(s);
   const budget = effectiveTurnBudget(s, c, opts);
   const quickAllowed = budget && (budget.degrade ?? LADDER).includes('smaller-model');
@@ -2193,7 +2075,7 @@ function modelAuthorityOf(app: AppContext, s: ReturnType<SettingsStore['get']>, 
   const prices = quick ? app.usage ? app.usage.prices() : priceTable(s.prices) : undefined;
   const priceInputs = prices && quick ? [...selected, quick].map(choice => quickPriceInput(prices, choice.config, choice.model)) : undefined;
   const describe = (choice: Choice) => ({ model: choice.model, credential: choice.credential, provider: { id: choice.config.id, kind: choice.config.kind, baseUrl: choice.config.baseUrl, local: choice.config.local === true, needsKey: choice.config.needsKey === true } });
-  return JSON.stringify({ job, adult: adultModeOn(s), selected: selected.map(describe), budget: budget ? { budget, onLimit: budgetSet.onLimit, quick: quick ? describe(quick) : null, priceInputs } : null });
+  return JSON.stringify({ job, adult: adultModeOn(s), ...(auto ? { auto } : {}), selected: selected.map(describe), budget: budget ? { budget, onLimit: budgetSet.onLimit, quick: quick ? describe(quick) : null, priceInputs } : null });
 }
 
 /** R2a: what the scope of a turn needs from the turn itself (the text turn passes its own values). */
@@ -2696,6 +2578,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   const photosNow = (Array.isArray(userMsg?.meta?.images) && (userMsg.meta.images as unknown[]).length > 0) || Boolean(opts.liveFrame);
   let job: Job = 'turn';
   let explicitTurn = false;
+  let researchAsked = false;
   let privateVisionOff = false;
   // C8: Token Saver (src/spend.ts). Off (the default) changes nothing in the requests; a replay never uses it.
   const saver = opts.replay ? { on: false } : saverNow(app);
@@ -2705,21 +2588,24 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     const recentUser = store.messages(conv.id).filter((m) => m.role === 'user' && !isForgotten(m)).slice(-6);
     explicitTurn = (conv.channel.endsWith('-nsfw') || (!conv.partner && !isWorkChannel(conv.channel))) && recentUser.some((m) => detectExplicit(m.content));
     const adult = adultOn && explicitTurn;
-    // Phase 115 (BR1, §4.5): a private conversation with a picture model that isn't on this computer
-    // stays on its local chain; the talking model gets a note instead of the picture (no throw).
-    privateVisionOff = Boolean(conv.private && photosNow && visionSet && !visionOnThisComputer(app, jobRoutes.vision!));
-    const toVision = photosNow && (visionSet || autoOn(app.settings.get(), 'vision')) && !privateVisionOff;
-    const researchSet = conv.mode !== 'coding' && Boolean(jobRoutes.research || autoOn(app.settings.get(), 'research'));
-    let researchAsk = researchSet && RESEARCH_RE.test(text);
+    // T51: the job from src/route-resolve.ts (turnJob), shared with the witness (modelAuthorityOf).
+    const sJob = app.settings.get();
+    const asked = { photos: photosNow, adult, research: RESEARCH_RE.test(text), quick: Boolean(opts.quickModel) || saverQuick };
+    let picked = turnJob(sJob, conv, asked);
+    privateVisionOff = picked.privateVisionOff;
     // S1: a research ask said without the usual words ("look into which air purifiers are worth
     // buying") is found by what it means (src/tool-meaning.ts), with the embedding model of Meaning
     // search. Only ever adds a yes; none, slow or failing = the words alone. A private chat only with
     // an embedding model on this computer; a replay routes as the words did.
-    if (researchSet && !researchAsk && !(adult && jobRoutes.adult) && !toVision && !opts.replay && app.toolMeaning) {
+    if (picked.researchSet && !asked.research && !(adult && jobRoutes.adult) && !picked.toVision && !opts.replay && app.toolMeaning) {
       const et = embedTarget(app);
-      if (et && (!conv.private || (et.config.local === true && !isCloudModelName(et.model)))) researchAsk = await app.toolMeaning.research(text).catch(() => false);
+      if (et && (!conv.private || (et.config.local === true && !isCloudModelName(et.model)))) {
+        asked.research = await app.toolMeaning.research(text).catch(() => false);
+        picked = turnJob(sJob, conv, asked);
+      }
     }
-    job = adult && jobRoutes.adult ? 'turn' : toVision ? 'vision' : researchAsk ? 'research' : opts.quickModel || saverQuick ? 'quick' : 'turn';
+    researchAsked = asked.research;
+    job = picked.job;
     chain = resolveChain(app, conv, job, adult);
     // Phase 78: every provider of the chain is recorded (model, tokens, cost, latency per call).
     if (rec.on) chain = chain.map((c) => ({ ...c, provider: rec.wrap(c.provider) }));
@@ -2776,7 +2662,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   }
 
   const s = app.settings.get();
-  const authorityInput = { photos: photosNow, explicit: explicitTurn, text, quick: Boolean(opts.quickModel) || saverQuick };
+  const authorityInput = { photos: photosNow, explicit: explicitTurn && adultOn, research: researchAsked, quick: Boolean(opts.quickModel) || saverQuick };
   const initialModelAuthority = sessionContinuity ? modelAuthorityOf(app, s, conv, authorityInput, opts) : undefined;
   const modelKey = `${provider.config.id}/${model}`;
   const noTools = app.noToolModels ?? (app.noToolModels = new Set());

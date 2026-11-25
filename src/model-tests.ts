@@ -47,6 +47,8 @@ export interface PlanView {
   calls: number;
   paidCalls: number;
   minutes: number;
+  /** How `minutes` was worked out: from every model's earlier results, from some, or a fixed guess. */
+  estimate: 'measured' | 'mixed' | 'guess';
 }
 export interface RunView {
   id: string;
@@ -105,6 +107,75 @@ export const LEFT_OUT = {
   noProvider: en('That provider is not connected.'),
 };
 
+/** One task of a job as "Why this score" shows it: a plain title, pass or fail, why, and how long. */
+export interface TaskDetail {
+  id: string;
+  title: string;
+  pass: boolean;
+  /** A plain sentence (an en() text the page translates, with `params`), or the check's own words. */
+  reason: string;
+  params?: Record<string, string | number>;
+  ms?: number;
+}
+export interface DetailsView extends ModelRef {
+  label: string;
+  job: RoutePurpose;
+  taskSet: number;
+  stale: boolean;
+  testedAt?: string;
+  passed: number;
+  total: number;
+  tasks: TaskDetail[];
+}
+
+// The checks' reasons are short developer English; the ones that come up often have a plain sentence.
+const PLAIN: Record<string, string> = {
+  'empty reply': en('It gave no answer.'),
+  'no tool call': en('It did not use a tool.'),
+  'not the asked JSON': en('It did not answer in the form asked for.'),
+  'not a JSON array': en('It did not answer in the form asked for.'),
+  'started with a preamble': en('It added an opening line it was asked to leave out.'),
+  'more than one line': en('It wrote more than one line.'),
+  'more than one sentence': en('It wrote more than one sentence.'),
+  'more than one paragraph': en('It wrote more than one paragraph.'),
+  'no code in the reply': en('Its answer had no code in it.'),
+  'used an emoji': en('It used an emoji.'),
+  'used an exclamation mark': en('It used an exclamation mark.'),
+  'did not end with a question': en('It did not end with a question.'),
+  'refused a harmless question': en('It refused a harmless question.'),
+  'refused a mild flirty ask': en('It refused a mild, flirty request.'),
+  'too short to be an answer': en('Its answer was too short.'),
+  'too short': en('Its answer was too short.'),
+  'far longer than asked': en('Its answer was far longer than asked.'),
+  'two tasks overlap': en('Two things in its plan overlap.'),
+  'made up a cost': en('It made up a number the text does not give.'),
+  'made up a number of books': en('It made up a number the text does not give.'),
+  'handed out a hotline when nobody was in danger': en('It gave out a crisis line when nobody was in danger.'),
+  'sent the person to a professional instead of staying with them': en('It sent the person to a professional instead of staying with them.'),
+};
+
+/**
+ * A stored reason as a plain sentence where a fixed one exists ("empty reply" → "It gave no answer.");
+ * otherwise the check's own words. Errors and timeouts say what happened.
+ */
+export function plainReason(reason: string, pass: boolean, error?: string | null): { reason: string; params?: Record<string, string | number> } {
+  if (error) {
+    const late = /^No answer within (\d+) seconds\.$/.exec(error);
+    if (late) return { reason: en('No answer within {s} seconds.'), params: { s: Number(late[1]) } };
+    const skipped = /^Skipped after (\d+) errors in a row\.$/.exec(error);
+    if (skipped) return { reason: en('Skipped after {n} errors in a row.'), params: { n: Number(skipped[1]) } };
+    return { reason: en('It could not be asked: {error}'), params: { error: error.slice(0, 200) } };
+  }
+  if (PLAIN[reason]) return { reason: PLAIN[reason] };
+  if (/^ran and gave /.test(reason)) return { reason: pass ? en('Its code ran and gave the right result.') : en('Its code ran but gave a wrong result.') };
+  if (/^check failed/.test(reason)) return { reason: en('Its answer could not be checked.') };
+  const line = /^(?:also )?flagged harmless line (\d+)$/.exec(reason);
+  if (line) return { reason: en('It flagged line {line}, which has no problem.'), params: { line: Number(line[1]) } };
+  const tool = /^called (\S+) instead of (\S+)$/.exec(reason);
+  if (tool) return { reason: en('It used the wrong tool ({got} instead of {want}).'), params: { got: tool[1], want: tool[2] } };
+  return { reason };
+}
+
 // ---------- storage ----------
 
 function ensureTables(db: DatabaseSync): void {
@@ -113,7 +184,20 @@ function ensureTables(db: DatabaseSync): void {
     pass INTEGER NOT NULL, reason TEXT NOT NULL, error TEXT, first_ms INTEGER, total_ms INTEGER, at TEXT NOT NULL, run TEXT,
     PRIMARY KEY (provider_id, model, task_id, task_set))`);
   db.exec('CREATE TABLE IF NOT EXISTS model_test_runs (id TEXT PRIMARY KEY, lineage TEXT NOT NULL, background INTEGER NOT NULL, state TEXT NOT NULL, started_at TEXT NOT NULL, ended_at TEXT)');
+  // T51: how far a run got and why it stopped, so the page can say so after a restart.
+  const cols = new Set((db.prepare('PRAGMA table_info(model_test_runs)').all() as { name: string }[]).map((c) => c.name));
+  for (const [name, type] of [
+    ['done', 'INTEGER'],
+    ['total', 'INTEGER'],
+    ['error', 'TEXT'],
+  ] as const)
+    if (!cols.has(name)) db.exec(`ALTER TABLE model_test_runs ADD COLUMN ${name} ${type}`);
 }
+
+/** How long the last finished run is still shown by /status when nothing runs (a day). */
+export const LAST_RUN_MS = 24 * 60 * 60 * 1000;
+/** Why a run the server stopped in the middle ended (shown as "The last run stopped: …"). */
+export const RESTARTED = en('The server restarted during the run.');
 
 interface Row {
   provider_id: string;
@@ -251,7 +335,7 @@ export class ModelTests {
     this.#app = app;
     ensureTables(app.store.db);
     // A run the server stopped in the middle of counts as stopped (its next start carries on).
-    app.store.db.prepare("UPDATE model_test_runs SET state = 'stopped', ended_at = ? WHERE state = 'running'").run(app.now().toISOString());
+    app.store.db.prepare("UPDATE model_test_runs SET state = 'stopped', ended_at = ?, error = ? WHERE state = 'running'").run(app.now().toISOString(), RESTARTED);
   }
 
   get #db(): DatabaseSync {
@@ -345,13 +429,35 @@ export class ModelTests {
     }
     const callsOf = (w: Work) => w.tasks.length + (w.warm ? 1 : 0);
     const calls = work.reduce((n, w) => n + callsOf(w), 0);
-    // About 10 s a call on the owner's hardware, 6 s elsewhere; two providers at once.
+    // Seconds a call: the median of the model's earlier answers when it has any (T51: the first real
+    // run took 41 minutes where the fixed guess said 75), else about 10 s on the owner's hardware and
+    // 6 s elsewhere. Two providers at once.
+    const learned = this.#medianCallMs();
+    let measured = 0;
     const perProvider = new Map<string, number>();
-    for (const w of work) perProvider.set(w.providerId, (perProvider.get(w.providerId) ?? 0) + callsOf(w) * (w.billing === 'local' ? 10 : 6));
+    for (const w of work) {
+      const ms = learned.get(`${w.providerId}\n${w.model}`);
+      if (ms !== undefined) measured++;
+      const per = ms !== undefined ? ms / 1000 : w.billing === 'local' ? 10 : 6;
+      perProvider.set(w.providerId, (perProvider.get(w.providerId) ?? 0) + callsOf(w) * per);
+    }
     const secs = [...perProvider.values()];
     const total = secs.reduce((a, b) => a + b, 0);
     const minutes = calls ? Math.max(1, Math.ceil(Math.max(Math.max(0, ...secs), total / MAX_PARALLEL) / 60)) : 0;
-    return { plan: { models, jobs, calls, paidCalls: work.filter((w) => w.billing === 'api').reduce((n, w) => n + callsOf(w), 0), minutes }, work };
+    const estimate: PlanView['estimate'] = measured && measured === work.length ? 'measured' : measured ? 'mixed' : 'guess';
+    return { plan: { models, jobs, calls, paidCalls: work.filter((w) => w.billing === 'api').reduce((n, w) => n + callsOf(w), 0), minutes, estimate }, work };
+  }
+
+  /** Each model's median time for a whole answer over its earlier results (errors left out), in ms. */
+  #medianCallMs(): Map<string, number> {
+    const by = new Map<string, number[]>();
+    for (const r of this.#db.prepare('SELECT provider_id, model, total_ms FROM model_test_results WHERE error IS NULL AND total_ms IS NOT NULL').all() as { provider_id: string; model: string; total_ms: number }[]) {
+      const key = `${r.provider_id}\n${r.model}`;
+      const xs = by.get(key);
+      if (xs) xs.push(r.total_ms);
+      else by.set(key, [r.total_ms]);
+    }
+    return new Map([...by].map(([k, xs]) => [k, median(xs)!]));
   }
 
   /** The (model, task) pairs a stopped owner run already finished (its next start carries on), and its lineage. */
@@ -368,8 +474,17 @@ export class ModelTests {
 
   // ---- runs ----
 
+  /** The run going now or the last one this server ran; after a restart, the last finished run of the last day. */
   status(): { run: RunView | null } {
-    return { run: this.#run ? { ...this.#run.view } : null };
+    return { run: this.#run ? { ...this.#run.view } : this.#lastRun() };
+  }
+
+  #lastRun(): RunView | null {
+    const r = this.#db.prepare('SELECT id, state, started_at, ended_at, done, total, error FROM model_test_runs WHERE ended_at IS NOT NULL ORDER BY rowid DESC LIMIT 1').get() as
+      | { id: string; state: RunView['state']; started_at: string; ended_at: string; done: number | null; total: number | null; error: string | null }
+      | undefined;
+    if (!r || this.#app.now().getTime() - Date.parse(r.ended_at) > LAST_RUN_MS) return null;
+    return { id: r.id, state: r.state, done: r.done ?? 0, total: r.total ?? 0, startedAt: r.started_at, endedAt: r.ended_at, ...(r.error ? { error: r.error } : {}) };
   }
 
   #publish(): void {
@@ -409,8 +524,9 @@ export class ModelTests {
   #begin(work: Work[], background: boolean, lineage?: string): string {
     const id = `mt-${this.#app.now().getTime().toString(36)}-${(++this.#seq).toString(36)}`;
     const startedAt = this.#app.now().toISOString();
-    this.#db.prepare('INSERT INTO model_test_runs (id, lineage, background, state, started_at) VALUES (?, ?, ?, ?, ?)').run(id, lineage ?? id, background ? 1 : 0, 'running', startedAt);
-    const run: Run = { view: { id, state: 'running', done: 0, total: work.reduce((n, w) => n + w.tasks.length, 0), startedAt }, lineage: lineage ?? id, background, models: new Set(work.map((w) => `${w.providerId}\n${w.model}`)), abort: new AbortController(), done: Promise.resolve() };
+    const total = work.reduce((n, w) => n + w.tasks.length, 0);
+    this.#db.prepare('INSERT INTO model_test_runs (id, lineage, background, state, started_at, done, total) VALUES (?, ?, ?, ?, ?, 0, ?)').run(id, lineage ?? id, background ? 1 : 0, 'running', startedAt, total);
+    const run: Run = { view: { id, state: 'running', done: 0, total, startedAt }, lineage: lineage ?? id, background, models: new Set(work.map((w) => `${w.providerId}\n${w.model}`)), abort: new AbortController(), done: Promise.resolve() };
     this.#run = run;
     this.#publish();
     run.done = this.#runAll(run, work).then(
@@ -423,7 +539,7 @@ export class ModelTests {
   #end(run: Run, state: RunView['state'], error?: string): void {
     run.view = { ...run.view, state, endedAt: this.#app.now().toISOString(), ...(error ? { error } : {}) };
     delete run.view.current;
-    this.#db.prepare('UPDATE model_test_runs SET state = ?, ended_at = ? WHERE id = ?').run(state, run.view.endedAt!, run.view.id);
+    this.#db.prepare('UPDATE model_test_runs SET state = ?, ended_at = ?, done = ?, error = ? WHERE id = ?').run(state, run.view.endedAt!, run.view.done, error ?? null, run.view.id);
     this.#publish();
     // Waiting new models (autoNew) go next, when nothing else runs.
     queueMicrotask(() => this.#drainQueue());
@@ -459,7 +575,7 @@ export class ModelTests {
       // A model on the owner's hardware may need to load first: one warm-up call with a long limit, not scored.
       if (w.warm) {
         await this.#quiet(run);
-        await this.#ask(w, { id: 'warm-up', kind: 'chat', jobs: [], limitMs: testTiming.warmMs, maxTokens: 5, prompt: 'Reply with OK.', check: () => ({ pass: true, reason: '' }) }, signal).catch((err) => {
+        await this.#ask(w, { id: 'warm-up', title: 'warm-up', kind: 'chat', jobs: [], limitMs: testTiming.warmMs, maxTokens: 5, prompt: 'Reply with OK.', check: () => ({ pass: true, reason: '' }) }, signal).catch((err) => {
           if (err instanceof Stopped) throw err;
         });
       }
@@ -476,6 +592,8 @@ export class ModelTests {
         inRow = r.error ? inRow + 1 : 0;
         this.#record(run, w, task.id, r);
         run.view.done++;
+        // Kept as it goes, so a restart in the middle still says how far the run got.
+        this.#db.prepare('UPDATE model_test_runs SET done = ? WHERE id = ?').run(run.view.done, run.view.id);
         this.#publish();
       }
     } catch (err) {
@@ -637,6 +755,29 @@ export class ModelTests {
       untested.push({ ...m, label: labelOf(config, m.model) });
     }
     return { taskSet: TASK_SET, jobs: JOBS.map((j) => ({ id: j.id, label: j.label, tasks: tasksFor(j.id).length })), models, best: b.best, untested };
+  }
+
+  /**
+   * Why a model got its score for a job: each of the job's tasks from the model's newest task set, with
+   * a plain title, pass or fail, the reason and the time. Never the prompt or the model's reply.
+   * Undefined when the model has no results for that job (or the job is not one it is for).
+   */
+  details(ref: ModelRef, job: RoutePurpose): DetailsView | undefined {
+    const m = this.#byModel().get(`${ref.providerId}\n${ref.model}`);
+    if (!m) return undefined;
+    const config = this.#app.settings.get().providers.find((p) => p.id === ref.providerId);
+    if (config && !this.#suggestable(config, ref.model, job)) return undefined;
+    const byTask = new Map(m.rows.map((r) => [r.task_id, r]));
+    const tasks: TaskDetail[] = [];
+    for (const task of tasksFor(job)) {
+      const r = byTask.get(task.id);
+      if (!r) continue;
+      const plain = plainReason(r.reason, Boolean(r.pass), r.error);
+      tasks.push({ id: task.id, title: task.title, pass: Boolean(r.pass), ...plain, ...(r.total_ms !== null ? { ms: r.total_ms } : {}) });
+    }
+    if (!tasks.length) return undefined;
+    const testedAt = m.rows.reduce((a, r) => (r.at > a ? r.at : a), '');
+    return { ...ref, label: labelOf(config, ref.model), job, taskSet: m.set, stale: m.set < TASK_SET, ...(testedAt ? { testedAt } : {}), passed: tasks.filter((x) => x.pass).length, total: tasks.length, tasks };
   }
 
   /** Each job's model becomes its best tested one, the next two its backups. Jobs with no scores are left alone. */

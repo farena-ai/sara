@@ -416,7 +416,7 @@
    "steps": [
     "Find it in its topic, or search; its source says where and when she learned it.",
     "Press That’s wrong to fix the words, or Forget to remove it. Undo brings either back.",
-   "Press Why do you think that? to see the words it came from.",
+    "Press Why do you think that? to see the words it came from.",
     "Press Not true if it is wrong: she forgets it and won’t learn it again."
    ],
    "show": "#wsk-list"
@@ -569,7 +569,8 @@
    "steps": [
     "Press Test my models… and pick what to test.",
     "Read the plan: how many calls, which are paid, about how long. Press Start.",
-    "When it ends, press Use the best for every job. Undo puts the old models back."
+    "When it ends, press Use the best for every job. Undo puts the old models back.",
+    "Tap a score, or Why?, to see each task and why it passed or not."
    ],
    "show": "#mtest-open"
   }
@@ -1284,7 +1285,28 @@
    ]
   }
  ],
- "co-shortcuts": [{"id":"share","q":"How do I share to Sara from my iPhone?","steps":["Press Make a token and copy it.","In the Shortcuts app, build Share to Sara with the steps shown here.","Turn on Show in Share Sheet."],"show":"#ish-make"},{"id":"siri","q":"How do I ask Sara with Siri?","steps":["Make a token with Ask Sara on.","Build the Ask Sara shortcut with the steps shown here.","Say \"Hey Siri, Ask Sara\"."],"show":"#ish-make"}],
+ "co-shortcuts": [
+  {
+   "id": "share",
+   "q": "How do I share to Sara from my iPhone?",
+   "steps": [
+    "Press Make a token and copy it.",
+    "In the Shortcuts app, build Share to Sara with the steps shown here.",
+    "Turn on Show in Share Sheet."
+   ],
+   "show": "#ish-make"
+  },
+  {
+   "id": "siri",
+   "q": "How do I ask Sara with Siri?",
+   "steps": [
+    "Make a token with Ask Sara on.",
+    "Build the Ask Sara shortcut with the steps shown here.",
+    "Say \"Hey Siri, Ask Sara\"."
+   ],
+   "show": "#ish-make"
+  }
+ ],
  "co-phone": [
   {
    "id": "install",

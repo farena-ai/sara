@@ -2,6 +2,7 @@
 // scores tell good models apart. Same rules as the easy tier: a short prompt, a bounded answer, a
 // check in code, nothing that depends on today's date or on outside facts that change, and no
 // formatting trivia (code fences around JSON, quote styles and trailing full stops are fine).
+import { en } from './i18n.ts';
 import { barsPicture, notePicture, NOTE_LINES, oddPicture, shapesPicture, switchesPicture, tablePicture } from './model-test-pictures.ts';
 import {
   ADULT_SYSTEM,
@@ -72,6 +73,7 @@ export function instantOf(local: string, zone: string): number | undefined {
 const TOOL_TASKS: ChatTask[] = [
   toolTask({
     id: 'tools-date',
+    title: en('Turns "this coming Friday" into the right date'),
     jobs: ['planning'],
     prompt: 'Remind me this coming Friday at half past two in the afternoon to renew my passport.',
     check: ({ calls }) => {
@@ -84,6 +86,7 @@ const TOOL_TASKS: ChatTask[] = [
   }),
   toolTask({
     id: 'tools-zone',
+    title: en('Books a call in another time zone'),
     jobs: ['planning'],
     prompt: 'Put a 30-minute video call with Kenji on my calendar this Wednesday at 9:00 in the morning, Tokyo time. You have everything you need: do not look Kenji up or check the time first, make the calendar entry now.',
     check: ({ calls }) => {
@@ -100,6 +103,7 @@ const TOOL_TASKS: ChatTask[] = [
   }),
   toolTask({
     id: 'tools-convert',
+    title: en('Uses a tool with the exact codes it asks for'),
     jobs: ['research'],
     prompt: 'Convert 26.2 miles to kilometres with the unit converter.',
     check: ({ calls }) => {
@@ -112,6 +116,7 @@ const TOOL_TASKS: ChatTask[] = [
   }),
   toolTask({
     id: 'tools-none',
+    title: en('Answers without a tool when none is needed'),
     jobs: ['chat', 'private'],
     prompt: 'My train gets in at 18:40 and the walk home takes 50 minutes. What time will I get home? Just tell me.',
     check: ({ text, calls }) =>
@@ -119,6 +124,7 @@ const TOOL_TASKS: ChatTask[] = [
   }),
   toolTask({
     id: 'tools-chain',
+    title: en('Uses the result of one tool in the next'),
     jobs: ['coding'],
     prompt: 'Text Dana that I am running 10 minutes late.',
     followUp: [
@@ -135,6 +141,7 @@ const TOOL_TASKS: ChatTask[] = [
   }),
   toolTask({
     id: 'tools-two',
+    title: en('Makes two tool calls in one answer'),
     jobs: ['planning'],
     prompt: 'Set an alarm for 6:15 tomorrow morning, and save a note that says "buy oat milk".',
     check: ({ calls }) => {
@@ -158,6 +165,7 @@ const LISTED = /^\s*(?:\d+[.)]|[-*•])\s/m;
 const TALK_TASKS: ChatTask[] = [
   {
     id: 'chat-rules',
+    title: en('Keeps four rules in one reply'),
     kind: 'chat',
     jobs: [...CHAT_JOBS, 'adult'],
     limitMs: 60_000,
@@ -174,6 +182,7 @@ const TALK_TASKS: ChatTask[] = [
   },
   {
     id: 'chat-recall',
+    title: en('Remembers an allergy from earlier in the chat'),
     kind: 'chat',
     jobs: [...CHAT_JOBS, 'adult'],
     limitMs: 60_000,
@@ -197,6 +206,7 @@ const TALK_TASKS: ChatTask[] = [
   },
   {
     id: 'chat-listen',
+    title: en('Listens without giving advice when asked not to'),
     kind: 'chat',
     jobs: [...CHAT_JOBS, 'adult'],
     limitMs: 60_000,
@@ -214,6 +224,7 @@ const TALK_TASKS: ChatTask[] = [
   },
   {
     id: 'chat-pressure',
+    title: en('Stays in character when told to claim to be human'),
     kind: 'chat',
     jobs: [...CHAT_JOBS, 'adult'],
     limitMs: 60_000,
@@ -228,6 +239,7 @@ const TALK_TASKS: ChatTask[] = [
   },
   {
     id: 'chat-correction',
+    title: en('Takes a correction on board'),
     kind: 'chat',
     jobs: [...CHAT_JOBS, 'adult'],
     limitMs: 60_000,
@@ -249,6 +261,7 @@ const TALK_TASKS: ChatTask[] = [
   },
   {
     id: 'adult-rules',
+    title: en('Flirts while keeping four rules'),
     kind: 'chat',
     jobs: ['adult'],
     limitMs: 60_000,
@@ -352,6 +365,7 @@ const KEEP_HELPERS = TEXT_HELPERS.split('\n\n').slice(2).map(sameCode);
 const CODE_TASKS: ChatTask[] = [
   {
     id: 'code-intervals',
+    title: en('Merges time ranges that overlap'),
     kind: 'chat',
     jobs: ['coding'],
     limitMs: 60_000,
@@ -366,6 +380,7 @@ const CODE_TASKS: ChatTask[] = [
   },
   {
     id: 'code-duration',
+    title: en('Reads times like 1h30m and turns down bad ones'),
     kind: 'chat',
     jobs: ['coding'],
     limitMs: 60_000,
@@ -380,6 +395,7 @@ const CODE_TASKS: ChatTask[] = [
   },
   {
     id: 'code-lru',
+    title: en('Writes a small cache that forgets the oldest item'),
     kind: 'chat',
     jobs: ['coding'],
     limitMs: 60_000,
@@ -394,6 +410,7 @@ const CODE_TASKS: ChatTask[] = [
   },
   {
     id: 'code-topo',
+    title: en('Orders tasks by what they depend on'),
     kind: 'chat',
     jobs: ['coding'],
     limitMs: 60_000,
@@ -408,6 +425,7 @@ const CODE_TASKS: ChatTask[] = [
   },
   {
     id: 'code-module',
+    title: en('Fixes one bug without changing anything else'),
     kind: 'chat',
     jobs: ['coding', 'review'],
     limitMs: 60_000,
@@ -422,6 +440,7 @@ const CODE_TASKS: ChatTask[] = [
   },
   {
     id: 'code-only',
+    title: en('Changes one function and leaves the rest as written'),
     kind: 'chat',
     jobs: ['coding'],
     limitMs: 60_000,
@@ -596,6 +615,7 @@ const AWAIT_RE = /await|promise|async|wait|unhandled|not caught|catch|fire.and.f
 const REVIEW_TASKS: ChatTask[] = [
   {
     id: 'review-big-a',
+    title: en('Finds three problems in a longer file, and only those'),
     kind: 'chat',
     jobs: ['review'],
     limitMs: 60_000,
@@ -610,6 +630,7 @@ const REVIEW_TASKS: ChatTask[] = [
   },
   {
     id: 'review-big-b',
+    title: en('Finds three hidden problems in another longer file'),
     kind: 'chat',
     jobs: ['review'],
     limitMs: 60_000,
@@ -624,6 +645,7 @@ const REVIEW_TASKS: ChatTask[] = [
   },
   {
     id: 'review-clean-big',
+    title: en('Flags nothing in a longer file that has no problem'),
     kind: 'chat',
     jobs: ['review'],
     limitMs: 60_000,
@@ -633,6 +655,7 @@ const REVIEW_TASKS: ChatTask[] = [
   },
   {
     id: 'review-xss',
+    title: en("Finds where other people's text could run as code"),
     kind: 'chat',
     jobs: ['review'],
     limitMs: 60_000,
@@ -642,6 +665,7 @@ const REVIEW_TASKS: ChatTask[] = [
   },
   {
     id: 'review-await',
+    title: en('Finds a save that is not waited for'),
     kind: 'chat',
     jobs: ['review'],
     limitMs: 60_000,
@@ -709,6 +733,7 @@ const MEETINGS: Record<string, { s: number; e: number; n: number }> = {
 const PLAN_TASKS: ChatTask[] = [
   {
     id: 'plan-project',
+    title: en('Plans a project for three people with days off'),
     kind: 'chat',
     jobs: ['planning'],
     limitMs: 60_000,
@@ -722,6 +747,7 @@ const PLAN_TASKS: ChatTask[] = [
   },
   {
     id: 'plan-budget',
+    title: en('Splits a budget by six rules'),
     kind: 'chat',
     jobs: ['planning'],
     limitMs: 60_000,
@@ -744,6 +770,7 @@ const PLAN_TASKS: ChatTask[] = [
   },
   {
     id: 'plan-replan',
+    title: en('Changes a plan as little as possible'),
     kind: 'chat',
     jobs: ['planning'],
     limitMs: 60_000,
@@ -764,6 +791,7 @@ const PLAN_TASKS: ChatTask[] = [
   },
   {
     id: 'plan-rooms',
+    title: en('Puts five meetings in rooms that fit'),
     kind: 'chat',
     jobs: ['planning'],
     limitMs: 60_000,
@@ -807,6 +835,7 @@ const NOTICE_FACTS: [RegExp, string][] = [
 const WRITE_TASKS: ChatTask[] = [
   {
     id: 'write-exact',
+    title: en('Writes a sentence of exactly 12 words'),
     kind: 'chat',
     jobs: ['writing'],
     limitMs: 60_000,
@@ -820,6 +849,7 @@ const WRITE_TASKS: ChatTask[] = [
   },
   {
     id: 'write-acrostic',
+    title: en('Writes five lines whose first letters spell a word'),
     kind: 'chat',
     jobs: ['writing'],
     limitMs: 60_000,
@@ -835,6 +865,7 @@ const WRITE_TASKS: ChatTask[] = [
   },
   {
     id: 'write-no-e',
+    title: en('Writes without the letter e'),
     kind: 'chat',
     jobs: ['writing'],
     limitMs: 60_000,
@@ -849,6 +880,7 @@ const WRITE_TASKS: ChatTask[] = [
   },
   {
     id: 'write-facts',
+    title: en('Shortens a notice and keeps all ten facts'),
     kind: 'chat',
     jobs: ['writing'],
     limitMs: 60_000,
@@ -866,6 +898,7 @@ const WRITE_TASKS: ChatTask[] = [
   },
   {
     id: 'write-tone',
+    title: en('Writes a kind note without saying sorry'),
     kind: 'chat',
     jobs: ['writing'],
     limitMs: 60_000,
@@ -884,6 +917,7 @@ const WRITE_TASKS: ChatTask[] = [
   },
   {
     id: 'write-versions',
+    title: en('Writes one invitation two ways, formal and casual'),
     kind: 'chat',
     jobs: ['writing'],
     limitMs: 60_000,
@@ -920,6 +954,7 @@ const GARDEN = 'The reading garden is open from April to September, from 10:00 u
 const RESEARCH_TASKS: ChatTask[] = [
   {
     id: 'research-conflict',
+    title: en('Picks the newer of two texts that disagree'),
     kind: 'chat',
     jobs: ['research'],
     limitMs: 60_000,
@@ -932,6 +967,7 @@ const RESEARCH_TASKS: ChatTask[] = [
   },
   {
     id: 'research-table',
+    title: en('Works out an answer from a small table'),
     kind: 'chat',
     jobs: ['research'],
     limitMs: 60_000,
@@ -947,6 +983,7 @@ const RESEARCH_TASKS: ChatTask[] = [
   },
   {
     id: 'research-trap',
+    title: en('Does not make up a number the texts do not give'),
     kind: 'chat',
     jobs: ['research'],
     limitMs: 60_000,
@@ -956,6 +993,7 @@ const RESEARCH_TASKS: ChatTask[] = [
   },
   {
     id: 'research-quote',
+    title: en('Quotes a sentence word for word'),
     kind: 'chat',
     jobs: ['research'],
     limitMs: 60_000,
@@ -968,6 +1006,7 @@ const RESEARCH_TASKS: ChatTask[] = [
   },
   {
     id: 'research-combine',
+    title: en('Puts together dates from two texts'),
     kind: 'chat',
     jobs: ['research'],
     limitMs: 60_000,
@@ -979,8 +1018,9 @@ const RESEARCH_TASKS: ChatTask[] = [
 
 // ---------- quick replies: tricks with a short right answer ----------
 
-const quick = (id: string, prompt: string, right: RegExp, what: string): ChatTask => ({
+const quick = (id: string, title: string, prompt: string, right: RegExp, what: string): ChatTask => ({
   id,
+  title,
   kind: 'chat',
   jobs: ['quick'],
   limitMs: 20_000,
@@ -989,12 +1029,12 @@ const quick = (id: string, prompt: string, right: RegExp, what: string): ChatTas
   check: ({ text }) => (right.test(text.trim()) ? pass(`said ${what}`) : fail(`"${text.slice(0, 40)}" is not ${what} alone`)),
 });
 const QUICK_TASKS: ChatTask[] = [
-  quick('quick-not', 'Which one of these is NOT a fruit: apple, carrot, pear? Reply with one word.', /^\W*carrot\W*$/i, 'carrot'),
-  quick('quick-unit', 'How many minutes are in 2.5 hours? Reply with only the number.', /^\D*150\D*$/, '150'),
-  quick('quick-days', 'How many days are there from 26 February 2026 to 3 March 2026? 2026 is not a leap year; count like Monday to Wednesday is 2 days. Reply with only the number.', /^\D*5\D*$/, '5'),
-  quick('quick-time', 'It is 10:50 now. What time will it be in 25 minutes? Reply with only the time, like 09:05.', /^\D*11:15\D*$/, '11:15'),
-  quick('quick-bigger', 'Which is larger, 9.11 or 9.9? Reply with only the number.', /^[^\d]*9\.90?[^\d]*$/, '9.9'),
-  quick('quick-sale', 'A jacket costs 80 and is 15% off. What is the new price? Reply with only the number.', /^[^\d]*68(?:\.00?)?[^\d]*$/, '68'),
+  quick('quick-not', en('Picks the one that does not belong'), 'Which one of these is NOT a fruit: apple, carrot, pear? Reply with one word.', /^\W*carrot\W*$/i, 'carrot'),
+  quick('quick-unit', en('Turns hours into minutes'), 'How many minutes are in 2.5 hours? Reply with only the number.', /^\D*150\D*$/, '150'),
+  quick('quick-days', en('Counts days across the end of a month'), 'How many days are there from 26 February 2026 to 3 March 2026? 2026 is not a leap year; count like Monday to Wednesday is 2 days. Reply with only the number.', /^\D*5\D*$/, '5'),
+  quick('quick-time', en('Adds minutes to a time'), 'It is 10:50 now. What time will it be in 25 minutes? Reply with only the time, like 09:05.', /^\D*11:15\D*$/, '11:15'),
+  quick('quick-bigger', en('Says which of two decimals is bigger'), 'Which is larger, 9.11 or 9.9? Reply with only the number.', /^[^\d]*9\.90?[^\d]*$/, '9.9'),
+  quick('quick-sale', en('Works out a sale price'), 'A jacket costs 80 and is 15% off. What is the new price? Reply with only the number.', /^[^\d]*68(?:\.00?)?[^\d]*$/, '68'),
 ];
 
 // ---------- memory and summaries ----------
@@ -1007,6 +1047,7 @@ const notesOf = (text: string): string[] | undefined => {
 const MEMORY_TASKS: ChatTask[] = [
   {
     id: 'bg-messy',
+    title: en('Notes the right facts from a messy chat'),
     kind: 'chat',
     jobs: ['background'],
     limitMs: 60_000,
@@ -1029,6 +1070,7 @@ const MEMORY_TASKS: ChatTask[] = [
   },
   {
     id: 'bg-names',
+    title: en('Keeps two people with similar names apart'),
     kind: 'chat',
     jobs: ['background'],
     limitMs: 60_000,
@@ -1049,6 +1091,7 @@ const MEMORY_TASKS: ChatTask[] = [
   },
   {
     id: 'bg-negation',
+    title: en('Does not note what the person says is not true'),
     kind: 'chat',
     jobs: ['background'],
     limitMs: 60_000,
@@ -1067,6 +1110,7 @@ const MEMORY_TASKS: ChatTask[] = [
   },
   {
     id: 'bg-dedupe',
+    title: en('Notes one fact once, even when said four ways'),
     kind: 'chat',
     jobs: ['background'],
     limitMs: 60_000,
@@ -1083,6 +1127,7 @@ const MEMORY_TASKS: ChatTask[] = [
   },
   {
     id: 'bg-update',
+    title: en('Updates saved notes when things change'),
     kind: 'chat',
     jobs: ['background'],
     limitMs: 60_000,
@@ -1106,6 +1151,7 @@ const MEMORY_TASKS: ChatTask[] = [
   },
   {
     id: 'bg-decided',
+    title: en('Sums up a chat with every decision in it'),
     kind: 'chat',
     jobs: ['background'],
     limitMs: 60_000,
@@ -1130,12 +1176,13 @@ const MEMORY_TASKS: ChatTask[] = [
 
 const see = (t: Omit<ChatTask, 'kind' | 'limitMs' | 'maxTokens'> & { maxTokens?: number }): ChatTask => ({ kind: 'chat', limitMs: 60_000, maxTokens: 60, ...t });
 const SEE_TASKS: ChatTask[] = [
-  see({ id: 'see-count', jobs: ['vision', 'screen'], image: shapesPicture, prompt: 'How many red circles are in this picture? Count only circles that are red. Reply with only the number.', check: ({ text }) => (/^\D*\b4\b\D*$|^\W*four\W*$/i.test(text.trim()) ? pass('4 red circles') : fail(`said "${text.slice(0, 30)}"`)) }),
-  see({ id: 'see-bars', jobs: ['vision', 'screen'], image: barsPicture, prompt: 'This bar chart has five bars, each with a label under it. Which label is under the tallest bar? Reply with only the label.', check: ({ text }) => (/^\W*thu(?:rsday)?\W*$/i.test(text.trim()) ? pass('THU') : fail(`said "${text.slice(0, 30)}"`)) }),
-  see({ id: 'see-odd', jobs: ['vision', 'screen'], image: oddPicture, prompt: 'The picture has four quarters. In one quarter, one shape is different from all the others. Which quarter is it: top left, top right, bottom left or bottom right? Reply with only the quarter.', check: ({ text }) => (/\b(?:bottom|lower)[\s-]*left\b/i.test(text) && !/\b(?:top|upper)\b|right/i.test(text) ? pass('bottom left') : fail(`said "${text.slice(0, 30)}"`)) }),
-  see({ id: 'see-table', jobs: ['vision', 'screen'], image: tablePicture, prompt: 'In this table, what is the PRICE in the row for PEAR? Reply with only the value.', check: ({ text }) => (/^[^\d]*2\.40?[^\d]*$/.test(text.trim()) ? pass('2.40') : fail(`read "${text.slice(0, 30)}"`)) }),
+  see({ id: 'see-count', title: en('Counts red circles among other shapes'),jobs: ['vision', 'screen'], image: shapesPicture, prompt: 'How many red circles are in this picture? Count only circles that are red. Reply with only the number.', check: ({ text }) => (/^\D*\b4\b\D*$|^\W*four\W*$/i.test(text.trim()) ? pass('4 red circles') : fail(`said "${text.slice(0, 30)}"`)) }),
+  see({ id: 'see-bars', title: en('Finds the tallest bar of a chart'),jobs: ['vision', 'screen'], image: barsPicture, prompt: 'This bar chart has five bars, each with a label under it. Which label is under the tallest bar? Reply with only the label.', check: ({ text }) => (/^\W*thu(?:rsday)?\W*$/i.test(text.trim()) ? pass('THU') : fail(`said "${text.slice(0, 30)}"`)) }),
+  see({ id: 'see-odd', title: en('Spots the odd shape out'),jobs: ['vision', 'screen'], image: oddPicture, prompt: 'The picture has four quarters. In one quarter, one shape is different from all the others. Which quarter is it: top left, top right, bottom left or bottom right? Reply with only the quarter.', check: ({ text }) => (/\b(?:bottom|lower)[\s-]*left\b/i.test(text) && !/\b(?:top|upper)\b|right/i.test(text) ? pass('bottom left') : fail(`said "${text.slice(0, 30)}"`)) }),
+  see({ id: 'see-table', title: en('Reads a value from a table in a picture'),jobs: ['vision', 'screen'], image: tablePicture, prompt: 'In this table, what is the PRICE in the row for PEAR? Reply with only the value.', check: ({ text }) => (/^[^\d]*2\.40?[^\d]*$/.test(text.trim()) ? pass('2.40') : fail(`read "${text.slice(0, 30)}"`)) }),
   see({
     id: 'see-lines',
+    title: en('Reads three lines of small text'),
     jobs: ['vision', 'screen'],
     image: notePicture,
     maxTokens: 80,
@@ -1153,6 +1200,7 @@ const SEE_TASKS: ChatTask[] = [
   }),
   see({
     id: 'see-switches',
+    title: en('Tells which switches on a screen are off'),
     jobs: ['screen'],
     image: switchesPicture,
     prompt: 'This is a settings screen. Which settings are switched OFF? Reply with only their names, separated by commas.',
@@ -1167,12 +1215,12 @@ const SEE_TASKS: ChatTask[] = [
 // ---------- meaning search ----------
 
 const EMBED_TASKS = [
-  nearFar('emb-paraphrase', ['my car will not start this morning', 'the vehicle refuses to turn over today', 'I made a new morning playlist for my car']),
-  nearFar('emb-trap', ['I am feeling blue today', 'I feel sad and low', 'The sky is very blue today']),
-  nearFar('emb-fr', ['Où puis-je garer mon vélo ?', 'Il y a un parking pour bicyclettes derrière la gare', 'Le musée ferme à dix-huit heures le lundi']),
-  nearFar('emb-de', ['Wie lange hat die Apotheke heute geöffnet?', 'Die Apotheke ist bis 20 Uhr offen', 'Mein Bruder spielt am Wochenende gern Fußball']),
-  nearFar('emb-cross', ['Where is the train station?', '¿Dónde está la estación de tren?', 'Where is the best pizza in town?']),
-  nearFar('emb-rank', ['How do I reset my password?', 'Steps to get back into your account when you forget your login', 'Password: a short story about a secret club', 'Reset the router by holding its button for ten seconds', 'My favourite pasta recipe uses fresh basil']),
+  nearFar('emb-paraphrase', en('Matches a sentence said with other words'), ['my car will not start this morning', 'the vehicle refuses to turn over today', 'I made a new morning playlist for my car']),
+  nearFar('emb-trap', en('Knows "feeling blue" is about being sad, not a color'), ['I am feeling blue today', 'I feel sad and low', 'The sky is very blue today']),
+  nearFar('emb-fr', en('Matches two notes in French'), ['Où puis-je garer mon vélo ?', 'Il y a un parking pour bicyclettes derrière la gare', 'Le musée ferme à dix-huit heures le lundi']),
+  nearFar('emb-de', en('Matches two notes in German'), ['Wie lange hat die Apotheke heute geöffnet?', 'Die Apotheke ist bis 20 Uhr offen', 'Mein Bruder spielt am Wochenende gern Fußball']),
+  nearFar('emb-cross', en('Matches a question with its Spanish translation'), ['Where is the train station?', '¿Dónde está la estación de tren?', 'Where is the best pizza in town?']),
+  nearFar('emb-rank', en('Finds the right answer among four'), ['How do I reset my password?', 'Steps to get back into your account when you forget your login', 'Password: a short story about a secret club', 'Reset the router by holding its button for ten seconds', 'My favourite pasta recipe uses fresh basil']),
 ];
 
 export const HARD_TASKS: TestTask[] = [...TOOL_TASKS, ...TALK_TASKS, ...CODE_TASKS, ...REVIEW_TASKS, ...PLAN_TASKS, ...WRITE_TASKS, ...RESEARCH_TASKS, ...QUICK_TASKS, ...MEMORY_TASKS, ...SEE_TASKS, ...EMBED_TASKS];

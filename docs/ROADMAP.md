@@ -108,6 +108,12 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Why a model got its score, in 3.46.0
+
+Tap a score in Test my models and see each small task with a tick or a cross and a plain reason.
+Backup models have their own Use button, the page says how the last run ended, and the time
+estimate learns from your earlier runs. The app shows your chat sooner when it opens.
+
 ## Test my models, in 3.45.0
 
 Which model is best for talking, for coding, for reading a picture? Press Test my models on

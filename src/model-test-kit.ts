@@ -6,7 +6,7 @@ import type { RoutePurpose } from './settings.ts';
 
 export interface Verdict {
   pass: boolean;
-  /** One line in plain words (kept with the result; not shown on the page). */
+  /** One line in plain words (kept with the result; shown in "Why this score", through plainReason in src/model-tests.ts). */
   reason: string;
 }
 
@@ -18,6 +18,8 @@ export interface Reply {
 
 interface Base {
   id: string;
+  /** One short sentence a person understands, shown in "Why this score" (en(), translated on the page). */
+  title: string;
   jobs: RoutePurpose[];
   /** Time limit for the call (ms). */
   limitMs: number;
@@ -127,9 +129,10 @@ export function cosineOf(a: Float32Array, b: Float32Array): number {
 }
 
 /** An embedding task: the first text is the question, the second the near one; every other text must be further away. */
-export function nearFar(id: string, texts: string[]): EmbedTask {
+export function nearFar(id: string, title: string, texts: string[]): EmbedTask {
   return {
     id,
+    title,
     kind: 'embed',
     jobs: ['embeddings'],
     limitMs: 30_000,

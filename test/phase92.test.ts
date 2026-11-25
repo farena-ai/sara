@@ -361,8 +361,9 @@ test('the screen route ("Seeing your screen") falls back to Looking at pictures'
   const job = JOBS.find((j) => j.id === 'screen')!;
   assert.equal(job.label, 'Seeing your screen');
   assert.ok(job.tip.length <= 200);
-  const chat = readFileSync(join(ROOT, 'src', 'chat.ts'), 'utf8');
-  assert.match(chat, /screen: 'vision'/);
+  // T51 (C2): the route decision, and with it this fallback, moved to src/route-resolve.ts.
+  const routes = readFileSync(join(ROOT, 'src', 'route-resolve.ts'), 'utf8');
+  assert.match(routes, /screen: 'vision'/);
 });
 
 test('the page, the apps and the conformance script know desktop look', () => {

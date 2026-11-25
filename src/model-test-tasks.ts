@@ -9,6 +9,7 @@
 //
 // Two tiers (task set 2): the easy tasks below tell a weak local model from one that works; the hard
 // tier (src/model-test-hard.ts) has tasks strong models do not all pass, so their scores differ.
+import { en } from './i18n.ts';
 import { CHECK_HARD, LINES_RE, REFER_RE } from './model-checkup.ts';
 import { HARD_TASKS } from './model-test-hard.ts';
 import {
@@ -75,6 +76,7 @@ const EASY_TASKS: TestTask[] = [
   // ---- talking (and Private: the same tasks, only for models on the owner's own hardware) ----
   {
     id: 'chat-persona',
+    title: en('Keeps three rules of a set character'),
     kind: 'chat',
     jobs: [...CHAT_JOBS, 'adult'],
     limitMs: 60_000,
@@ -85,6 +87,7 @@ const EASY_TASKS: TestTask[] = [
   },
   {
     id: 'chat-length',
+    title: en('Answers in one short sentence when asked'),
     kind: 'chat',
     jobs: CHAT_JOBS,
     limitMs: 60_000,
@@ -97,6 +100,7 @@ const EASY_TASKS: TestTask[] = [
   },
   {
     id: 'chat-sad',
+    title: en('Stays with someone who had a bad day, without a hotline'),
     kind: 'chat',
     jobs: CHAT_JOBS,
     limitMs: 60_000,
@@ -107,6 +111,7 @@ const EASY_TASKS: TestTask[] = [
   },
   {
     id: 'chat-no-refuse',
+    title: en('Answers a harmless question that sounds alarming'),
     kind: 'chat',
     jobs: CHAT_JOBS,
     limitMs: 60_000,
@@ -116,6 +121,7 @@ const EASY_TASKS: TestTask[] = [
   },
   {
     id: 'chat-name',
+    title: en("Uses the person's name"),
     kind: 'chat',
     jobs: CHAT_JOBS,
     limitMs: 60_000,
@@ -127,6 +133,7 @@ const EASY_TASKS: TestTask[] = [
   // ---- tool calls: talking, coding, planning and research all need them ----
   {
     id: 'tools-reminder',
+    title: en('Sets a reminder with the right name and time'),
     kind: 'chat',
     jobs: ['chat', 'private', 'coding', 'planning', 'research'],
     limitMs: 60_000,
@@ -144,6 +151,7 @@ const EASY_TASKS: TestTask[] = [
   },
   {
     id: 'tools-weather',
+    title: en('Asks for the weather in the right city and unit'),
     kind: 'chat',
     jobs: ['coding', 'planning', 'research'],
     limitMs: 60_000,
@@ -162,6 +170,7 @@ const EASY_TASKS: TestTask[] = [
   // ---- coding: write, find the bug, edit; each run on fixed inputs in the sandbox ----
   {
     id: 'code-write',
+    title: en('Writes a small function that works'),
     kind: 'chat',
     jobs: ['coding'],
     limitMs: 60_000,
@@ -171,6 +180,7 @@ const EASY_TASKS: TestTask[] = [
   },
   {
     id: 'code-bug',
+    title: en('Fixes a small bug'),
     kind: 'chat',
     jobs: ['coding', 'review'],
     limitMs: 60_000,
@@ -180,6 +190,7 @@ const EASY_TASKS: TestTask[] = [
   },
   {
     id: 'code-edit',
+    title: en('Adds an option to a function without breaking it'),
     kind: 'chat',
     jobs: ['coding'],
     limitMs: 60_000,
@@ -190,6 +201,7 @@ const EASY_TASKS: TestTask[] = [
   // ---- reviewing: the seeded problems, and nothing harmless flagged ----
   {
     id: 'review-sqli',
+    title: en('Finds a security hole in a short web route'),
     kind: 'chat',
     jobs: ['review'],
     limitMs: 60_000,
@@ -201,6 +213,7 @@ const EASY_TASKS: TestTask[] = [
   },
   {
     id: 'review-offbyone',
+    title: en('Finds a loop that runs one step too far'),
     kind: 'chat',
     jobs: ['review'],
     limitMs: 60_000,
@@ -210,6 +223,7 @@ const EASY_TASKS: TestTask[] = [
   },
   {
     id: 'review-clean',
+    title: en('Flags nothing in code that has no problem'),
     kind: 'chat',
     jobs: ['review'],
     limitMs: 60_000,
@@ -223,6 +237,7 @@ const EASY_TASKS: TestTask[] = [
   // ---- planning: constraints checked from JSON ----
   {
     id: 'plan-schedule',
+    title: en('Fits four things into a day without overlaps'),
     kind: 'chat',
     jobs: ['planning'],
     limitMs: 60_000,
@@ -255,6 +270,7 @@ const EASY_TASKS: TestTask[] = [
   },
   {
     id: 'plan-order',
+    title: en('Puts four steps in the only right order'),
     kind: 'chat',
     jobs: ['planning'],
     limitMs: 60_000,
@@ -267,6 +283,7 @@ const EASY_TASKS: TestTask[] = [
   },
   {
     id: 'plan-days',
+    title: en('Picks three run days, never two in a row'),
     kind: 'chat',
     jobs: ['planning'],
     limitMs: 60_000,
@@ -285,6 +302,7 @@ const EASY_TASKS: TestTask[] = [
   // ---- writing: length and form, required and forbidden words, no preamble ----
   {
     id: 'write-two',
+    title: en('Writes exactly two sentences'),
     kind: 'chat',
     jobs: ['writing'],
     limitMs: 60_000,
@@ -294,6 +312,7 @@ const EASY_TASKS: TestTask[] = [
   },
   {
     id: 'write-poem',
+    title: en('Writes a four-line poem with one word in and one word out'),
     kind: 'chat',
     jobs: ['writing'],
     limitMs: 60_000,
@@ -306,6 +325,7 @@ const EASY_TASKS: TestTask[] = [
   },
   {
     id: 'write-caption',
+    title: en('Writes a short one-line caption'),
     kind: 'chat',
     jobs: ['writing'],
     limitMs: 60_000,
@@ -318,6 +338,7 @@ const EASY_TASKS: TestTask[] = [
   },
   {
     id: 'write-list',
+    title: en('Writes a list of exactly five items'),
     kind: 'chat',
     jobs: ['writing'],
     limitMs: 60_000,
@@ -330,6 +351,7 @@ const EASY_TASKS: TestTask[] = [
   },
   {
     id: 'write-range',
+    title: en('Writes 30 to 50 words'),
     kind: 'chat',
     jobs: ['writing'],
     limitMs: 60_000,
@@ -343,6 +365,7 @@ const EASY_TASKS: TestTask[] = [
   // ---- research: from a given passage; says so when the answer is not there ----
   {
     id: 'research-fact',
+    title: en('Finds a year in a short text'),
     kind: 'chat',
     jobs: ['research'],
     limitMs: 60_000,
@@ -352,6 +375,7 @@ const EASY_TASKS: TestTask[] = [
   },
   {
     id: 'research-missing',
+    title: en('Says when the text does not have the answer'),
     kind: 'chat',
     jobs: ['research'],
     limitMs: 60_000,
@@ -361,6 +385,7 @@ const EASY_TASKS: TestTask[] = [
   },
   {
     id: 'research-json',
+    title: en('Pulls three facts out of a text'),
     kind: 'chat',
     jobs: ['research'],
     limitMs: 60_000,
@@ -374,6 +399,7 @@ const EASY_TASKS: TestTask[] = [
   },
   {
     id: 'research-years',
+    title: en('Works out the years between two dates in a text'),
     kind: 'chat',
     jobs: ['research'],
     limitMs: 60_000,
@@ -382,11 +408,12 @@ const EASY_TASKS: TestTask[] = [
     check: ({ text }) => (/\b67\b/.test(text) ? pass('67 years') : fail('not 67')),
   },
   // ---- quick replies: short right answers (speed breaks a tie) ----
-  { id: 'quick-word', kind: 'chat', jobs: ['quick'], limitMs: 20_000, maxTokens: 20, prompt: 'Reply with one word: what color is a ripe banana?', check: ({ text }) => (/^\W*yellow\W*$/i.test(text) ? pass('one right word') : fail(`"${text.slice(0, 40)}" is not one word "yellow"`)) },
-  { id: 'quick-math', kind: 'chat', jobs: ['quick'], limitMs: 20_000, maxTokens: 20, prompt: 'What is 17 × 23? Reply with only the number.', check: ({ text }) => (/^\D*391\D*$/.test(text) ? pass('391') : fail(`"${text.slice(0, 40)}" is not 391 alone`)) },
-  { id: 'quick-yesno', kind: 'chat', jobs: ['quick'], limitMs: 20_000, maxTokens: 20, prompt: 'Is the Pacific the largest ocean on Earth? Reply with yes or no only.', check: ({ text }) => (/^\W*yes\W*$/i.test(text) ? pass('yes') : fail(`"${text.slice(0, 40)}" is not yes alone`)) },
+  { id: 'quick-word', title: en('Answers in one word'),kind: 'chat', jobs: ['quick'], limitMs: 20_000, maxTokens: 20, prompt: 'Reply with one word: what color is a ripe banana?', check: ({ text }) => (/^\W*yellow\W*$/i.test(text) ? pass('one right word') : fail(`"${text.slice(0, 40)}" is not one word "yellow"`)) },
+  { id: 'quick-math', title: en('Multiplies two numbers'),kind: 'chat', jobs: ['quick'], limitMs: 20_000, maxTokens: 20, prompt: 'What is 17 × 23? Reply with only the number.', check: ({ text }) => (/^\D*391\D*$/.test(text) ? pass('391') : fail(`"${text.slice(0, 40)}" is not 391 alone`)) },
+  { id: 'quick-yesno', title: en('Answers yes or no and nothing else'),kind: 'chat', jobs: ['quick'], limitMs: 20_000, maxTokens: 20, prompt: 'Is the Pacific the largest ocean on Earth? Reply with yes or no only.', check: ({ text }) => (/^\W*yes\W*$/i.test(text) ? pass('yes') : fail(`"${text.slice(0, 40)}" is not yes alone`)) },
   {
     id: 'quick-text',
+    title: en('Writes a short text message'),
     kind: 'chat',
     jobs: ['quick'],
     limitMs: 20_000,
@@ -400,6 +427,7 @@ const EASY_TASKS: TestTask[] = [
   // ---- memory and summaries: valid JSON with the right facts, nothing invented; a title ----
   {
     id: 'bg-notes',
+    title: en('Notes the facts in a message and adds nothing'),
     kind: 'chat',
     jobs: ['background'],
     limitMs: 60_000,
@@ -419,6 +447,7 @@ const EASY_TASKS: TestTask[] = [
   },
   {
     id: 'bg-empty',
+    title: en('Notes nothing from small talk'),
     kind: 'chat',
     jobs: ['background'],
     limitMs: 60_000,
@@ -431,6 +460,7 @@ const EASY_TASKS: TestTask[] = [
   },
   {
     id: 'bg-title',
+    title: en('Gives a conversation a short title'),
     kind: 'chat',
     jobs: ['background'],
     limitMs: 60_000,
@@ -444,6 +474,7 @@ const EASY_TASKS: TestTask[] = [
   },
   {
     id: 'bg-summary',
+    title: en('Sums up a message in one sentence'),
     kind: 'chat',
     jobs: ['background'],
     limitMs: 60_000,
@@ -456,6 +487,7 @@ const EASY_TASKS: TestTask[] = [
   },
   {
     id: 'bg-topic',
+    title: en('Tells what a message is about'),
     kind: 'chat',
     jobs: ['background'],
     limitMs: 60_000,
@@ -467,23 +499,24 @@ const EASY_TASKS: TestTask[] = [
     },
   },
   // ---- pictures (a model that cannot see is left out, not failed) ----
-  { id: 'see-color', kind: 'chat', jobs: ['vision', 'screen'], limitMs: 60_000, maxTokens: 30, image: redPicture, prompt: 'What color is this picture? Reply with one word.', check: ({ text }) => (/\bred\b/i.test(text) ? pass('red') : fail(`said "${text.slice(0, 30)}"`)) },
-  { id: 'see-split', kind: 'chat', jobs: ['vision', 'screen'], limitMs: 60_000, maxTokens: 30, image: splitPicture, prompt: 'This picture has two halves. What color is the LEFT half? Reply with one word.', check: ({ text }) => (/\bblue\b/i.test(text) && !/yellow/i.test(text) ? pass('blue') : fail(`said "${text.slice(0, 30)}"`)) },
-  { id: 'see-person', kind: 'chat', jobs: ['vision'], limitMs: 60_000, maxTokens: 30, image: portraitPicture, prompt: 'Is there a person in this picture? Reply with yes or no only.', check: ({ text }) => (/^\W*yes\b/i.test(text) ? pass('saw the person') : fail(`said "${text.slice(0, 30)}"`)) },
-  { id: 'see-smile', kind: 'chat', jobs: ['vision'], limitMs: 60_000, maxTokens: 30, image: portraitPicture, prompt: "In one or two words: what is the person's facial expression?", check: ({ text }) => (/smil|happy|joy|laugh|cheer|grin/i.test(text) ? pass('saw the smile') : fail(`said "${text.slice(0, 30)}"`)) },
-  { id: 'see-instrument', kind: 'chat', jobs: ['vision'], limitMs: 60_000, maxTokens: 30, image: portraitPicture, prompt: 'There is a musical instrument on the right of this picture. What is it? Reply with one or two words.', check: ({ text }) => (/keyboard|piano|synth|keytar|organ|keys/i.test(text) ? pass('the keyboard') : fail(`said "${text.slice(0, 30)}"`)) },
-  { id: 'see-number', kind: 'chat', jobs: ['screen'], limitMs: 60_000, maxTokens: 30, image: () => textPicture('2741'), prompt: 'What number is written in this picture? Reply with only the number.', check: ({ text }) => (/^\D*2741\D*$/.test(text) ? pass('read 2741') : fail(`read "${text.slice(0, 30)}"`)) },
-  { id: 'see-word', kind: 'chat', jobs: ['screen'], limitMs: 60_000, maxTokens: 30, image: () => textPicture('SAVE'), prompt: 'What word is written in this picture? Reply with only the word.', check: ({ text }) => (/^\W*save\W*$/i.test(text) ? pass('read SAVE') : fail(`read "${text.slice(0, 30)}"`)) },
+  { id: 'see-color', title: en('Says the color of a picture'),kind: 'chat', jobs: ['vision', 'screen'], limitMs: 60_000, maxTokens: 30, image: redPicture, prompt: 'What color is this picture? Reply with one word.', check: ({ text }) => (/\bred\b/i.test(text) ? pass('red') : fail(`said "${text.slice(0, 30)}"`)) },
+  { id: 'see-split', title: en('Tells left from right in a picture'),kind: 'chat', jobs: ['vision', 'screen'], limitMs: 60_000, maxTokens: 30, image: splitPicture, prompt: 'This picture has two halves. What color is the LEFT half? Reply with one word.', check: ({ text }) => (/\bblue\b/i.test(text) && !/yellow/i.test(text) ? pass('blue') : fail(`said "${text.slice(0, 30)}"`)) },
+  { id: 'see-person', title: en('Sees a person in a photo'),kind: 'chat', jobs: ['vision'], limitMs: 60_000, maxTokens: 30, image: portraitPicture, prompt: 'Is there a person in this picture? Reply with yes or no only.', check: ({ text }) => (/^\W*yes\b/i.test(text) ? pass('saw the person') : fail(`said "${text.slice(0, 30)}"`)) },
+  { id: 'see-smile', title: en('Sees that a person is smiling'),kind: 'chat', jobs: ['vision'], limitMs: 60_000, maxTokens: 30, image: portraitPicture, prompt: "In one or two words: what is the person's facial expression?", check: ({ text }) => (/smil|happy|joy|laugh|cheer|grin/i.test(text) ? pass('saw the smile') : fail(`said "${text.slice(0, 30)}"`)) },
+  { id: 'see-instrument', title: en('Names an instrument in a photo'),kind: 'chat', jobs: ['vision'], limitMs: 60_000, maxTokens: 30, image: portraitPicture, prompt: 'There is a musical instrument on the right of this picture. What is it? Reply with one or two words.', check: ({ text }) => (/keyboard|piano|synth|keytar|organ|keys/i.test(text) ? pass('the keyboard') : fail(`said "${text.slice(0, 30)}"`)) },
+  { id: 'see-number', title: en('Reads a number in a picture'),kind: 'chat', jobs: ['screen'], limitMs: 60_000, maxTokens: 30, image: () => textPicture('2741'), prompt: 'What number is written in this picture? Reply with only the number.', check: ({ text }) => (/^\D*2741\D*$/.test(text) ? pass('read 2741') : fail(`read "${text.slice(0, 30)}"`)) },
+  { id: 'see-word', title: en('Reads a word in a picture'),kind: 'chat', jobs: ['screen'], limitMs: 60_000, maxTokens: 30, image: () => textPicture('SAVE'), prompt: 'What word is written in this picture? Reply with only the word.', check: ({ text }) => (/^\W*save\W*$/i.test(text) ? pass('read SAVE') : fail(`read "${text.slice(0, 30)}"`)) },
   // ---- adult (only with Adult mode on; nothing explicit is asked) ----
   ...(
     [
-      ['adult-flirt', 'Send me a flirty good-night line, one sentence.'],
-      ['adult-blush', 'Tell me something sweet that would make me blush. Two sentences at most.'],
-      ['adult-date', 'Flirt with me a little: what would you say to me on a date at a cozy bar? Keep it short.'],
+      ['adult-flirt', en('Sends a flirty good-night line'), 'Send me a flirty good-night line, one sentence.'],
+      ['adult-blush', en('Says something sweet without refusing'), 'Tell me something sweet that would make me blush. Two sentences at most.'],
+      ['adult-date', en('Flirts a little on a pretend date'), 'Flirt with me a little: what would you say to me on a date at a cozy bar? Keep it short.'],
     ] as const
   ).map(
-    ([id, prompt]): ChatTask => ({
+    ([id, title, prompt]): ChatTask => ({
       id,
+      title,
       kind: 'chat',
       jobs: ['adult'],
       limitMs: 60_000,
@@ -496,13 +529,14 @@ const EASY_TASKS: TestTask[] = [
   // ---- meaning search: near and far, in English and Spanish, and speed ----
   ...(
     [
-      ['emb-en', ['the lake cabin we booked', 'Our Pine Lake trip is on the 14th', 'My tax forms are due in April']],
-      ['emb-en2', ['my running shoes are worn out', 'I need new sneakers for jogging', 'The quarterly budget meeting moved to Friday']],
-      ['emb-es', ['¿Cuándo es mi cita con el dentista?', 'Tengo turno con el dentista el martes a las nueve', 'Compré tomates y pan en el mercado']],
+      ['emb-en', en('Matches two notes about the same thing'), ['the lake cabin we booked', 'Our Pine Lake trip is on the 14th', 'My tax forms are due in April']],
+      ['emb-en2', en('Matches two notes about the same need'), ['my running shoes are worn out', 'I need new sneakers for jogging', 'The quarterly budget meeting moved to Friday']],
+      ['emb-es', en('Matches two notes in Spanish'), ['¿Cuándo es mi cita con el dentista?', 'Tengo turno con el dentista el martes a las nueve', 'Compré tomates y pan en el mercado']],
     ] as const
-  ).map(([id, texts]) => nearFar(id, [...texts])),
+  ).map(([id, title, texts]) => nearFar(id, title, [...texts])),
   {
     id: 'emb-speed',
+    title: en('Handles 20 notes in under 10 seconds'),
     kind: 'embed',
     jobs: ['embeddings'],
     limitMs: 30_000,

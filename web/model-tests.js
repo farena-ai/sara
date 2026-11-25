@@ -46,6 +46,10 @@ export function planView(plan) {
   const subs = inc.filter((m) => m.billing === 'subscription').map((m) => m.label || m.model);
   if (subs.length) lines.push(t('These count toward your subscription: {models}.', { models: subs.join(', ') }));
   lines.push(aboutTime(plan.minutes));
+  // How the time was worked out (the server learns it from earlier tests of the same models).
+  if (plan.estimate === 'measured') lines.push(t('Worked out from how long these models took in earlier tests.'));
+  else if (plan.estimate === 'mixed') lines.push(t('Worked out from earlier tests where there are any, and a rough guess for models never tested.'));
+  else if (plan.estimate === 'guess') lines.push(t('A rough guess: these models were not tested before.'));
   return { empty: false, lines, leftOut };
 }
 
@@ -90,6 +94,33 @@ export function progressText(run, names) {
   if (run.state === 'stopped') return t('Stopped after {done} of {total}. What finished is kept.', n);
   if (run.state === 'failed') return run.error ? t('The model tests failed: {error}', { error: run.error }) : t('The model tests failed.');
   return '';
+}
+
+/** "2 hours ago" from an ISO time; '' when unknown. */
+export function agoText(iso, now = Date.now()) {
+  const at = Date.parse(iso ?? '');
+  if (!Number.isFinite(at)) return '';
+  const min = Math.max(0, Math.floor((now - at) / 60_000));
+  if (min < 1) return t('just now');
+  if (min < 60) return min === 1 ? t('1 minute ago') : t('{n} minutes ago', { n: min });
+  const h = Math.floor(min / 60);
+  return h === 1 ? t('1 hour ago') : t('{n} hours ago', { n: h });
+}
+
+/**
+ * The line for a run that ended while the page was closed (/status after the page opens):
+ * "The last run stopped: <reason>" or "The last run finished 2 hours ago."
+ */
+export function lastRunText(run, now = Date.now()) {
+  if (!run || run.state === 'running') return '';
+  if (run.state === 'done') {
+    // Mid-sentence: "Hace 2 horas" reads "hace 2 horas".
+    const ago = agoText(run.endedAt, now);
+    return t('The last run finished {ago}.', { ago: ago.charAt(0).toLowerCase() + ago.slice(1) });
+  }
+  if (run.error) return t('The last run stopped: {reason}', { reason: t(run.error) });
+  if (run.state === 'failed') return t('The last run stopped because of an error.');
+  return t('The last run was stopped after {done} of {total}. What finished is kept.', { done: run.done ?? 0, total: run.total ?? 0 });
 }
 
 /** The short line on the page while a run goes on ("Testing models… 14 of 96"). */
@@ -164,6 +195,7 @@ export function tableModel(data) {
     .filter((m) => Object.keys(m.scores ?? {}).length)
     .map((m) => ({
       key: keyOf(m),
+      ref: { providerId: m.providerId, model: m.model },
       label: m.label || m.model,
       stale: Boolean(m.stale),
       testedAt: m.testedAt ?? null,
@@ -193,6 +225,33 @@ export const untestedLine = (n) => (!n ? '' : n === 1 ? t('1 model not tested ye
 
 /** True when /scores has nothing to show yet. */
 export const noScores = (data) => !(data?.models ?? []).some((m) => Object.keys(m.scores ?? {}).length);
+
+/** A task's time ("2.4 s"), in the page's language; '' when unknown. */
+export function secondsText(ms) {
+  const n = Number(ms);
+  if (ms === undefined || ms === null || !Number.isFinite(n)) return '';
+  const s = n / 1000;
+  const lang = typeof document !== 'undefined' ? document.documentElement.lang || undefined : undefined;
+  return new Intl.NumberFormat(lang, { style: 'unit', unit: 'second', unitDisplay: 'short', maximumFractionDigits: s < 10 ? 1 : 0 }).format(s);
+}
+
+/**
+ * "Why this score" from /details: one line per task with a tick or a cross, its plain title, why and
+ * how long. Only titles and reasons: never a task's prompt or a model's reply.
+ * @returns {{ ok: boolean, title: string, reason: string, time: string }[]}
+ */
+export function whyRows(d) {
+  return (d?.tasks ?? []).map((x) => ({ ok: Boolean(x.pass), title: t(x.title ?? x.id ?? ''), reason: x.reason ? t(x.reason, x.params) : '', time: secondsText(x.ms) }));
+}
+
+/** The line above the list: "qwen3:8b for Talking: passed 11 of 12, on Nov 20." */
+export function whyHead(d, jobLabel) {
+  if (!d) return '';
+  const n = { model: d.label || d.model, job: jobLabel, passed: d.passed ?? 0, total: d.total ?? 0 };
+  const when = d.testedAt ? new Date(d.testedAt).toLocaleDateString(typeof document !== 'undefined' ? document.documentElement.lang || undefined : undefined, { month: 'short', day: 'numeric' }) : '';
+  const line = when ? t('{model} for {job}: passed {passed} of {total}, tested {date}.', { ...n, date: when }) : t('{model} for {job}: passed {passed} of {total}.', n);
+  return d.stale ? `${line} ${t('Tested before the tests changed.')}` : line;
+}
 
 /**
  * The routes each changed job had before Use the best for every job: /apply's `previous` when the
@@ -242,10 +301,10 @@ function button(label, fn, cls = 'ghost') {
 }
 
 /**
- * @type {{ ctx: any, available: boolean | null, scores: any, run: any, lastEvent: number, poll: number,
+ * @type {{ ctx: any, available: boolean | null, scores: any, run: any, before: boolean, lastEvent: number, poll: number,
  *   choice: any, planSeq: number, planTimer: number, slots: any[], planModels: any[], autoNew: boolean, undo: any }}
  */
-const mt = { ctx: null, available: null, scores: null, run: null, lastEvent: 0, poll: 0, choice: { kind: 'all', jobs: [], includePaid: false }, planSeq: 0, planTimer: 0, slots: [], planModels: [], autoNew: false, undo: null };
+const mt = { ctx: null, available: null, scores: null, run: null, before: false, lastEvent: 0, poll: 0, choice: { kind: 'all', jobs: [], includePaid: false }, planSeq: 0, planTimer: 0, slots: [], planModels: [], autoNew: false, undo: null };
 
 const names = {
   model: (m) => {
@@ -290,7 +349,14 @@ export async function loadModelTests() {
     mt.scores = scores;
     showFeature(true);
     if (status?.run?.state === 'running') setRun(status.run);
-    else paintLive();
+    else {
+      // A run that ended while the page was closed (or before a restart): say how it ended.
+      if (status?.run && status.run.id !== mt.run?.id) {
+        mt.run = status.run;
+        mt.before = true;
+      }
+      paintLive();
+    }
   } catch (err) {
     if (err?.status === 404) {
       mt.available = false;
@@ -327,6 +393,7 @@ export function onModelTestsEvent(data) {
 function setRun(run) {
   const was = mt.run;
   mt.run = run ?? null;
+  mt.before = false;
   const running = mt.run?.state === 'running';
   if (running) startPoll();
   else stopPoll();
@@ -381,10 +448,11 @@ function paintLive() {
   const line = $('#mtest-live');
   if (!line) return;
   const run = mt.run;
-  const show = mt.available === true && run && (run.state === 'running' || run.state === 'failed' || run.state === 'stopped');
+  const before = Boolean(mt.before && run && run.state !== 'running');
+  const show = mt.available === true && run && (before || run.state === 'running' || run.state === 'failed' || run.state === 'stopped');
   line.hidden = !show;
   if (!show) return line.replaceChildren();
-  const text = el('span', run.state === 'failed' ? 'bad' : '', pageLine(run, names));
+  const text = el('span', run.state === 'failed' ? 'bad' : '', before ? lastRunText(run) : pageLine(run, names));
   line.replaceChildren(text);
   if (run.state === 'running') line.append(' ', button(t('Stop'), () => void stopRun()));
 }
@@ -665,11 +733,23 @@ function results({ inDialog }) {
       const top = best[0];
       const line = el('div', 'mtest-job-top');
       line.append(el('strong', '', top.label), el('span', 'small', ` ${entryText({ ...top, label: '' })}`));
-      line.append(' ', button(t('Use'), () => void useOne(j.id, top), 'ghost small'));
+      line.append(' ', button(t('Use'), () => void useOne(j.id, top), 'ghost small'), button(t('Why?'), () => void openWhy(top, j.id), 'ghost small mtest-why-btn'));
       main.append(line);
       if (top.why) main.append(el('p', 'muted small', top.why));
       else if (top.tie) main.append(el('p', 'muted small', t('Close scores count as a tie.')));
-      if (best.length > 1) main.append(el('p', 'muted small', `${t('Backup models')}: ${best.slice(1).map(entryText).join('; ')}`));
+      // Each backup can be used too (the job's model becomes that one).
+      if (best.length > 1) {
+        const backs = el('div', 'mtest-backups');
+        backs.append(el('span', 'muted small', `${t('Backup models')}:`));
+        for (const b of best.slice(1)) {
+          const use = button(t('Use'), () => void useOne(j.id, b), 'ghost small');
+          use.setAttribute('aria-label', t('Use {model} for {job}', { model: b.label, job: t(j.label) }));
+          const line = el('div', 'mtest-backup small');
+          line.append(el('span', '', entryText(b)), use);
+          backs.append(line);
+        }
+        main.append(backs);
+      }
       row.append(main);
       list.append(row);
     }
@@ -715,23 +795,65 @@ function table(data) {
     name.scope = 'row';
     if (r.stale) name.append(el('span', 'mtest-stale small', t('tested before the tests changed')));
     tr.append(name);
-    for (const c of r.cells) {
+    r.cells.forEach((c, i) => {
       const td = el('td', `num${c.kind === 'error' ? ' mtest-err' : ''}${c.best ? ' mtest-top' : ''}`);
+      if (c.kind === 'none') {
+        td.textContent = '–';
+        return void tr.append(td);
+      }
+      // A score (or "could not be tested") opens "Why this score" for that model and job.
+      const job = jobs[i];
+      const cell = button('', () => void openWhy(r.ref, job.id), 'mtest-cell');
+      cell.setAttribute('aria-label', t('Why {model} scored this for {job}', { model: r.label, job: t(job.label) }));
       if (c.kind === 'score') {
-        td.append(el('span', '', c.text), el('span', 'mtest-detail', c.detail));
-        if (c.tie) td.append(el('span', 'mtest-detail', t('tied')));
-      } else if (c.kind === 'error') {
-        td.textContent = c.text;
-        td.title = c.detail ?? '';
-      } else td.textContent = '–';
+        cell.append(el('span', '', c.text), el('span', 'mtest-detail', c.detail));
+        if (c.tie) cell.append(el('span', 'mtest-detail', t('tied')));
+      } else {
+        cell.textContent = c.text;
+        cell.title = c.detail ?? '';
+      }
+      td.append(cell);
       tr.append(td);
-    }
+    });
     tr.append(el('td', 'muted', day(r.testedAt)));
     tbody.append(tr);
   }
   tbl.append(thead, tbody);
   wrap.append(tbl);
   return wrap;
+}
+
+/** "Why this score": the job's tasks for one model, each with a tick or a cross and the reason. */
+async function openWhy(m, job) {
+  const d = $('#mtest-why');
+  if (!d || !m) return;
+  const head = $('#mtest-why-head');
+  const list = $('#mtest-why-list');
+  head.classList.remove('bad');
+  head.textContent = t('Loading…');
+  list.replaceChildren();
+  if (!d.open) d.showModal();
+  try {
+    const data = await mt.ctx.api(`/model-tests/details?${new URLSearchParams({ providerId: m.providerId, model: m.model, job })}`);
+    head.textContent = whyHead(data, names.job(job));
+    list.replaceChildren(
+      ...whyRows(data).map((row) => {
+        const li = el('li', `mtest-why-item${row.ok ? '' : ' mtest-why-fail'}`);
+        const mark = el('span', 'mtest-why-mark', row.ok ? '✓' : '✗');
+        mark.setAttribute('role', 'img');
+        mark.setAttribute('aria-label', row.ok ? t('Passed') : t('Failed'));
+        const text = el('div', 'mtest-why-text');
+        text.append(el('span', 'mtest-why-title', row.title));
+        const more = [row.reason, row.time].filter(Boolean).join(' · ');
+        if (more) text.append(el('span', 'muted small', more));
+        li.append(mark, text);
+        return li;
+      }),
+    );
+  } catch (err) {
+    head.classList.add('bad');
+    head.textContent = err?.message ?? String(err);
+  }
 }
 
 async function useOne(job, b) {

@@ -29,6 +29,13 @@ const RAW = [
   '#ap-palette option[value="classic"]', '.ap-pal[data-pal="classic"] .ap-pal-name', '#v1-classic',
 ].join(',');
 const ATTRS = ['placeholder', 'title', 'aria-label', 'alt', 'data-tip', 'aria-description'];
+// D7: Settings (about 6,500 elements, 40% of the page) is named when it is opened or read, not in the
+// pass over the whole page at start or after a rename or a new language. `round` counts those passes;
+// Settings is named again when it opens after a newer one (nameNow). docs/PERFORMANCE.md.
+const LATER = '#settings';
+let round = 0;
+const namedAt = new WeakMap();
+const later = (n) => n.localName === 'dialog' && !n.open && n.matches(LATER);
 const NAME_RE = /\b(Sara|she|her|hers|herself|She|Her|Hers|Herself)\b/;
 
 /** Languages the app speaks (English is the source). */
@@ -121,7 +128,7 @@ function walk(root) {
   if (root.nodeType !== Node.ELEMENT_NODE || raw(root)) return;
   fixAttrs(root, true);
   const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, {
-    acceptNode: (n) => (n.nodeType === Node.ELEMENT_NODE && n.matches(RAW) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
+    acceptNode: (n) => (n.nodeType === Node.ELEMENT_NODE && (n.matches(RAW) || later(n)) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
   });
   for (let n = tw.nextNode(); n; n = tw.nextNode()) {
     if (n.nodeType === Node.TEXT_NODE) fixText(n, true);
@@ -129,14 +136,37 @@ function walk(root) {
   }
 }
 
+// `open` too: a Settings window that opens is named then (see LATER).
+const watch = () => {
+  if (observer) observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: [...ATTRS, 'open'] });
+};
+
 function applyAll() {
   observer?.disconnect();
+  round++;
   // Text built in code (t()) under the old name, pronouns or language.
   refreshBuilt();
   walk(document.body);
+  const open = document.querySelector(LATER);
+  if (open?.open) namedAt.set(open, round);
   document.title = identity.name;
   document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute('content', identity.name);
-  observer?.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ATTRS });
+  watch();
+}
+
+/** Names a part the passes over the page left for later (Settings), if it is not named yet. */
+function nameIn(root) {
+  if (!root || namedAt.get(root) === round) return;
+  namedAt.set(root, round);
+  refreshBuiltIn(root);
+  walk(root);
+}
+/** D7: call before reading Settings' words while it is closed (the command bar's search does). */
+export function nameNow(root = document.querySelector(LATER)) {
+  if (!root || namedAt.get(root) === round) return;
+  observer?.disconnect();
+  nameIn(root);
+  watch();
 }
 
 function ensureObserver() {
@@ -149,9 +179,11 @@ function ensureObserver() {
         // JS replaced the text: forget the old original.
         if (originalText.has(r.target) && r.target.nodeValue !== renderFor(r.target.parentElement, originalText.get(r.target))) originalText.delete(r.target);
         fixText(r.target);
+      } else if (r.type === 'attributes' && r.attributeName === 'open') {
+        if (r.target.open && r.target.matches?.(LATER)) nameIn(r.target);
       } else if (r.type === 'attributes') fixAttrs(r.target);
     }
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ATTRS });
+    watch();
   });
 }
 
@@ -254,8 +286,13 @@ const WRITTEN = '.md, pre, code, #conversations, #chat-title, #mem-list, #note-l
 const built = new Map();
 /** After a rename or a new language: text that code put on the page with t() follows too. */
 function refreshBuilt() {
-  if (!built.size || !document.body || typeof document.createTreeWalker !== 'function') return;
-  const tw = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+  refreshBuiltIn(document.body);
+}
+function refreshBuiltIn(root) {
+  if (!built.size || !root || typeof document.createTreeWalker !== 'function') return;
+  const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, {
+    acceptNode: (n) => (n.nodeType === Node.ELEMENT_NODE && later(n) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
+  });
   for (let n = tw.nextNode(); n; n = tw.nextNode()) {
     if (n.nodeType === Node.TEXT_NODE) {
       // Also in raw spots (cards and facts that hold names or model ids) when the text is exactly what

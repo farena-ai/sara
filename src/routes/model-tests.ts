@@ -1,4 +1,4 @@
-// Model tests ("Test my models", docs/MODEL_TESTS.md): plan, start, status, stop, scores, apply.
+// Model tests ("Test my models", docs/MODEL_TESTS.md): plan, start, status, stop, scores, details, apply.
 // Owner only: 'model-tests' is not a member route (src/household.ts), and the demo cannot start runs.
 import { HttpError, readJson, send } from '../http.ts';
 import { ModelTests, ModelTestsBusy, type Scope, type TestRequest } from '../model-tests.ts';
@@ -47,6 +47,17 @@ export function createModelTestsRoutes(ctx: RouteCtx): RouteHandler {
     if (opts.member) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
     if (b === 'status' && method === 'GET') return send(res, 200, tests().status());
     if (b === 'scores' && method === 'GET') return send(res, 200, await tests().scores());
+    if (b === 'details' && method === 'GET') {
+      const q = new URL(req.url ?? '/', 'http://x').searchParams;
+      const providerId = q.get('providerId') ?? '';
+      const model = (q.get('model') ?? '').trim();
+      const job = q.get('job') ?? '';
+      if (!providerId || !model) throw new HttpError(400, 'Say which model and which job.');
+      if (!ROUTE_PURPOSES.includes(job as RoutePurpose)) throw new HttpError(400, 'Unknown job "{job}"', { params: { job } });
+      const d = tests().details({ providerId, model }, job as RoutePurpose);
+      if (!d) throw new HttpError(404, 'This model has no results for that job yet.');
+      return send(res, 200, d);
+    }
     if (b === 'plan' && method === 'POST') return send(res, 200, await tests().plan(parseTestRequest(await readJson(req))));
     if (opts.demo && method !== 'GET') throw new HttpError(403, 'Not available in the demo.');
     if (b === 'start' && method === 'POST') {

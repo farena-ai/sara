@@ -129,7 +129,8 @@ test('plan: models, who is left out and why, calls and paid calls; nothing runs'
   const r = await api(w, '/api/model-tests/plan', 'POST', { scope: { kind: 'all' } });
   assert.equal(r.status, 200);
   const p = r.json;
-  assert.deepEqual(Object.keys(p).sort(), ['calls', 'jobs', 'minutes', 'models', 'paidCalls']);
+  assert.deepEqual(Object.keys(p).sort(), ['calls', 'estimate', 'jobs', 'minutes', 'models', 'paidCalls']);
+  assert.equal(p.estimate, 'guess', 'no model was tested before (T51)');
   for (const m of p.models) {
     assert.deepEqual(Object.keys(m).filter((k) => k !== 'why').sort(), ['billing', 'included', 'label', 'model', 'providerId']);
     assert.ok(['local', 'subscription', 'api'].includes(m.billing));

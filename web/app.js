@@ -14,7 +14,7 @@ import { Presence, setLookVersion } from './presence.js';
 import { openLightbox } from './lightbox.js';
 import { dialRows as dialRowsOf, refreshDials, soFarText } from './dials.js';
 import { CLOUD_TAG, countWords, modelCounts } from './model-count.js';
-import { browserLang, currentIdentity, currentLang, locale, savedLang, setIdentity, setLanguage, serverText, t, toLang, translateOnly } from './naming.js';
+import { browserLang, currentIdentity, currentLang, locale, nameNow, savedLang, setIdentity, setLanguage, serverText, t, toLang, translateOnly } from './naming.js';
 import { initDefaultLook, renderDefaultLook } from './default-look.js';
 import { autoSave, initDialogs, markDirty, onSave, runSave, saved } from './dialogs.js';
 import { isDocFile, loadLibrarySettings, openArchives, openLibrary, saveLibrarySettings, uploadDoc, waitRead } from './library.js';
@@ -1713,6 +1713,7 @@ initCommandBar({
   settings: () => settingsPages().map((p) => ({ key: `settings:${p.dataset.page}`, icon: 'settings', label: t(p.dataset.title), sub: t(p.dataset.group), run: () => openSettings(p.dataset.page) })),
   // The Settings window's own tiered search for pages, plus every setting's label on its own.
   searchSettings: (q) => {
+    nameNow(); // D7: Settings' words in her name and the app language before they are searched
     const pages = settingsPages();
     const pageItem = (p) => ({ key: `settings:${p.dataset.page}`, icon: 'settings', label: t(p.dataset.title), sub: t(p.dataset.group), run: () => openSettings(p.dataset.page) });
     // Pages: the ones whose name fits first, then the Settings window's tiered search.
@@ -9704,6 +9705,7 @@ function settingsLoading(state) {
   $('#settings').setAttribute('aria-busy', String(Boolean(state)));
 }
 async function openSettings(tab, opts = {}) {
+  nameNow(); // D7: named on first open, not at start (web/naming.js)
   $('#settings-search').value = '';
   $('#settings-elsewhere').hidden = true;
   restoreSettingsOrder();

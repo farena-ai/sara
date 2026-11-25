@@ -146,7 +146,8 @@ const NOT_HELP = new Set(['ARCHITECTURE', 'API', 'EXTENDING', 'RESULTS', 'REAL_R
 /** Is this file a user doc for the index? (docs/*.md, public, not developer-facing.) */
 export function isUserDoc(rel: string): boolean {
   const m = /^docs\/([^/]+)\.md$/.exec(rel);
-  return Boolean(m) && !NOT_HELP.has(m![1]) && !PRIVATE.some((re) => re.test(rel));
+  // Roadmap notes after a release (ROADMAP_AFTER_3.40.md and the like) are project plans, not help.
+  return Boolean(m) && !NOT_HELP.has(m![1]) && !m![1].startsWith('ROADMAP_') && !PRIVATE.some((re) => re.test(rel));
 }
 
 const DEV_HEADING = /\b(design|tables?|routes?|api|endpoints?|tests?|testing|implementation|internals|schema|developers?|for coders|code map|source files?|how it works inside)\b/i;
