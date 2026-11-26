@@ -108,6 +108,11 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Models on your own computer answer sooner, in 3.46.1
+
+A model on your own computer is no longer loaded again on every message, and on Balanced thinking it
+answers an ordinary chat without a long think first. When a model does think, the chat says so.
+
 ## Why a model got its score, in 3.46.0
 
 Tap a score in Test my models and see each small task with a tick or a cross and a plain reason.

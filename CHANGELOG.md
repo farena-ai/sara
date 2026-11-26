@@ -5,6 +5,13 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.46.1 (2026-11-26): Models on your own computer answer sooner
+
+- Fixed: a model on your own computer is no longer loaded again on every message. Each chat title was written by another model on the same computer (the Private one), and a computer that holds one model at a time swapped the two every turn, so about 13 GB was loaded again and the whole prompt was read from the start. Small jobs like titles now use the model that is already loaded there. It is the same computer, so it is just as private.
+- Better: on Balanced thinking, a model on your own computer answers an ordinary chat without thinking first. On a 12B model, about 25 of a turn's 35 seconds were thinking nobody saw (about 1,900 tokens written for a 220-token reply). Thorough, coding conversations and a chat that has its own thinking level are unchanged, and models in the cloud are unchanged.
+- Fixed: the Quick thinking level now turns thinking off on Ollama models that can only think or not think. It used to turn thinking on, the same as Thorough.
+- Better: while a model thinks before its first word, the chat says "thinking it through" from the start of the thinking, not only after it. The thinking also counts as a sign of life, so a backup model does not take over from a model that is only thinking.
+
 ## 3.46.0 (2026-11-24): Why a model got its score, and a quicker start
 
 - Better: the crisis check `npm run eval:crisis -- --model …` now also measures a conversation that already has the crisis lines. It checks that she does not list them again for the same feeling, and gives them at once when asked or when something new shows danger now (`--only shared` runs just these).

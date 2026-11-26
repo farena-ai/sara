@@ -14,6 +14,7 @@ import { randomBytes } from 'node:crypto';
 import { DailyLedger } from './budget.ts';
 import { neutralizeNote, resolveChain, resolveProvider, type AppContext, type ModelChoice } from './chat.ts';
 import { localDate } from './memory-worker.ts';
+import { daemonLoaded, isOllamaDaemon } from './model-context.ts';
 import { isCloudModelName } from './model-names.ts';
 import { privateLocalOn } from './net-guard.ts';
 import { onThisComputer } from './private-local.ts';
@@ -95,7 +96,34 @@ export function cheapRoute(app: AppContext, conv: Conversation, pick: CheapModel
     const model = p.id === s.defaultProviderId ? (s.defaultModel ?? p.defaultModel) : p.defaultModel;
     if (model) add(tryResolve(p.id, model, 'default'));
   }
-  return out.slice(0, 2);
+  return out.slice(0, 2).map((c) => warmInstead(app, c, tag));
+}
+
+/** How long after a daemon said what it had loaded that answer still counts (Ollama keeps a model about 5 minutes). */
+export const WARM_MS = 10 * 60_000;
+
+/**
+ * A small call never pushes the chat's model off the graphics card. Found on the owner's PC
+ * (2026-11-26): the chat ran on one model there and each title was written by another (his Private
+ * route), and that computer holds one model at a time, so every turn loaded 13 GB again and read
+ * the whole prompt from the start. When the daemon has another model of the owner's own loaded, the
+ * small call uses that one: the same computer, so just as private.
+ */
+export function warmInstead(app: AppContext, c: ModelChoice, tag: { purpose: string; conversationId?: string }, now = Date.now()): ModelChoice {
+  const cfg = c.provider.config;
+  if (!isOllamaDaemon(cfg)) return c;
+  const ps = daemonLoaded(cfg.baseUrl);
+  if (!ps.models.length || now - ps.at > WARM_MS) return c;
+  const same = (a: string, b: string) => a === b || a === `${b}:latest` || b === `${a}:latest`;
+  if (ps.models.some((m) => same(m.name, c.model))) return c;
+  // Embedding models are loaded too, and can't write: only a model that sits on the card with a context of its own.
+  const warm = ps.models.find((m) => !/embed|bge-|minilm/i.test(m.name) && isLocalModel(cfg, m.name));
+  if (!warm) return c;
+  try {
+    return { ...resolveProvider(app, cfg.id, warm.name, tag), from: c.from };
+  } catch {
+    return c;
+  }
 }
 
 /** The ledger of this companion's own database (the owner's local day). */

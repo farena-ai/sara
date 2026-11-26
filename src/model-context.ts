@@ -377,6 +377,8 @@ const daemonPs = new Map<string, { at: number; models: LoadedModel[] }>();
 export function noteOllamaPs(baseUrl: string, body: unknown, at = Date.now()): void {
   daemonPs.set(rootOf(baseUrl), { at, models: parseOllamaPs(body) });
 }
+/** The models a daemon had loaded when its /api/ps was last read, with when that was. */
+export const daemonLoaded = (baseUrl: string): { at: number; models: LoadedModel[] } => daemonPs.get(rootOf(baseUrl)) ?? { at: 0, models: [] };
 /** When the daemon's /api/ps was last read (0 = never). */
 export const daemonPsAt = (baseUrl: string): number => daemonPs.get(rootOf(baseUrl))?.at ?? 0;
 /** Tests: forget what the daemons said. */

@@ -2,6 +2,23 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.46.1",
+   "date": "2026-11-26",
+   "title": "Models on your own computer answer sooner",
+   "items": [
+    {
+     "id": "3-46-1-a-model-on-your-own",
+     "kind": "fixed",
+     "text": "A model on your own computer is no longer loaded again on every message."
+    },
+    {
+     "id": "3-46-1-the-quick-thinking-level-now",
+     "kind": "fixed",
+     "text": "The Quick thinking level now turns thinking off on Ollama models that can only think or not think."
+    }
+   ]
+  },
+  {
    "version": "3.46.0",
    "date": "2026-11-24",
    "title": "Why a model got its score, and a quicker start",
@@ -203,38 +220,6 @@
      "id": "3-41-0-a-new-install-is-no",
      "kind": "fixed",
      "text": "A new install is no longer told its backups are more than 2 days old before the first one is made."
-    }
-   ]
-  },
-  {
-   "version": "3.40.0",
-   "date": "2026-11-23",
-   "title": "The right tool at hand, the newest Claude models, research in six languages",
-   "items": [
-    {
-     "id": "3-40-0-she-picks-her-tools-by",
-     "kind": "new",
-     "text": "She picks her tools by what you mean, not only by the words you use."
-    },
-    {
-     "id": "3-40-0-with-a-claude-model-on",
-     "kind": "new",
-     "text": "With a Claude model on an API key, what the model worked out before using a tool is handed back to it with the result."
-    },
-    {
-     "id": "3-40-0-she-has-the-right-tool",
-     "kind": "fixed",
-     "text": "She has the right tool at hand for more everyday ways of asking: \"did the Packers win?\", \"when do the Lakers play next?\", \"start the clock\", \"be a bit less formal\"."
-    },
-    {
-     "id": "3-40-0-asking-her-to-research-something",
-     "kind": "fixed",
-     "text": "Asking her to research something in Spanish, French, German, Portuguese or Italian goes to your research model, as it did in English."
-    },
-    {
-     "id": "3-40-0-the-newest-claude-models-work",
-     "kind": "fixed",
-     "text": "The newest Claude models work with an API key."
     }
    ]
   }

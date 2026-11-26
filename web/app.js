@@ -3309,6 +3309,9 @@ async function runStream(path, body, userBubble) {
           else asked?.remove();
           callApprovals.done(ev.id);
           setActivity('thinking');
+        } else if (ev.type === 'reasoning') {
+          // The model is thinking before its first word (a model on your own computer can take a while).
+          if (activity.status !== 'writing') setActivity('thinking', t('thinking it through'));
         } else if (ev.type === 'token') {
           if (groupSpeaker) setActivity('answering', groupSpeaker.name);
           else if (activity.status !== 'writing') setActivity('writing');

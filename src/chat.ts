@@ -459,6 +459,8 @@ export type ChatEvent =
   /** Phase 61: `key` + `params` (fallback notices) let the app and the bridges word it in the owner's language; `text` is the English. */
   | { type: 'notice'; kind: 'disclosure' | 'crisis' | 'fallback' | 'compact' | 'continuity' | 'websearch' | 'picture'; text: string; key?: string; params?: Record<string, unknown>; oneTap?: boolean }
   | { type: 'token'; text: string }
+  /** The model is thinking before its words (characters so far in this step); nothing of the thinking itself. */
+  | { type: 'reasoning'; chars: number }
   /** C8: `price` = this tool costs money ("about $X", or null = unknown), shown on the step before it runs. */
   | { type: 'tool_call'; id: string; name: string; summary: string; args: Record<string, unknown>; price?: PriceTag }
   /** A long tool call is still being written by the model (chars so far). */
@@ -587,6 +589,17 @@ export type Job = RouteJob;
 // Z6 (scripts/eval-tools.ts): six languages; and "research" counts when it is asked of her ("research the
 // best…", "can you research…"), not when it is a thing someone does ("my brother does cancer research").
 /** S2: the thinking level of Settings as the effort a provider is asked for. */
+/**
+ * Balanced on a model that runs on the owner's own hardware, in an ordinary chat: no thinking first.
+ * Found on the owner's PC (2026-11-26): a 12B model wrote about 1,900 tokens for a 900-character
+ * reply, so 25 of a turn's 35 seconds were thinking nobody saw. A hosted model thinks that much in a
+ * second or two; a graphics card at home does not. Coding conversations, Thorough and a chat's own
+ * level keep what they had.
+ */
+export function homeChatThink(config: { local?: boolean }, model: string, conv: { mode?: string | null; thinking?: string | null }): 'low' | undefined {
+  return config.local === true && !isCloudModelName(model) && conv.mode !== 'coding' && !conv.thinking ? 'low' : undefined;
+}
+
 export const THINK_LEVEL: Record<'quick' | 'balanced' | 'thorough', 'low' | 'high' | undefined> = { quick: 'low', balanced: undefined, thorough: 'high' };
 export const RESEARCH_RE = new RegExp(
   [
@@ -3767,7 +3780,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       if (steerable) app.pending?.setPhase(conv.id, { kind: 'model' });
       const stepOut: ModelStepOut = { reply, reasoningChars, calls, thinking: stepThinking, stopReason, slowSaid };
       try {
-        yield* streamModelStep({ app, p, m, messages, keptThinking, offered, outMax, callThink, callCtx, lastInChain: ci >= chain.length - 1, auto: chain[ci]?.from === 'auto', signal: AbortSignal.any([signal, cut.signal]), building, fresh: freshInputs }, stepOut);
+        yield* streamModelStep({ app, p, m, messages, keptThinking, offered, outMax, callThink: callThink ?? homeChatThink(p.config, m, store.getConversation(conv.id) ?? conv), callCtx, lastInChain: ci >= chain.length - 1, auto: chain[ci]?.from === 'auto', signal: AbortSignal.any([signal, cut.signal]), building, fresh: freshInputs }, stepOut);
       } finally {
         // Also when the call failed part way: what she had written is kept by the catch below.
         ({ reply, reasoningChars, stopReason, slowSaid } = stepOut);
@@ -4369,6 +4382,7 @@ async function* streamModelStep(env: ModelStepEnv, step: ModelStepOut): AsyncGen
       step.calls.push(ev.call);
     } else if (ev.type === 'reasoning') {
       step.reasoningChars += ev.chars;
+      if (!step.reply) yield { type: 'reasoning', chars: step.reasoningChars };
     } else if (ev.type === 'thinking') {
       step.thinking = ev.kept;
     } else if (ev.type === 'stop') {

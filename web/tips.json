@@ -462,7 +462,7 @@
       "brain"
     ],
     "thinking-level": [
-      "How much the model thinks before it answers. Quick is faster and uses less; Thorough helps with hard questions. Works with Claude, ChatGPT and models in Ollama.",
+      "How much the model thinks before it answers. Quick is faster; Thorough helps with hard questions. On Balanced, a model on your own computer answers an ordinary chat without thinking first. Works with Claude, ChatGPT and Ollama.",
       "brain"
     ],
     "history-budget": [

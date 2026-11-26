@@ -165,6 +165,18 @@ export function resetOllamaFit(): void {
   ollamaRaised.clear();
 }
 
+/**
+ * What /api/chat's `think` gets. Most models there take only on or off, so the quick level is off (it
+ * used to be on, the same as thorough); gpt-oss takes the level itself. Nothing asked = the model decides.
+ */
+export function ollamaThink(model: string, reasoning: ChatRequest['reasoning']): boolean | string | undefined {
+  if (reasoning === undefined) return undefined;
+  if (/gpt-oss/i.test(model)) return reasoning === 'none' ? false : reasoning;
+  return reasoning === 'high' || reasoning === 'medium';
+}
+/** Thinking is reported as it grows, about this many characters at a time, so the chat can say she is thinking. */
+export const THINK_REPORT_CHARS = 240;
+
 /** Daemons whose /api/chat failed (an old Ollama or another server on that port): /v1 from then on. */
 const noNativeChat = new Set<string>();
 
@@ -319,6 +331,7 @@ export class OpenAICompatibleProvider implements Provider {
     let finished = false;
     let lengthSaid = false;
     let reasoned = 0;
+    let reasonedSaid = 0;
     const flush = function* (): Generator<StreamEvent> {
       for (const [, c] of [...calls.entries()].sort((a, b) => a[0] - b[0])) {
         if (c.name) yield { type: 'tool_call', call: { id: c.id || `call_${randomUUID()}`, name: c.name, arguments: parseToolArguments(c.args) } };
@@ -347,7 +360,13 @@ export class OpenAICompatibleProvider implements Provider {
       const delta = choice?.delta;
       if (delta?.content) yield { type: 'text', text: delta.content };
       const thought = delta?.reasoning ?? delta?.reasoning_content;
-      if (typeof thought === 'string') reasoned += thought.length;
+      if (typeof thought === 'string') {
+        reasoned += thought.length;
+        if (reasoned - reasonedSaid >= THINK_REPORT_CHARS) {
+          yield { type: 'reasoning', chars: reasoned - reasonedSaid };
+          reasonedSaid = reasoned;
+        }
+      }
       for (const [i, tc] of (delta?.tool_calls ?? []).entries()) {
         const index = tc.index ?? i;
         const cur = calls.get(index) ?? { id: '', name: '', args: '' };
@@ -384,7 +403,7 @@ export class OpenAICompatibleProvider implements Provider {
       }
     }
     yield* flush();
-    if (reasoned) yield { type: 'reasoning', chars: reasoned };
+    if (reasoned > reasonedSaid) yield { type: 'reasoning', chars: reasoned - reasonedSaid };
     if (req.strictUsage && (strictUsageInvalid || !finished)) yield { type: 'usage', input: NaN, output: NaN };
     else if (usage) yield usage;
   }
@@ -395,7 +414,7 @@ export class OpenAICompatibleProvider implements Provider {
    */
   async #ollamaChat(req: ChatRequest, numCtx: number): Promise<AsyncIterable<StreamEvent> | undefined> {
     const root = daemonRoot(this.config.baseUrl);
-    const think = req.reasoning === undefined ? undefined : req.reasoning === 'none' ? false : /gpt-oss/i.test(req.model) ? req.reasoning : true;
+    const think = ollamaThink(req.model, req.reasoning);
     const fitKey = `${root}|${req.model}`;
     const toolsBody = req.tools?.length ? req.tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters } })) : undefined;
     const toolsChars = toolsBody ? JSON.stringify(toolsBody).length : 0;
@@ -437,6 +456,7 @@ export class OpenAICompatibleProvider implements Provider {
       let buf = '';
       let n = 0;
       let thought = 0;
+      let thoughtSaid = 0;
       const lines = async function* (): AsyncGenerator<string> {
         for await (const chunk of body as unknown as AsyncIterable<Uint8Array>) {
           buf += decoder.decode(chunk, { stream: true });
@@ -462,7 +482,13 @@ export class OpenAICompatibleProvider implements Provider {
           void refreshPs(self);
         }
         if (j.message?.content) yield { type: 'text', text: j.message.content };
-        if (typeof j.message?.thinking === 'string') thought += j.message.thinking.length;
+        if (typeof j.message?.thinking === 'string') {
+          thought += j.message.thinking.length;
+          if (thought - thoughtSaid >= THINK_REPORT_CHARS) {
+            yield { type: 'reasoning', chars: thought - thoughtSaid };
+            thoughtSaid = thought;
+          }
+        }
         for (const c of j.message?.tool_calls ?? []) {
           const name = c.function?.name;
           if (!name) continue;
@@ -478,7 +504,7 @@ export class OpenAICompatibleProvider implements Provider {
           // and not from a prompt Ollama cut to fit, which says nothing).
           const seen = Number(j.prompt_eval_count ?? 0);
           if (seen > 500 && seen < numCtx * 0.95 && sentChars > 2_000) ollamaDensity.set(fitKey, Math.max(ollamaDensity.get(fitKey) ?? 0, Math.min(1, seen / sentChars)));
-          if (thought) yield { type: 'reasoning', chars: thought };
+          if (thought > thoughtSaid) yield { type: 'reasoning', chars: thought - thoughtSaid };
           if (j.prompt_eval_count !== undefined || j.eval_count !== undefined) yield { type: 'usage', input: Number(j.prompt_eval_count ?? 0), output: Number(j.eval_count ?? 0) };
           break;
         }

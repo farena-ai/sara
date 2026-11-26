@@ -22836,12 +22836,6 @@
   "Not working right now: {names}. Latest problem: {error}": "No funcionan ahora mismo: {names}. Último problema: {error}",
   "Owner token or sign-in code": "Token del propietario o código de inicio de sesión",
   "Her own chat": "Su propio chat",
-  "The right tool at hand, the newest Claude models, research in six languages": "La herramienta adecuada a mano, los modelos Claude más nuevos, investigación en seis idiomas",
-  "She picks her tools by what you mean, not only by the words you use.": "Elige sus herramientas por lo que quieres decir, no solo por las palabras que usas.",
-  "With a Claude model on an API key, what the model worked out before using a tool is handed back to it with the result.": "Con un modelo Claude con clave de API, lo que el modelo razonó antes de usar una herramienta se le devuelve junto con el resultado.",
-  "She has the right tool at hand for more everyday ways of asking: \"did the Packers win?\", \"when do the Lakers play next?\", \"start the clock\", \"be a bit less formal\".": "Tiene a mano la herramienta adecuada para más formas cotidianas de pedir: «¿ganaron los Packers?», «¿cuándo juegan los Lakers?», «empieza a contar el tiempo», «sé un poco menos formal».",
-  "Asking her to research something in Spanish, French, German, Portuguese or Italian goes to your research model, as it did in English.": "Pedirle que investigue algo en español, francés, alemán, portugués o italiano va a tu modelo de investigación, como ya ocurría en inglés.",
-  "The newest Claude models work with an API key.": "Los modelos Claude más nuevos funcionan con una clave de API.",
   "How hard she thinks": "Cuánto piensa",
   "How much the model thinks before it answers, on models that can be told (Claude, ChatGPT, models in Ollama). Quick answers sooner and uses less; Thorough takes longer and helps with hard questions.": "Cuánto piensa el modelo antes de responder, en los modelos a los que se les puede indicar (Claude, ChatGPT, modelos en Ollama). Rápido responde antes y gasta menos; A fondo tarda más y ayuda con preguntas difíciles.",
   "Thinking": "Reflexión",
@@ -22849,7 +22843,6 @@
   "Pick Quick, Balanced or Thorough.": "Elige Rápido, Equilibrado o A fondo.",
   "Quick: answers sooner": "Rápido: responde antes",
   "Thorough: for hard questions": "A fondo: para preguntas difíciles",
-  "How much the model thinks before it answers. Quick is faster and uses less; Thorough helps with hard questions. Works with Claude, ChatGPT and models in Ollama.": "Cuánto piensa el modelo antes de responder. Rápido es más veloz y gasta menos; A fondo ayuda con preguntas difíciles. Funciona con Claude, ChatGPT y modelos en Ollama.",
   "Automatic backups are on; the first one has not been made yet.": "Las copias de seguridad automáticas están activadas; la primera aún no se ha hecho.",
   "A limit for each reply": "Un límite para cada respuesta",
   "This model has been answering slowly, so for a few minutes she picks tools by your words alone. If it shares a graphics card with her chat model, let Ollama keep two models loaded (OLLAMA_MAX_LOADED_MODELS=2).": "Este modelo ha estado respondiendo despacio, así que durante unos minutos ella elige las herramientas solo por tus palabras. Si comparte tarjeta gráfica con su modelo de chat, deja que Ollama mantenga dos modelos cargados (OLLAMA_MAX_LOADED_MODELS=2).",
@@ -23253,5 +23246,10 @@
   "<strong>What the scores mean</strong>: a score is how many of a job's small tasks a model passed; tap it (or <strong>Why?</strong>) to see each task with a tick or a cross and why. <strong>Tied</strong> means within 3 points, the same number passed. <strong>Could not be tested</strong> means it did not answer more than half of the tasks (an error or no answer in time), which is not a 0. Models you pay for by use are left out unless you tick them. Scores are from your own computer on that date; another computer or an update can change them. More in <a href=\"https://github.com/farena-ai/sara/blob/main/docs/CHOOSING_A_MODEL.md#test-my-models-what-a-score-means\">Choosing a model</a>.": "<strong>Qué significan las puntuaciones</strong>: una puntuación es cuántas de las pequeñas tareas de un trabajo superó un modelo; tócala (o <strong>¿Por qué?</strong>) para ver cada tarea con una marca o una cruz y el motivo. <strong>Empate</strong> significa a 3 puntos o menos: superaron el mismo número. <strong>No se pudo probar</strong> significa que no respondió a más de la mitad de las tareas (un error o sin respuesta a tiempo), y eso no es un 0. Los modelos que pagas por uso quedan fuera salvo que los marques. Las puntuaciones son de tu propio ordenador en esa fecha; otro ordenador o una actualización pueden cambiarlas. Más en <a href=\"https://github.com/farena-ai/sara/blob/main/docs/CHOOSING_A_MODEL.md#test-my-models-what-a-score-means\">Elegir un modelo</a>.",
   "Why a model got its score, and a quicker start": "Por qué un modelo obtuvo su puntuación, y un arranque más rápido",
   "Test my models says why a model got its score.": "Probar mis modelos dice por qué un modelo obtuvo su puntuación.",
-  "Tap a score, or Why?, to see each task and why it passed or not.": "Toca una puntuación, o ¿Por qué?, para ver cada tarea y por qué la superó o no."
+  "Tap a score, or Why?, to see each task and why it passed or not.": "Toca una puntuación, o ¿Por qué?, para ver cada tarea y por qué la superó o no.",
+  "thinking it through": "pensándolo bien",
+  "How much the model thinks before it answers. Quick is faster; Thorough helps with hard questions. On Balanced, a model on your own computer answers an ordinary chat without thinking first. Works with Claude, ChatGPT and Ollama.": "Cuánto piensa el modelo antes de responder. Rápido es más veloz; A fondo ayuda con preguntas difíciles. En Equilibrado, un modelo en tu propio ordenador responde a un chat normal sin pensar antes. Funciona con Claude, ChatGPT y Ollama.",
+  "Models on your own computer answer sooner": "Los modelos de tu propio ordenador responden antes",
+  "A model on your own computer is no longer loaded again on every message.": "Un modelo de tu propio ordenador ya no se vuelve a cargar con cada mensaje.",
+  "The Quick thinking level now turns thinking off on Ollama models that can only think or not think.": "El nivel de pensamiento Rápido ahora desactiva el pensamiento en los modelos de Ollama que solo pueden pensar o no pensar."
 }
