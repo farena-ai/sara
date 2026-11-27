@@ -41,6 +41,8 @@ export interface CheapRequest {
   /** Tokens this call may use at most (checked against `cap.tokens` before it starts). */
   estTokens?: number;
   timeoutMs?: number;
+  /** T56: thinking for this call (default none). Some hosted models think whatever is asked; see `empty` below. */
+  reasoning?: 'none' | 'low' | 'medium' | 'high';
   /** Phase 115 (BR1 describe-first): a ready route (the picture model) instead of the local / quick one. */
   route?: ModelChoice[];
 }
@@ -167,11 +169,16 @@ export async function cheapCall(app: AppContext, req: CheapRequest): Promise<Che
       const sc: typeof scope & { tokens?: number; reported?: number } = { ...scope };
       await usageScope.run(sc, async () => {
         const signal = AbortSignal.timeout(req.timeoutMs ?? CALL_TIMEOUT_MS);
-        for await (const ev of choice.provider.stream({ model: choice.model, messages: req.messages, temperature: req.temperature ?? 0.2, maxTokens: req.maxTokens, reasoning: 'none', signal })) {
+        for await (const ev of choice.provider.stream({ model: choice.model, messages: req.messages, temperature: req.temperature ?? 0.2, maxTokens: req.maxTokens, reasoning: req.reasoning ?? 'none', signal })) {
           if (ev.type === 'text') out += ev.text;
           if (out.length > req.maxTokens * 12) break;
         }
       });
+      // T56: a model that spent its whole answer thinking wrote nothing: the next model in the route gets the call.
+      if (!out.trim()) {
+        lastErr = 'the model answered with no words';
+        continue;
+      }
       const tokens = sc.reported ? (sc.tokens ?? 0) : Math.ceil(inChars / 4) + Math.ceil(out.length / 4);
       try {
         ledger.add(req.source, { tokens });

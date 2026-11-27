@@ -1,4 +1,5 @@
 // Built-in tools: workspace files, search, shell, web fetch.
+import { assertFresh, noteSeen, syntaxNote } from './edit-guard.ts';
 import { lookup } from 'node:dns/promises';
 import { request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
@@ -69,6 +70,7 @@ export const readFileTool: Tool = {
     if (s.size > 20_000_000) throw new ToolError('File is too large to read (over 20 MB).');
     const buf = await readFile(file);
     if (buf.subarray(0, 8000).includes(0)) throw new ToolError('This looks like a binary file.');
+    await noteSeen(ctx, file);
     const lines = buf.toString('utf8').split('\n');
     const offset = Math.max(1, Math.floor(num(args, 'offset', 1)));
     const limit = Math.min(5000, Math.max(1, Math.floor(num(args, 'limit', 2000))));
@@ -93,9 +95,11 @@ export const writeFileTool: Tool = {
     const file = resolveInside(ctx.workspaceDir, str(args, 'path'));
     assertWritable(ctx.workspaceDir, file);
     const content = typeof args.content === 'string' ? args.content : '';
+    const blind = await assertFresh(ctx, file, displayPath(ctx.workspaceDir, file), { overwrite: true });
     await mkdir(dirname(file), { recursive: true });
     await writeFile(file, content);
-    return `Wrote ${Buffer.byteLength(content)} bytes to ${displayPath(ctx.workspaceDir, file)}.`;
+    await noteSeen(ctx, file);
+    return `Wrote ${Buffer.byteLength(content)} bytes to ${displayPath(ctx.workspaceDir, file)}.${blind}${await syntaxNote(file, content)}`;
   },
 };
 
@@ -121,6 +125,7 @@ export const editFileTool: Tool = {
     assertWritable(ctx.workspaceDir, file);
     const oldS = str(args, 'old_string');
     const newS = typeof args.new_string === 'string' ? args.new_string : '';
+    await assertFresh(ctx, file, displayPath(ctx.workspaceDir, file), { overwrite: false });
     const text = await readFile(file, 'utf8').catch(() => {
       throw new ToolError(`File not found: ${str(args, 'path')}`);
     });
@@ -137,7 +142,8 @@ export const editFileTool: Tool = {
     if (count > 1 && args.replace_all !== true) throw new ToolError(`old_string matches ${count} places. Add more context or set replace_all.`);
     const updated = args.replace_all === true ? text.split(find).join(put) : text.replace(find, () => put);
     await writeFile(file, updated);
-    return `Edited ${displayPath(ctx.workspaceDir, file)} (${args.replace_all === true ? count : 1} replacement${count > 1 && args.replace_all === true ? 's' : ''}).`;
+    await noteSeen(ctx, file);
+    return `Edited ${displayPath(ctx.workspaceDir, file)} (${args.replace_all === true ? count : 1} replacement${count > 1 && args.replace_all === true ? 's' : ''}).${await syntaxNote(file, updated)}`;
   },
 };
 

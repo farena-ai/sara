@@ -5,6 +5,15 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.49.0 (2026-11-27): Safer coding: checked edits and tests before done
+
+- New: in a coding chat she no longer finishes on files changed after her last test run. When she changed files and the project has tests, and no test run came after her last change (or the last run failed and her reply does not say so), she gets one more step to run them and report the real result. At most twice a turn; not when you tell her not to run the tests.
+- New: a file she writes or edits is parsed at once (JSON, JavaScript, TypeScript, Python). Nothing of the project is run. A file that no longer parses is reported in the same tool result, so the mistake is fixed in the next step and not found many steps later.
+- New: she no longer writes into a file that changed since she last read it. The edit or write is refused with "read it again". Overwriting an existing file she never read is still allowed (team parts and scripts need it), but the tool result says so.
+- Fixed: "Look first" no longer skips a lookup when the quick model thinks before it answers. A model that spent its whole answer thinking returned nothing, which was read as "no lookup needed"; it now has room, and an empty answer is asked again.
+- New, switched off: a review of her change against your request before a coding turn ends (the Review model reads the request, the documents she read, her edits and the last test output). It is off because, measured on the repository benchmark, it has not raised the pass rate yet.
+- Better: the repository benchmark (scripts/bench-tasks.ts) counts a false "done", whether the tests ran after the last change, and turns the review sent back; a failed temp-folder cleanup on Windows no longer loses the results.
+
 ## 3.48.0 (2026-11-27): The companion side, off and on again
 
 - New: the companion side can be switched off and on again at any time (Settings → You → About you → "Companion side"). Off, she is a plain assistant for work and coding: no personality, backstory, moods or relationship, short direct work talk, and she says plainly that she is an AI.

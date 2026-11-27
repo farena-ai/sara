@@ -108,6 +108,11 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Safer coding, in 3.49.0
+
+In a coding chat Sara now parses every file she writes, refuses to write into a file that changed
+behind her back, and does not finish while her last change is untested.
+
 ## The companion side, off and on again, in 3.48.0
 
 One switch in Settings turns Sara into a plain assistant for work and coding: no personality, moods or

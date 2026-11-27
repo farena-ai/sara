@@ -27,9 +27,13 @@ export interface OwnerCheck {
 }
 
 /** Newest first in the app; every release here has at least one item (test/u1check-owner-checks). */
-export const CHECK_RELEASES = ['3.15.0', '3.16.0', '3.17.0', '3.18.0', '3.18.1', '3.18.2', '3.19.0', '3.20.0', '3.21.0', '3.22.0', '3.22.1', '3.23.0', '3.24.0', '3.31.0', '3.32.0', '3.33.0', '3.34.0', '3.35.0', '3.36.0', '3.43.0'];
+export const CHECK_RELEASES = ['3.15.0', '3.16.0', '3.17.0', '3.18.0', '3.18.1', '3.18.2', '3.19.0', '3.20.0', '3.21.0', '3.22.0', '3.22.1', '3.23.0', '3.24.0', '3.31.0', '3.32.0', '3.33.0', '3.34.0', '3.35.0', '3.36.0', '3.43.0', '3.47.0', '3.48.0'];
 
 export const CHECKS: OwnerCheck[] = [
+  // 3.48.0
+  { id: 'companion-off', release: '3.48.0', title: en('Switch the companion side off and on again'), steps: [en('Turn off Companion side, send a message, then turn it on again.')], view: '#view=settings:you-about', expect: en('Off: a plain, short answer with no personality, and her mood and picture gone from the screen. On again: she is as she was.') },
+  // 3.47.0
+  { id: 'look-first', release: '3.47.0', title: en('Ask about the real world: she looks things up first'), steps: [en('Send the message below in any chat.')], ask: en('What is the newest version of Node.js, and when did it come out?'), expect: en('A line "Looked this up first" appears before her reply, and the reply names where the answer came from.') },
   // 3.43.0
   { id: 'hard-talk-check', release: '3.43.0', title: en('Run the Hard talk check on your talking model'), steps: [en('On the Talking row, press Hard talk check and wait about a minute.')], view: '#view=settings:models-routes', expect: en('A plain sentence about your model: it stays with someone who is sad, it hands out hotlines too soon, or it misses real danger.') },
   { id: 'chat-thinking', release: '3.43.0', title: en('Set a thinking level for one conversation'), steps: [en('Open a chat’s own settings and pick Thorough under Thinking level.')], view: '#view=msgs', expect: en('That conversation thinks longer before it answers; your other chats keep the level from Settings.') },

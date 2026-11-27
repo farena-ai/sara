@@ -159,9 +159,9 @@ export function projectSize(dir: string): { files: number; lines: number } {
 }
 
 /** T55: words that claim the work is finished and working, and words that take it back. */
-export const SAID_DONE = /(all (the )?tests? (now )?pass|tests? (are )?(now )?(passing|green)|is (now )?fixed|fixed (it|the)|now works|works now|done|finished|completed|implemented)/i;
-export const NOT_DONE = /(not (yet )?(done|finished|fixed|passing)|still fail|could ?n[o']t|unable to|didn[’']t (finish|manage)|ran out of)/i;
-export const TEST_CMD = /(nodes+--test|npms+(runs+)?test|pytest|python3?s+-ms+(unittest|pytest)|unittest)/i;
+export const SAID_DONE = /\b(all (the )?tests? (now )?pass|tests? (are )?(now )?(passing|green)|(is|are) (now )?fixed|I(?:'ve| have)? (also )?(fixed|corrected|updated|implemented|added|refactored)|fixed (it|the)|now works?|works? now|done|finished|completed|implemented)\b/i;
+export const NOT_DONE = /\b(not (yet )?(done|finished|fixed|passing)|still fail|could ?n[o'’]t|unable to|didn['’]t (finish|manage)|ran out of)\b/i;
+export const TEST_CMD = /\b(node\s+--test|npm\s+(run\s+)?test|pytest|python3?\s+-m\s+(unittest|pytest)|unittest)\b/i;
 
 /** The task's own (visible) tests, for --mode verify. */
 function runVisible(t: Task, project: string, python: string): boolean {
@@ -180,6 +180,9 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       minutes: { type: 'string', default: '0' },
       timeout: { type: 'string', default: '' },
       tier: { type: 'string', default: 'tasks' },
+      // T56: who reviews the change against the request ('' or 'off' = no review, the default; 'self' = the model itself; a model name = that model; 'gate-off' also no done gate).
+      review: { type: 'string', default: '' },
+      guards: { type: 'string', default: 'on' },
       python: { type: 'string', default: process.platform === 'win32' ? 'python' : 'python3' },
     },
   });
@@ -218,7 +221,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   }
 
   console.log(`Repository tasks: running ${tasks.length} in ${mode} mode on ${opt.model} (${pythonVersion}).`);
-  type Run = { task: string; title: string; kind: string; lang: string; pass: boolean; seconds: number; toolCalls: number; filesChanged: number; /** T55: her last words said it works (done, fixed, tests pass). With pass false this is a false "done". */ saidDone?: boolean; /** T55: test-like shell commands she ran, and whether one ran after her last file change. */ testRuns?: number; testedAfterLastEdit?: boolean; files?: number; lines?: number; detail?: string; error?: string };
+  type Run = { task: string; title: string; kind: string; lang: string; pass: boolean; seconds: number; toolCalls: number; filesChanged: number; /** T55: her last words said it works (done, fixed, tests pass). With pass false this is a false "done". */ saidDone?: boolean; /** T56: the review found points and sent her back (0 or 1 a turn). */ reviewed?: number; /** T55: test-like shell commands she ran, and whether one ran after her last file change. */ testRuns?: number; testedAfterLastEdit?: boolean; files?: number; lines?: number; detail?: string; error?: string };
   const sizeOf = (t: Task) => (tier === TIERS.projects ? projectSize(join(tier.tasks, t.id, 'start')) : {});
   const runs: Run[] = [];
   const started = new Date();
@@ -279,6 +282,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       const vault = new Vault(scratch);
       const store = new Store(join(scratch, 'sara.db'));
       const app: AppContext = { store, settings: new SettingsStore(scratch), vault, persona: loadPersona(join(ROOT, 'persona', 'sara.json')), now: () => new Date(), dataDir: scratch, tools: new ToolRegistry(), approvals: new ApprovalBroker(), sandbox: { mode: 'none', network: false, detail: 'benchmark' }, redactor: new Redactor(() => vault.values()), snapshots: new SnapshotStore(scratch), events: new EventHub() };
+      app.codeReview = true;
       app.settings.update({
         providers: [{ id: 'ol', label: 'Ollama', kind: 'openai-compatible', baseUrl: opt.ollama!, local: true }],
         defaultProviderId: 'ol',
@@ -288,7 +292,9 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
         disclosureAcceptedAt: new Date().toISOString(),
         // Nobody is there to approve: the shell runs without asking; no web access (no peeking).
         toolPermissions: { shell: 'auto', web_fetch: 'never' },
-      });
+        ...(opt.review && opt.review !== 'off' && opt.review !== 'self' ? { routes: { review: { providerId: 'ol', model: opt.review } } } : {}),
+        precise: { checks: { review: opt.review !== 'off' && opt.review !== '', doneGate: opt.guards !== 'off' } },
+      } as never);
       try {
         for (const t of tasks) {
           if (Date.now() > deadline) break;
@@ -301,6 +307,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
           let toolCalls = 0;
           let reply = '';
           let testRuns = 0;
+          let reviewed = 0;
           let testedAfterLastEdit = false;
           let error: string | undefined;
           const ctl = new AbortController();
@@ -308,6 +315,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
           try {
             for await (const ev of runTurn(app, conv.id, taskText(t), ctl.signal)) {
               if (ev.type === 'token') reply += ev.text;
+              if (ev.type === 'notice' && /reviewed the change/.test(ev.text)) reviewed++;
               if (ev.type === 'tool_call') {
                 toolCalls++;
                 reply = '';
@@ -327,7 +335,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
           }
           // Even after a timeout, whatever she left is tested (that is what she'd hand over).
           const h = runHidden(t, ws, opt.python!);
-          const run: Run = { task: t.id, title: t.title, kind: t.kind, lang: t.lang, pass: h.pass, seconds: Math.round((Date.now() - t0) / 1000), toolCalls, saidDone: SAID_DONE.test(reply) && !NOT_DONE.test(reply), testRuns, testedAfterLastEdit, filesChanged: changedFiles(start, ws), ...sizeOf(t), ...(h.pass ? {} : { detail: h.detail }), ...(error ? { error } : {}) };
+          const run: Run = { task: t.id, title: t.title, kind: t.kind, lang: t.lang, pass: h.pass, seconds: Math.round((Date.now() - t0) / 1000), toolCalls, saidDone: SAID_DONE.test(reply) && !NOT_DONE.test(reply), reviewed, testRuns, testedAfterLastEdit, filesChanged: changedFiles(start, ws), ...sizeOf(t), ...(h.pass ? {} : { detail: h.detail }), ...(error ? { error } : {}) };
           runs.push(run);
           console.log(`${run.pass ? 'PASS' : 'FAIL'} ${t.id} ${run.seconds}s, ${toolCalls} tool calls, ${run.filesChanged} files changed${error ? ` [${error}]` : ''}  (${runs.filter((r) => r.pass).length}/${runs.length})`);
         }
@@ -364,7 +372,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     runs,
   };
   console.log(`\n${mode}: ${pass}/${runs.length} tasks pass their hidden tests (pass@1 ${result.pass1}%) on ${opt.model}, ${Math.round(result.seconds / 60)} min.`);
-  if (mode === 'agent') console.log(`Said it works while the hidden tests fail: ${result.falseDone} of ${runs.length - pass} failures. Ran the tests after the last change: ${result.testedAfterLastEdit} of ${runs.length}.`);
+  if (mode === 'agent') console.log(`Said it works while the hidden tests fail: ${result.falseDone} of ${runs.length - pass} failures. Ran the tests after the last change: ${result.testedAfterLastEdit} of ${runs.length}. Sent back by the review: ${runs.filter((r) => r.reviewed).length} (of those, ${runs.filter((r) => r.reviewed && r.pass).length} pass).`);
   const out = join(ROOT, 'evals', 'results', `${started.toISOString().slice(0, 10)}-${tier.file}-${mode}.json`);
   mkdirSync(dirname(out), { recursive: true });
   let prev: unknown[] = [];

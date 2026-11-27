@@ -66,7 +66,8 @@ function setup(t: { after: (fn: () => void | Promise<void>) => void }, o: { esli
   const clock = { now: new Date(START) };
   const app = makeApp(dir, clock);
   for (const tool of BUILTIN_TOOLS) app.tools.add(tool);
-  app.settings.update({ providers: [{ id: 'p', label: 'P', kind: 'openai-compatible', baseUrl: 'http://x' }], defaultProviderId: 'p', defaultModel: 'm', ownerName: 'Alex', timeZone: 'UTC', disclosureAcceptedAt: START.toISOString(), toolPermissions: { shell: 'auto' }, precise: { checks: { waitS: 15, timeoutS: 30 } }, ...(o.settings ?? {}) } as never);
+  // T55: these tests are about the checker's own nudge; the done gate has its own (test/t55-coding-guards.test.ts).
+  app.settings.update({ providers: [{ id: 'p', label: 'P', kind: 'openai-compatible', baseUrl: 'http://x' }], defaultProviderId: 'p', defaultModel: 'm', ownerName: 'Alex', timeZone: 'UTC', disclosureAcceptedAt: START.toISOString(), toolPermissions: { shell: 'auto' }, precise: { checks: { doneGate: false, review: false, waitS: 15, timeoutS: 30 } }, ...(o.settings ?? {}) } as never);
   const ws = join(dir, 'workspaces', 'main');
   mkdirSync(join(ws, 'src'), { recursive: true });
   mkdirSync(join(ws, 'node_modules', 'typescript', 'bin'), { recursive: true });

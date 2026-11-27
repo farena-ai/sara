@@ -26,7 +26,7 @@ export const lookFirstMode = (s: { lookFirst?: unknown }): LookFirstMode => (s.l
 /** What his message needs before she answers. */
 export type LookNeed = { kind: 'none' } | { kind: 'memory' } | { kind: 'web'; query: string } | { kind: 'both'; query: string };
 
-export const LOOK_FIRST = { minChars: 10, maxChars: 900, results: 5, planTokens: 40, planMs: 8_000, searchMs: 12_000, dailyRuns: 400, lines: 4, lineChars: 300 };
+export const LOOK_FIRST = { minChars: 10, maxChars: 900, results: 5, planTokens: 800, planMs: 12_000, searchMs: 12_000, dailyRuns: 400, lines: 4, lineChars: 300 };
 
 // Words a question or a request to be told something starts with, in the app's six languages.
 const ASK_START =

@@ -8,7 +8,7 @@ import { carErrandLines, phoneCallNote } from './car-errands.ts';
 import { talkNote } from './talk.ts';
 import { homeVoiceTurn } from './home-voice.ts';
 import { asksHowAmIDoing } from './her-week-words.ts';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { withKeyRotation } from './key-rotation.ts';
 import { audit } from './audit-trail.ts';
 import { policy } from './policy-profile.ts';
@@ -111,6 +111,10 @@ import { packNote } from './pack-hint.ts';
 import { OWNER_CUES_MARK } from './attunement.ts';
 import { autoRecall, lastTimeNote, sharedOwnerFacts, sharedWithApps } from './recall.ts';
 import { lookFirst, lookFirstMode } from './look-first.ts';
+import { DoneGate } from './done-gate.ts';
+import { SpecReview } from './spec-review.ts';
+import { preciseSettings } from './diagnostics.ts';
+import { scanProject } from './projectknow.ts';
 import { COMPANION_TOOLS, companionOffIn } from './companion-switch.ts';
 import { checkReply, driftMode, shouldCheck } from './drift.ts';
 import { awayLine, CONFLICT, STOP_NOTE, usedStopWord } from './bond.ts';
@@ -132,7 +136,7 @@ import type { Subscriptions } from './subscriptions/index.ts';
 import type { DiscordBridge } from './bridges/discord.ts';
 import type { SandboxInfo } from './tools/sandbox.ts';
 import { clip, ToolError, type ApprovalDetail, type Prepared, type Tool, type ToolContext } from './tools/types.ts';
-import { workspaceDir } from './tools/workspace.ts';
+import { resolveInside, workspaceDir } from './tools/workspace.ts';
 import type { Vault } from './vault.ts';
 import { personalize } from './identity.ts';
 import { ownerFocused } from './traits.ts';
@@ -373,6 +377,8 @@ export interface AppContext {
   together?: import('./together.ts').TogetherStore;
   /** T53: the look before a reply (src/look-first.ts) is part of this app (the real server sets it; a test opts in). */
   lookFirst?: boolean;
+  /** T56: the review of her change against the request (src/spec-review.ts) is part of this app (the real server sets it; a test or the benchmark opts in). */
+  codeReview?: boolean;
   /** E5: read together (the shared passage per conversation; memory only). */
   readTogether?: import('./read-together.ts').ReadTogether;
   wardrobe?: import('./wardrobe.ts').WardrobeWorker;
@@ -2307,6 +2313,61 @@ function freshSessionNote(app: AppContext, conv: Conversation, service: SessionC
   return `${heading}${excerpt && heading.length + quote(excerpt).length + tail.length <= limit ? quote(excerpt) : ''}${tail}`;
 }
 
+/** T53: the look before a reply (src/look-first.ts): what was recalled, the note for her, the addresses found, and the line the owner sees. */
+async function lookBefore(app: AppContext, conv: Conversation, o: { text: string; userMsgId: number; tools: Tool[]; crisisNow: boolean; recalled: string | undefined; signal: AbortSignal }): Promise<{ recalled: string | undefined; note: string | undefined; urls: string[]; notice?: ChatEvent }> {
+  const s = app.settings.get();
+  const canSearch = o.tools.some((t) => t.spec.name === 'web_search') && app.tools.permission('web_search', s.toolPermissions) === 'auto';
+  const earlier = app.store.messagesPage(conv.id, { limit: 6 }).messages.filter((m) => (m.role === 'user' || m.role === 'assistant') && m.id !== o.userMsgId && !m.meta?.forgotten && m.content.trim()).map((m) => `${m.role === 'user' ? 'Person' : 'Assistant'}: ${m.content}`);
+  const look = await lookFirst(app, conv, o.text, { mode: lookFirstMode(s), ordinary: true, crisis: o.crisisNow, playing: Boolean(app.together?.activity(conv.id)), canSearch }, { exclude: { conversationId: conv.id, fromId: o.userMsgId }, owner: s.ownerName?.trim() || 'the owner', alreadyRecalled: Boolean(o.recalled), earlier, signal: o.signal });
+  const recalled = look?.recalled ? [o.recalled, look.recalled].filter(Boolean).join('\n') : o.recalled;
+  if (!look?.query) return { recalled, note: look?.note, urls: look?.urls ?? [] };
+  const key = look.results ? en('Looked this up first: {query}') : en('Looked this up first and found nothing: {query}');
+  const params = { query: look.query };
+  app.store.addMessage(conv.id, 'notice', `lookup:${fill(key, params)}`, { key, params });
+  return { recalled, note: look.note, urls: look.urls, notice: { type: 'notice', kind: 'lookup', text: fill(key, params), key, params } };
+}
+
+/**
+ * T55/T56: what may still stand between a coding reply and the end of the turn. First the done gate
+ * (files changed after the last test run), then, once a turn, the Review model's reading of her change
+ * against the request. Each gives her one more step with a note from the app.
+ */
+async function codingEndChecks(
+  app: AppContext,
+  conv: Conversation,
+  o: { doneGate?: DoneGate; specReview?: SpecReview; receipts: Receipt[]; reply: string; text: string; ownerWord: string; wsDir: string; canStep: boolean; goalOrLoop: boolean; hasShell: boolean },
+): Promise<{ note: string; notice?: ChatEvent } | undefined> {
+  if (o.doneGate) {
+    let testCommand: string | undefined;
+    try {
+      testCommand = scanProject(o.wsDir, o.wsDir).commands.test;
+    } catch {
+      /* no facts: only her own earlier test runs count */
+    }
+    const gate = o.doneGate.note({ receipts: o.receipts, reply: o.reply, ...(testCommand ? { testCommand } : {}), ownerText: o.text, ownerName: o.ownerWord, canStep: o.canStep, goalOrLoop: o.goalOrLoop, hasShell: o.hasShell });
+    if (gate) return { note: gate };
+  }
+  if (!o.specReview || o.specReview.done) return undefined;
+  let route: ModelChoice[] = [];
+  try {
+    route = resolveChain(app, { ...conv, providerId: null, model: null }, 'review');
+  } catch {
+    /* no review model: no review */
+  }
+  const readNow = (p: string): string | undefined => {
+    try {
+      return readFileSync(resolveInside(o.wsDir, p), 'utf8');
+    } catch {
+      return undefined;
+    }
+  };
+  const found = await o.specReview.run(app, conv, { request: o.text, receipts: o.receipts, ownerName: o.ownerWord, route, readNow, canStep: o.canStep, goalOrLoop: o.goalOrLoop });
+  if (!found) return undefined;
+  const key = en('{model} reviewed the change against your request and found {n} point(s) to check.');
+  const params = { model: found.reviewer, n: found.issues.length };
+  return { note: found.note, notice: { type: 'notice', kind: 'lookup', text: fill(key, params), key, params } };
+}
+
 async function* runTurnInner(app: AppContext, conversationId: string, userText: string, signal: AbortSignal, opts: TurnOptions, rec: RunRecorder): AsyncGenerator<ChatEvent> {
   const { store } = app;
   // 3.0.3: notes her tools write during this turn go on the reply ("Saved n new memories").
@@ -2881,24 +2942,13 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   // that changed mid-turn made the model re-read the whole conversation (no cache hit after it).
   const turnClock = app.now();
   const webTurn = new WebTurn({ canResearch: Boolean(app.research) && !conv.private && !conv.partner && !opts.group && !opts.outside && !opts.externalApp });
-  // T53: look first, then answer (src/look-first.ts). His own ordinary chat turns only; her memory first,
-  // then the web, before the model writes a word. A story or game going on here is left alone.
+  // T53: look first, then answer (lookBefore below): her memory, then the web, before the model writes a word.
   let lookNote: string | undefined;
   if (app.lookFirst && userMsg && !opts.resume && !opts.replay && !opts.recorder && !opts.group && !opts.externalApp && !opts.outside && !opts.persist && !opts.talk && !opts.noTools && !conv.partner && conv.mode !== 'coding') {
-    const s0 = app.settings.get();
-    const canSearch = tools.some((t) => t.spec.name === 'web_search') && app.tools.permission('web_search', s0.toolPermissions) === 'auto';
-    const earlier = store.messagesPage(conv.id, { limit: 6 }).messages.filter((m) => (m.role === 'user' || m.role === 'assistant') && m.id !== userMsg.id && !m.meta?.forgotten && m.content.trim()).map((m) => `${m.role === 'user' ? 'Person' : 'Assistant'}: ${m.content}`);
-    const look = await lookFirst(app, conv, text, { mode: lookFirstMode(s0), ordinary: true, crisis: crisisNow, playing: Boolean(app.together?.activity(conv.id)), canSearch }, { exclude: { conversationId: conv.id, fromId: userMsg.id }, owner: s0.ownerName?.trim() || 'the owner', alreadyRecalled: Boolean(recalled), earlier, signal });
-    if (look?.recalled) recalled = recalled ? `${recalled}
-${look.recalled}` : look.recalled;
-    if (look?.note) lookNote = look.note;
-    if (look?.urls.length) webTurn.noteFound(look.urls);
-    if (look?.query) {
-      const key = look.results ? en('Looked this up first: {query}') : en('Looked this up first and found nothing: {query}');
-      const params = { query: look.query };
-      store.addMessage(conv.id, 'notice', `lookup:${fill(key, params)}`, { key, params });
-      yield { type: 'notice', kind: 'lookup', text: fill(key, params), key, params };
-    }
+    const look = await lookBefore(app, conv, { text, userMsgId: userMsg.id, tools, crisisNow, recalled, signal });
+    ({ recalled, note: lookNote } = look);
+    if (look.urls.length) webTurn.noteFound(look.urls);
+    if (look.notice) yield look.notice;
   }
   // EC21: the model's own tool calls so far this turn (code mode is offered from the second on).
   let callsThisTurn = 0;
@@ -3260,6 +3310,10 @@ ${look.recalled}` : look.recalled;
   const checks = checksAllowed(app, conv, { replay: Boolean(opts.replay), external: external || Boolean(opts.externalApp) || Boolean(opts.outside), group: Boolean(opts.group), tools: tools.length }) && !opts.noTools ? new TurnChecks(app, conv, wsDir, sandbox) : undefined;
   /** Phase 120 (§4.7): the nudge's note for the next step (never stored). */
   let checkNote: string | undefined;
+  // T55: in a coding conversation the turn does not end on files changed after the last test run.
+  const doneGate = conv.mode === 'coding' && !opts.replay && !opts.group && !conv.partner && preciseSettings(app).checks.doneGate ? new DoneGate() : undefined;
+  // T56: once a turn, the Review model reads her change against what was asked (src/spec-review.ts).
+  const specReview = app.codeReview && conv.mode === 'coding' && !opts.replay && !opts.group && !conv.partner && preciseSettings(app).checks.review ? new SpecReview() : undefined;
   /** Fred fix B: an answer with no words (reasoning only, think tags only) gets one more go, without thinking. */
   let emptyRetried = false;
   let rescued = false;
@@ -4020,6 +4074,13 @@ ${look.recalled}` : look.recalled;
         const nudge = checks?.nudge({ ownerText: text, ownerName: ownerWord, canStep: step < maxSteps - 1 && !meter?.final && stage !== 'summarize-stop' && stage !== 'reached', goalOrLoop: Boolean(opts.persist), hasTools: tools.length > 0 });
         if (nudge) {
           checkNote = nudge;
+          continue;
+        }
+        // T55/T56: untested changes, then the review of her change (codingEndChecks below): one more step each.
+        const end = await codingEndChecks(app, conv, { doneGate, specReview, receipts, reply, text, ownerWord, wsDir, canStep: step < maxSteps - 1 && !meter?.final && stage !== 'summarize-stop' && stage !== 'reached', goalOrLoop: Boolean(opts.persist), hasShell: tools.some((t) => t.spec.name === 'shell') });
+        if (end) {
+          if (end.notice) yield end.notice;
+          checkNote = end.note;
           continue;
         }
         break;

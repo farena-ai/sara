@@ -22,7 +22,7 @@ import { inside, resolveInside } from './tools/workspace.ts';
 // ------------------------------------------------------------------ settings (§3.3)
 
 export interface PreciseSettings {
-  checks: { on: boolean; waitS: number; timeoutS: number; shown: number; warnings: boolean; nudges: number };
+  checks: { on: boolean; waitS: number; timeoutS: number; shown: number; warnings: boolean; nudges: number; doneGate: boolean; review: boolean };
   refs: { on: boolean; perRefChars: number; softPct: number; hardPct: number; folderEntries: number; urls: boolean; olderAs: 'stub' | 'full' };
 }
 export const PRECISE_CHOICES = {
@@ -33,7 +33,7 @@ export const PRECISE_CHOICES = {
   perRefChars: [20_000, 40_000, 80_000],
 } as const;
 export const DEFAULT_PRECISE: PreciseSettings = {
-  checks: { on: true, waitS: 20, timeoutS: 60, shown: 20, warnings: false, nudges: 2 },
+  checks: { on: true, waitS: 20, timeoutS: 60, shown: 20, warnings: false, nudges: 2, doneGate: true, review: false },
   refs: { on: true, perRefChars: 40_000, softPct: 25, hardPct: 50, folderEntries: 200, urls: true, olderAs: 'stub' },
 };
 const pick = (v: unknown, list: readonly number[], dflt: number, testAny = false): number => {
@@ -57,6 +57,11 @@ export function preciseSettings(app: AppContext): PreciseSettings {
       shown: pick(c.shown, PRECISE_CHOICES.shown, D.checks.shown),
       warnings: c.warnings === true,
       nudges: pick(c.nudges, PRECISE_CHOICES.nudges, D.checks.nudges),
+      // T55: a coding turn does not end on files changed after the last test run (src/done-gate.ts).
+      doneGate: (c as { doneGate?: unknown }).doneGate !== false,
+      // T56: the Review model reads her change against the request once a turn (src/spec-review.ts).
+      // Off unless switched on: measured with the repository benchmark, it has not raised the pass rate yet.
+      review: (c as { review?: unknown }).review === true,
     },
     refs: {
       on: r.on !== false,
@@ -84,6 +89,8 @@ export function mergePrecise(app: AppContext, body: Record<string, unknown>): Pr
       shown: pick(c.shown, PRECISE_CHOICES.shown, cur.checks.shown),
       warnings: b(c.warnings, cur.checks.warnings),
       nudges: pick(c.nudges, PRECISE_CHOICES.nudges, cur.checks.nudges),
+      doneGate: b(c.doneGate, cur.checks.doneGate),
+      review: b(c.review, cur.checks.review),
     },
     refs: {
       ...cur.refs,

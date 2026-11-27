@@ -2,6 +2,33 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.49.0",
+   "date": "2026-11-27",
+   "title": "Safer coding: checked edits and tests before done",
+   "items": [
+    {
+     "id": "3-49-0-in-a-coding-chat-she",
+     "kind": "new",
+     "text": "In a coding chat she no longer finishes on files changed after her last test run."
+    },
+    {
+     "id": "3-49-0-a-file-she-writes-or",
+     "kind": "new",
+     "text": "A file she writes or edits is parsed at once (JSON, JavaScript, TypeScript, Python)."
+    },
+    {
+     "id": "3-49-0-she-no-longer-writes-into",
+     "kind": "new",
+     "text": "She no longer writes into a file that changed since she last read it."
+    },
+    {
+     "id": "3-49-0-look-first-no-longer-skips",
+     "kind": "fixed",
+     "text": "\"Look first\" no longer skips a lookup when the quick model thinks before it answers."
+    }
+   ]
+  },
+  {
    "version": "3.48.0",
    "date": "2026-11-27",
    "title": "The companion side, off and on again",
@@ -9,12 +36,18 @@
     {
      "id": "3-48-0-the-companion-side-can-be",
      "kind": "new",
-     "text": "The companion side can be switched off and on again at any time (Settings → You → About you → \"Companion side\")."
+     "text": "The companion side can be switched off and on again at any time (Settings → You → About you → \"Companion side\").",
+     "try": [
+      "companion-off"
+     ]
     },
     {
      "id": "3-48-0-with-the-companion-side-off",
      "kind": "new",
-     "text": "With the companion side off, nothing companion-like happens on its own: no texting first, no pictures of herself, no outfit changes."
+     "text": "With the companion side off, nothing companion-like happens on its own: no texting first, no pictures of herself, no outfit changes.",
+     "try": [
+      "companion-off"
+     ]
     },
     {
      "id": "3-48-0-switching-the-companion-side-off",
@@ -36,7 +69,10 @@
     {
      "id": "3-47-0-sara-looks-things-up-before",
      "kind": "new",
-     "text": "Sara looks things up before she answers a question about the real world."
+     "text": "Sara looks things up before she answers a question about the real world.",
+     "try": [
+      "look-first"
+     ]
     },
     {
      "id": "3-47-0-she-says-when-she-could",
@@ -169,52 +205,6 @@
      "id": "3-43-1-an-embedding-model-too-slow",
      "kind": "fixed",
      "text": "An embedding model too slow for your computer no longer keeps the processor busy for ever."
-    }
-   ]
-  },
-  {
-   "version": "3.43.0",
-   "date": "2026-11-24",
-   "title": "A check-up for your talking model, a thinking level for each chat",
-   "items": [
-    {
-     "id": "3-43-0-a-hard-talk-check-for",
-     "kind": "new",
-     "text": "A Hard talk check for your talking model (Settings → Models & usage → Which model does what).",
-     "link": "#view=msgs",
-     "owner": true,
-     "try": [
-      "chat-thinking",
-      "hard-talk-check"
-     ]
-    },
-    {
-     "id": "3-43-0-a-thinking-level-for-one",
-     "kind": "new",
-     "text": "A thinking level for one conversation. In a chat's own settings pick Quick, Balanced or Thorough for that chat; Same as Settings follows the level you set for everything.",
-     "try": [
-      "chat-thinking"
-     ]
-    },
-    {
-     "id": "3-43-0-worked-and-did-not-work",
-     "kind": "new",
-     "text": "Worked and Did not work on each item of What's new, for you."
-    },
-    {
-     "id": "3-43-0-models-on-your-own-computer",
-     "kind": "fixed",
-     "text": "Models on your own computer that failed every time with \"had a problem on its side (HTTP 500)\" after Ollama updated itself."
-    },
-    {
-     "id": "3-43-0-an-ollama-cloud-model-used",
-     "kind": "fixed",
-     "text": "An Ollama Cloud model used through Ollama on your computer is no longer counted as \"free, all on this computer\" in Usage and costs."
-    },
-    {
-     "id": "3-43-0-the-i-cant-search-the",
-     "kind": "fixed",
-     "text": "The \"I can't search the web yet\" notice no longer appears for ordinary sentences (\"my brother does research\", \"I built a website\")."
     }
    ]
   }
