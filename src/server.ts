@@ -2278,7 +2278,7 @@ export function createSaraServer(opts: ServerOptions): Server {
       if (!b && method === 'GET') {
         const s = app.settings.get();
         // Phase 71: a member's models are set up by the owner: no first-run guide.
-        if (opts.member) return send(res, 200, { done: true, ownerName: s.ownerName ?? '', usePath: usePathOf(s.usePath), ollama: [], subscriptions: { grok: false, claude: false, chatgpt: false } });
+        if (opts.member) return send(res, 200, { done: true, ownerName: s.ownerName ?? '', companionOff: s.companion?.on === false, usePath: usePathOf(s.usePath), ollama: [], subscriptions: { grok: false, claude: false, chatgpt: false } });
         const done = Boolean(s.setupDone) || (s.providers.length > 0 && Boolean(s.ownerName));
         // Phase 114 (F4): `models` counts the models on that computer (as Models & usage → On this computer
         // does); `cloud` the Ollama Cloud tags it also has.
@@ -2305,6 +2305,8 @@ export function createSaraServer(opts: ServerOptions): Server {
           ownerName: s.ownerName ?? '',
           // Phase 114 (PL1b): the use choice from step 1 (shown again when the wizard is reopened).
           usePath: usePathOf(s.usePath),
+          // T54: the companion side is switched off (the screen hides its parts).
+          companionOff: s.companion?.on === false,
           // 3.3.0: not picked yet: the wizard preselects Company (talk, plan, remember), not Both.
           usePathSet: Boolean(s.usePath),
           ollama: ollama.slice(0, 1),

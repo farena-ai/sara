@@ -195,6 +195,7 @@ import { LookBuilder, PLACES } from './look.ts';
 import { appearanceFor, defaultLookFile, defaultLookFor } from './default-look.ts';
 import { createWardrobeTool, WardrobeWorker } from './wardrobe.ts';
 import { createSharedListTool, TogetherStore } from './together.ts';
+import { installCompanionSwitch } from './companion-switch.ts';
 import { ReadTogether } from './read-together.ts';
 import { createScrapbookTool, Scrapbook } from './scrapbook.ts';
 import { createMomentsTool, MomentsStore, MomentsWorker } from './moments.ts';
@@ -1796,6 +1797,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   // Phase 37: things to do together and shared lists.
   app.together = new TogetherStore(store.db, () => app.now());
   app.lookFirst = true;
+  // T54: with the companion side off, everything that builds her instructions gets the plain sheet.
+  installCompanionSwitch(app);
   // E5: read together (memory only; a restart ends sharing).
   app.readTogether = new ReadTogether(() => app.now());
   tools.add(createSharedListTool(() => app.together));

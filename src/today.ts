@@ -524,7 +524,7 @@ export async function buildToday(app: AppContext, opts: { fresh?: boolean; parts
       meta('mail', { at: new Date(r.at).toISOString(), cached: r.cached, stale: r.stale, error: m.error });
     },
     her: () => {
-      if (app.inner && s.persona?.innerLife !== false) {
+      if (app.inner && s.persona?.innerLife !== false && s.companion?.on !== false) {
         const st = app.inner.get(now);
         const ml = moodLabel(st, now, tz);
         out.her = { name: app.persona.name, mood: ml.mood, energy: ml.energy, expression: expressionFor(st, now, tz, leansPlayful(app.persona.traits)), day: app.life?.get(today) ?? null };

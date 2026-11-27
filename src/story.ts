@@ -343,7 +343,7 @@ export class StoryWorker {
   async tick(): Promise<string | undefined> {
     const app = this.#app;
     const s = app.settings.get();
-    if (!s.story?.yearly || this.#running) return undefined;
+    if (!s.story?.yearly || this.#running || s.companion?.on === false) return undefined;
     const first = app.store.firstOwnerMessageAt();
     if (!first) return undefined;
     const tz = s.timeZone;

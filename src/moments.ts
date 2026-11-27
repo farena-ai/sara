@@ -671,6 +671,8 @@ export class MomentsWorker {
 
   async tick(): Promise<{ added: number; captioned: number }> {
     const app = this.#app;
+    // T54: the album rests while the companion side is off (nothing is removed).
+    if (app.settings.get().companion?.on === false) return { added: 0, captioned: 0 };
     const added = this.#book.sync(app.store, momentsSettings(app.settings).mode, this.hints);
     let captioned = 0;
     for (const m of this.#book.nextPending(CAPTION_BATCH)) {

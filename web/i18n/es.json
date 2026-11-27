@@ -22848,10 +22848,6 @@
   "This model has been answering slowly, so for a few minutes she picks tools by your words alone. If it shares a graphics card with her chat model, let Ollama keep two models loaded (OLLAMA_MAX_LOADED_MODELS=2).": "Este modelo ha estado respondiendo despacio, así que durante unos minutos ella elige las herramientas solo por tus palabras. Si comparte tarjeta gráfica con su modelo de chat, deja que Ollama mantenga dos modelos cargados (OLLAMA_MAX_LOADED_MODELS=2).",
   "Works in many languages: finds the right tool and things said in other words in Spanish, French, German, Portuguese and Italian too.": "Funciona en muchos idiomas: encuentra la herramienta adecuada y cosas dichas con otras palabras también en español, francés, alemán, portugués e italiano.",
   "Right tool at hand, six languages": "La herramienta adecuada a mano, seis idiomas",
-  "She stays with you in a hard conversation; the right tool in every language": "Se queda contigo en una conversación difícil; la herramienta adecuada en todos los idiomas",
-  "She stays with you in a hard conversation. Grief, a breakup, loneliness, a bad day or a hard memory no longer get an answer about hotlines.": "Se queda contigo en una conversación difícil. Un duelo, una ruptura, la soledad, un mal día o un recuerdo doloroso ya no reciben una respuesta sobre líneas de ayuda.",
-  "The bge-m3 embedding model is on the list under Settings → Models & usage → On this computer, for meaning search in many languages.": "El modelo de embeddings bge-m3 está en la lista de Ajustes → Modelos y uso → En este ordenador, para la búsqueda por significado en muchos idiomas.",
-  "The crisis lines no longer appear for a cut finger, a gym injury, a film plot, the news, or someone else's death years ago.": "Las líneas de crisis ya no aparecen por un corte en el dedo, una lesión en el gimnasio, la trama de una película, las noticias o la muerte de otra persona hace años.",
   "Did it work when you tried it?": "¿Funcionó cuando lo probaste?",
   "Only the owner can do that.": "Solo el propietario puede hacer eso.",
   "Same as Settings": "Igual que en Ajustes",
@@ -23258,5 +23254,15 @@
   "Look first, then answer": "Primero buscar, luego responder",
   "Sara looks things up before she answers a question about the real world.": "Sara busca las cosas antes de responder a una pregunta sobre el mundo real.",
   "Settings → Models & usage → \"Check facts before she answers\": Look it up first (the default), Offer to look it up, or Off.": "Ajustes → Modelos y uso → «Comprobar los hechos antes de que responda»: Buscarlo primero (lo predeterminado), Ofrecer buscarlo o Desactivado.",
-  "She says when she could not check a fact. When web search is not set up, the conversation is private or the search failed.": "Dice cuándo no pudo comprobar un dato: cuando la búsqueda web no está configurada, la conversación es privada o la búsqueda falló."
+  "She says when she could not check a fact. When web search is not set up, the conversation is private or the search failed.": "Dice cuándo no pudo comprobar un dato: cuando la búsqueda web no está configurada, la conversación es privada o la búsqueda falló.",
+  "Companion side: her personality, moods and life": "Lado de compañera: su personalidad, sus estados de ánimo y su vida",
+  "Off: a plain assistant for work and coding. No personality, no moods, nothing sent on her own, and her picture and mood leave the screen. All tools and her memory stay, and switching it back on brings everything back as it was.": "Desactivado: una asistente sencilla para trabajo y programación. Sin personalidad, sin estados de ánimo, sin mensajes por iniciativa propia, y su imagen y su ánimo desaparecen de la pantalla. Todas las herramientas y su memoria se conservan, y al activarlo de nuevo todo vuelve como estaba.",
+  "Turn this off when you only want a work and coding assistant. She drops the personality, moods and check-ins and talks plainly. Nothing is deleted: turn it on again and she is as she was.": "Desactívalo cuando solo quieras una asistente de trabajo y programación. Deja la personalidad, los estados de ánimo y los mensajes espontáneos y habla con sencillez. No se borra nada: actívalo de nuevo y vuelve a ser como era.",
+  "Pick Look it up first, Offer to look it up or Off.": "Elige Buscarlo primero, Ofrecer buscarlo o Desactivado.",
+  "The companion side is on or off.": "El lado de compañera está activado o desactivado.",
+  "The companion side, off and on again": "El lado de compañera, desactivado y activado de nuevo",
+  "The companion side can be switched off and on again at any time (Settings → You → About you → \"Companion side\").": "El lado de compañera se puede desactivar y volver a activar en cualquier momento (Ajustes → Tú → Sobre ti → «Lado de compañera»).",
+  "With the companion side off, nothing companion-like happens on its own: no texting first, no pictures of herself, no outfit changes.": "Con el lado de compañera desactivado, nada propio de una compañera ocurre por sí solo: no escribe primero, no envía fotos suyas, no cambia de ropa.",
+  "Switching the companion side off deletes nothing.": "Desactivar el lado de compañera no borra nada.",
+  "\"Check facts before she answers\" (new in 3.47.0) did not save.": "«Comprobar los hechos antes de que responda» (nuevo en 3.47.0) no se guardaba."
 }

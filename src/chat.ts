@@ -111,6 +111,7 @@ import { packNote } from './pack-hint.ts';
 import { OWNER_CUES_MARK } from './attunement.ts';
 import { autoRecall, lastTimeNote, sharedOwnerFacts, sharedWithApps } from './recall.ts';
 import { lookFirst, lookFirstMode } from './look-first.ts';
+import { COMPANION_TOOLS, companionOffIn } from './companion-switch.ts';
 import { checkReply, driftMode, shouldCheck } from './drift.ts';
 import { awayLine, CONFLICT, STOP_NOTE, usedStopWord } from './bond.ts';
 import { wearingLine } from './wardrobe.ts';
@@ -544,7 +545,7 @@ export const vaultKeyFor = (providerId: string) => `provider:${providerId}`;
 
 /** Inner life is on unless the owner turned it off. */
 // EC26: under the work-mode pin there is no inner life (moods, her day, messages and pictures on her own).
-export const innerEnabled = (app: AppContext) => app.settings.get().persona?.innerLife !== false && !workPinned();
+export const innerEnabled = (app: AppContext) => app.settings.get().persona?.innerLife !== false && !workPinned() && !companionOffIn(app);
 
 /** Whole local days since the first owner message (null on day one). */
 export function daysKnown(store: Store, now: Date, timeZone?: string): number | null {
@@ -2111,6 +2112,8 @@ function scopeTools(app: AppContext, conv: Conversation, opts: TurnOptions, x: S
     const allowed = new Set(opts.outside.tools);
     tools = tools.filter((t) => allowed.has(t.spec.name) && t.spec.name !== 'recall' && t.spec.name !== 'ask_everything' && !t.spec.name.startsWith('a2a_'));
   }
+  // T54: with the companion side off, the tools that only belong to it are not there.
+  if (companionOffIn(app)) tools = tools.filter((t) => !COMPANION_TOOLS.has(t.spec.name));
   // Phase 70: the album stays in her own conversations with the owner: never for other apps, shared work channels or groups.
   if (opts.externalApp || opts.group || isWorkChannel(conv.channel) || ['api', 'mcp', 'home-assistant', 'alexa'].includes(conv.channel)) tools = tools.filter((t) => t.spec.name !== 'moments');
   // Phase 115 (BR1, §4.4): send_file only in the owner's own conversations (never other apps, MCP,
@@ -3170,7 +3173,7 @@ ${look.recalled}` : look.recalled;
     }
   }
   // Phase 34: a reply that drifted out of character leaves a one-time nudge for this one.
-  const nudge = !conv.partner && driftMode(app) !== 'off' && !opts.replay ? app.drift?.pending(conv.id) : undefined;
+  const nudge = !conv.partner && driftMode(app) !== 'off' && !opts.replay && !companionOffIn(app) ? app.drift?.pending(conv.id) : undefined;
   // Phase 83: a branch keeps the recorded system prompt (byte for byte); a safety note this turn
   // needs that the recorded prompt lacks (the rewritten message is a crisis, Adult mode is off now)
   // is added after it: the safety layer is never replayed from the record.
@@ -3411,11 +3414,11 @@ ${look.recalled}` : look.recalled;
       dates: !conv.partner && !opts.outside && app.memory && memCfg.enabled ? joinNotes(datesNote(app.memory, localDate(now.toISOString(), s.timeZone), undefined, appSafe), peopleGate ? undefined : birthdaysNote(app.people, localDate(now.toISOString(), s.timeZone))) : undefined,
       threads: innerState ? threadsNote(app.life) : undefined,
       stayYourself: nudge ? nudge.note || 'it sounded generic, not like you' : undefined,
-      ...(opts.outside || workNow ? {} : bondContext(app, innerState?.closeness)),
+      ...(opts.outside || workNow || companionOffIn(app) ? {} : bondContext(app, innerState?.closeness)),
       ...(opts.group ? { adultOn } : {}),
       partner: Boolean(conv.partner),
       // Phase 37: an activity you're doing together in this conversation (games, journaling…).
-      together: conv.partner || opts.outside || workNow ? undefined : activityNote(app.together?.activity(conv.id), s.ownerName?.trim() || 'the owner'),
+      together: conv.partner || opts.outside || workNow || companionOffIn(app) ? undefined : activityNote(app.together?.activity(conv.id), s.ownerName?.trim() || 'the owner'),
       pickup: pickupNote,
       // Phase 119: a reminder he asked for that came up in this message (his own chats only).
       mentions: mentionText,

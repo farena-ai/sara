@@ -15,7 +15,8 @@ export function typingMs(text: string): number {
 
 /** Human typing is on for this conversation: chosen in Settings, and not a coding or work chat. */
 export function typingPaced(app: AppContext, conv: { mode?: string | null; channel: string }): boolean {
-  return app.settings.get().persona?.typing === 'human' && conv.mode !== 'coding' && !isWorkChannel(conv.channel);
+  const s = app.settings.get();
+  return s.persona?.typing === 'human' && s.companion?.on !== false && conv.mode !== 'coding' && !isWorkChannel(conv.channel);
 }
 
 /** A safety reply (the minors block, crisis resources) goes at once and whole. */
@@ -39,7 +40,7 @@ export function typedParts(text: string): string[] {
  * the previous message). `typing()` keeps the "typing…" indicator up meanwhile.
  */
 export async function paceLikeTyping(app: AppContext, text: string, since: number, typing: () => void): Promise<void> {
-  if (app.settings.get().persona?.typing !== 'human') return;
+  if (app.settings.get().persona?.typing !== 'human' || app.settings.get().companion?.on === false) return;
   let wait = typingMs(text) - (Date.now() - since);
   while (wait > 0) {
     typing();

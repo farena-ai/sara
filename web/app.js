@@ -413,6 +413,9 @@ async function boot() {
   state.usePath = normPath(setup.usePath);
   // 3.3.0 (ezplain): plain words on the main screens unless she is set up for coding only.
   document.documentElement.dataset.usePath = state.usePath;
+  // T54: the companion side is off: its parts of the screen are hidden (web/v4.css).
+  document.documentElement.dataset.companion = setup.companionOff ? 'off' : 'on';
+  if (setup.companionOff) buildSettingsNav(); // its pages leave the Settings menu
   await toolNamesReady;
   if (!state.messages?.length) renderMessages([]); // the empty chat's chips follow the use choice
   if (!setup.done) {
@@ -1094,6 +1097,15 @@ function renderConversations() {
   // Y5 (web/conv-order.js): her home chat first, then Recent (the newest chats from every folder), then
   // the folders with the one used last on top. Before, folders kept a fixed order.
   const folders = byActivity([...channelGroups, ...groups, looseGroup]);
+  let firstSeen = false;
+  for (const p of projects.filter((x) => !x.builtin && !x.hidden)) {
+    const k = `p${p.id}`;
+    if (collapsed.has(`${k}-init`)) continue;
+    collapsed.add(`${k}-init`);
+    if (!live.some((c) => c.projectId === p.id && c.id === state.currentId)) collapsed.add(k);
+    firstSeen = true;
+  }
+  if (firstSeen) saveCollapsed();
   const parts = [];
   if (home) parts.push(homeRow(home));
   if (!state.tagFilter && showRecent(live, folders.filter((f) => f.convs.length).length)) parts.push(group('recent', t('Recent'), recentOf(live), { folder: 'recall', recent: true }));
@@ -9695,7 +9707,7 @@ buildSettingsNav();
 // when every loader is back. The nav, the search and the Settings home work from the first frame.
 // Pages that load their own data when picked (the store) never wait.
 const OWN_LOADER_PAGES = new Set(['ab-store']);
-const CORE_FIELDS = ['#owner-name', '#time-zone', '#use-path', '#ui-language', '#talk-language', '#story-yearly', '#model-auto-switch', '#history-budget', '#default-provider', '#my-face'];
+const CORE_FIELDS = ['#owner-name', '#time-zone', '#use-path', '#companion-on', '#ui-language', '#talk-language', '#story-yearly', '#model-auto-switch', '#history-budget', '#default-provider', '#my-face'];
 let settingsLoad = 0;
 function settingsLoading(state) {
   const pages = [...document.querySelectorAll('#settings .settings-page')];
@@ -9753,6 +9765,7 @@ async function loadSettingsPages(onCore = () => {}) {
   $('#model-auto-switch').checked = s.modelAutoSwitch !== false;
   $('#thinking-level').value = s.thinking ?? 'balanced';
   $('#look-first').value = s.lookFirst ?? 'auto';
+  $('#companion-on').checked = s.companion?.on !== false;
   {
     // 3.4.1: Auto (the default) follows the model; a fixed size an owner chose stays.
     const sel = $('#history-budget');
@@ -9864,8 +9877,12 @@ async function saveCoreSettings() {
       modelAutoSwitch: $('#model-auto-switch').checked,
       thinking: $('#thinking-level').value,
       lookFirst: $('#look-first').value,
+      ...($('#companion-on') ? { companion: { on: $('#companion-on').checked } } : {}),
     },
   });
+  // T54: switching the companion side changes what the whole screen shows: start it fresh.
+  const companionShown = globalThis.document?.documentElement?.dataset?.companion;
+  if (companionShown && ($('#companion-on')?.checked ? 'on' : 'off') !== companionShown) return void globalThis.location?.reload();
   if (saveModel) savedDefaultModelRevision = modelRevision;
   // Phase 53: a new app language shows at once (this window included).
   await applyLanguage($('#ui-language').value, $('#ui-language').value === 'auto' ? '' : undefined);
@@ -12028,7 +12045,8 @@ const tryNow = () => tryCards({ tools: state.toolNames ?? [], path: state.usePat
 async function paintTryCards() {
   await loadToolNames();
   const cards = tryNow();
-  $('#td-try').hidden = !cards.length;
+  $('#td-try').hidden = !cards.length || localStorage.getItem(TRY_HIDDEN_KEY) === '1';
+  paintTryFold();
   $('#td-try-list').replaceChildren(...cards.map((x) => {
     const box = el('div', 'try-card');
     box.dataset.try = x.id;
@@ -12140,6 +12158,24 @@ async function useChatModel(c, host, was) {
   refreshModelSettings();
 }
 
+// "Try something new": Show less folds the cards away for later; Hide puts the bar away on this device.
+const TRY_HIDDEN_KEY = 'sara.try.hidden';
+const TRY_FOLDED_KEY = 'sara.try.folded';
+function paintTryFold() {
+  const folded = localStorage.getItem(TRY_FOLDED_KEY) === '1';
+  $('#td-try-list').hidden = folded;
+  $('#td-try-fold').textContent = folded ? t('Show') : t('Show less');
+  $('#td-try-fold').setAttribute('aria-expanded', String(!folded));
+}
+$('#td-try-fold').addEventListener('click', () => {
+  if (localStorage.getItem(TRY_FOLDED_KEY) === '1') localStorage.removeItem(TRY_FOLDED_KEY);
+  else localStorage.setItem(TRY_FOLDED_KEY, '1');
+  paintTryFold();
+});
+$('#td-try-hide').addEventListener('click', () => {
+  localStorage.setItem(TRY_HIDDEN_KEY, '1');
+  $('#td-try').hidden = true;
+});
 $('#td-next-hide').addEventListener('click', () => {
   localStorage.setItem(NEXT_HIDDEN_KEY, '1');
   $('#td-next').hidden = true;

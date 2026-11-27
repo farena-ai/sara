@@ -108,6 +108,11 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## The companion side, off and on again, in 3.48.0
+
+One switch in Settings turns Sara into a plain assistant for work and coding: no personality, moods or
+messages of her own, with all tools and her memory kept. Switch it on again and she is as she was.
+
 ## Look first, then answer, in 3.47.0
 
 When you ask about the real world, Sara now looks in her memory and searches the web before the model

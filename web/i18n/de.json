@@ -22859,10 +22859,6 @@
   "This model has been answering slowly, so for a few minutes she picks tools by your words alone. If it shares a graphics card with her chat model, let Ollama keep two models loaded (OLLAMA_MAX_LOADED_MODELS=2).": "Dieses Modell hat langsam geantwortet, deshalb wählt sie ein paar Minuten lang Werkzeuge nur nach deinen Wörtern. Teilt es sich eine Grafikkarte mit ihrem Chat-Modell, lass Ollama zwei Modelle geladen halten (OLLAMA_MAX_LOADED_MODELS=2).",
   "Works in many languages: finds the right tool and things said in other words in Spanish, French, German, Portuguese and Italian too.": "Funktioniert in vielen Sprachen: findet das richtige Werkzeug und Dinge, die mit anderen Worten gesagt wurden, auch auf Spanisch, Französisch, Deutsch, Portugiesisch und Italienisch.",
   "Right tool at hand, six languages": "Das richtige Werkzeug zur Hand, sechs Sprachen",
-  "She stays with you in a hard conversation; the right tool in every language": "Sie bleibt in einem schweren Gespräch bei dir; das richtige Werkzeug in jeder Sprache",
-  "She stays with you in a hard conversation. Grief, a breakup, loneliness, a bad day or a hard memory no longer get an answer about hotlines.": "Sie bleibt in einem schweren Gespräch bei dir. Trauer, eine Trennung, Einsamkeit, ein schlechter Tag oder eine schwere Erinnerung bekommen keine Antwort über Krisentelefone mehr.",
-  "The bge-m3 embedding model is on the list under Settings → Models & usage → On this computer, for meaning search in many languages.": "Das Embedding-Modell bge-m3 steht in der Liste unter Einstellungen → Modelle und Nutzung → Auf diesem Computer, für die Suche nach Bedeutung in vielen Sprachen.",
-  "The crisis lines no longer appear for a cut finger, a gym injury, a film plot, the news, or someone else's death years ago.": "Die Krisennummern erscheinen nicht mehr bei einem Schnitt in den Finger, einer Verletzung beim Sport, einer Filmhandlung, den Nachrichten oder dem Tod eines anderen vor Jahren.",
   "Did it work when you tried it?": "Hat es funktioniert, als du es ausprobiert hast?",
   "Only the owner can do that.": "Das kann nur der Besitzer.",
   "Same as Settings": "Wie in den Einstellungen",
@@ -23269,5 +23265,15 @@
   "Look first, then answer": "Erst nachschlagen, dann antworten",
   "Sara looks things up before she answers a question about the real world.": "Sara schlägt nach, bevor sie eine Frage zur wirklichen Welt beantwortet.",
   "Settings → Models & usage → \"Check facts before she answers\": Look it up first (the default), Offer to look it up, or Off.": "Einstellungen → Modelle und Nutzung → „Fakten prüfen, bevor sie antwortet“: Zuerst nachschlagen (Standard), Nachschlagen anbieten oder Aus.",
-  "She says when she could not check a fact. When web search is not set up, the conversation is private or the search failed.": "Sie sagt, wenn sie eine Tatsache nicht prüfen konnte: wenn die Websuche nicht eingerichtet ist, die Unterhaltung privat ist oder die Suche fehlschlug."
+  "She says when she could not check a fact. When web search is not set up, the conversation is private or the search failed.": "Sie sagt, wenn sie eine Tatsache nicht prüfen konnte: wenn die Websuche nicht eingerichtet ist, die Unterhaltung privat ist oder die Suche fehlschlug.",
+  "Companion side: her personality, moods and life": "Begleiter-Seite: ihre Persönlichkeit, Stimmungen und ihr Leben",
+  "Off: a plain assistant for work and coding. No personality, no moods, nothing sent on her own, and her picture and mood leave the screen. All tools and her memory stay, and switching it back on brings everything back as it was.": "Aus: eine schlichte Assistentin für Arbeit und Programmieren. Keine Persönlichkeit, keine Stimmungen, nichts von sich aus Gesendetes, und ihr Bild und ihre Stimmung verschwinden vom Bildschirm. Alle Werkzeuge und ihr Gedächtnis bleiben, und beim Wiedereinschalten ist alles wie zuvor.",
+  "Turn this off when you only want a work and coding assistant. She drops the personality, moods and check-ins and talks plainly. Nothing is deleted: turn it on again and she is as she was.": "Schalte das aus, wenn du nur eine Assistentin für Arbeit und Code willst. Sie lässt Persönlichkeit, Stimmungen und eigene Nachrichten weg und spricht schlicht. Nichts wird gelöscht: Schalte es wieder ein, und sie ist wie zuvor.",
+  "Pick Look it up first, Offer to look it up or Off.": "Wähle Zuerst nachschlagen, Nachschlagen anbieten oder Aus.",
+  "The companion side is on or off.": "Die Begleiter-Seite ist an oder aus.",
+  "The companion side, off and on again": "Die Begleiter-Seite, aus und wieder an",
+  "The companion side can be switched off and on again at any time (Settings → You → About you → \"Companion side\").": "Die Begleiter-Seite lässt sich jederzeit aus- und wieder einschalten (Einstellungen → Du → Über dich → „Begleiter-Seite“).",
+  "With the companion side off, nothing companion-like happens on its own: no texting first, no pictures of herself, no outfit changes.": "Bei ausgeschalteter Begleiter-Seite passiert nichts Begleiterhaftes von selbst: Sie schreibt nicht zuerst, schickt keine Bilder von sich und wechselt kein Outfit.",
+  "Switching the companion side off deletes nothing.": "Das Ausschalten der Begleiter-Seite löscht nichts.",
+  "\"Check facts before she answers\" (new in 3.47.0) did not save.": "„Fakten prüfen, bevor sie antwortet“ (neu in 3.47.0) wurde nicht gespeichert."
 }

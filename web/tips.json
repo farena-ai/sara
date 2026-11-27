@@ -461,6 +461,10 @@
       "The model she uses for chat when a job has none of its own. Not sure? Use Which model does what → ✨ Use recommended.",
       "brain"
     ],
+    "companion-on": [
+      "Turn this off when you only want a work and coding assistant. She drops the personality, moods and check-ins and talks plainly. Nothing is deleted: turn it on again and she is as she was.",
+      "start"
+    ],
     "look-first": [
       "Look it up first: before she answers a question about the real world, Sara checks her memory and searches the web. Offer: she says she is not sure and offers to look. The web part needs web search set up.",
       "brain"

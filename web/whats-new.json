@@ -2,6 +2,33 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.48.0",
+   "date": "2026-11-27",
+   "title": "The companion side, off and on again",
+   "items": [
+    {
+     "id": "3-48-0-the-companion-side-can-be",
+     "kind": "new",
+     "text": "The companion side can be switched off and on again at any time (Settings → You → About you → \"Companion side\")."
+    },
+    {
+     "id": "3-48-0-with-the-companion-side-off",
+     "kind": "new",
+     "text": "With the companion side off, nothing companion-like happens on its own: no texting first, no pictures of herself, no outfit changes."
+    },
+    {
+     "id": "3-48-0-switching-the-companion-side-off",
+     "kind": "new",
+     "text": "Switching the companion side off deletes nothing."
+    },
+    {
+     "id": "3-48-0-check-facts-before-she-answers",
+     "kind": "fixed",
+     "text": "\"Check facts before she answers\" (new in 3.47.0) did not save."
+    }
+   ]
+  },
+  {
    "version": "3.47.0",
    "date": "2026-11-27",
    "title": "Look first, then answer",
@@ -188,28 +215,6 @@
      "id": "3-43-0-the-i-cant-search-the",
      "kind": "fixed",
      "text": "The \"I can't search the web yet\" notice no longer appears for ordinary sentences (\"my brother does research\", \"I built a website\")."
-    }
-   ]
-  },
-  {
-   "version": "3.42.0",
-   "date": "2026-11-24",
-   "title": "She stays with you in a hard conversation; the right tool in every language",
-   "items": [
-    {
-     "id": "3-42-0-she-stays-with-you-in",
-     "kind": "new",
-     "text": "She stays with you in a hard conversation. Grief, a breakup, loneliness, a bad day or a hard memory no longer get an answer about hotlines."
-    },
-    {
-     "id": "3-42-0-the-bge-m3-embedding-model-is",
-     "kind": "new",
-     "text": "The bge-m3 embedding model is on the list under Settings → Models & usage → On this computer, for meaning search in many languages."
-    },
-    {
-     "id": "3-42-0-the-crisis-lines-no-longer",
-     "kind": "fixed",
-     "text": "The crisis lines no longer appear for a cut finger, a gym injury, a film plot, the news, or someone else's death years ago."
     }
    ]
   }

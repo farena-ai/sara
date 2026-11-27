@@ -186,6 +186,7 @@ export class WardrobeWorker {
     if (w.manual && !manualOn) app.settings.update({ wardrobe: { ...w, manual: undefined } });
     const current = look.currentSavedId();
     const wearingAdult = look.custom && look.currentMeta().adult === true;
+    if (app.settings.get().companion?.on === false) return undefined;
     if (!w.auto && !manualOn && !(wearingAdult && !adultOn)) return undefined;
     const { pick } = await this.plan();
     let to = pick?.look;

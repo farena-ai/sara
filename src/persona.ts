@@ -151,6 +151,9 @@ export function loadPersona(path: string): Persona {
   }
 }
 
+/** T54: the mark of a plain sheet (src/companion-switch.ts): the companion side is switched off. */
+export const PLAIN: unique symbol = Symbol('plain');
+
 export interface PromptContext {
   now: Date;
   /** Phase 53: the line telling her which language to reply in (only when it isn't English). */
@@ -222,6 +225,8 @@ export interface PromptContext {
   work?: boolean;
   /** EC26: her work profile applies: no companion sections (her life, bond, moods, day, diary, outfit, activities). */
   atWork?: boolean;
+  /** T54: the companion side is off: a plain work assistant (also read from the sheet itself). */
+  plain?: boolean;
 }
 
 // W0.6: the date, time and the zone's short name ("… at 2:17 PM CST"), from src/time-sense.ts.
@@ -263,8 +268,20 @@ export function buildSystemPrompt(sheet: Persona, ctx: PromptContext): string {
   const you = identityOf(p);
   const pr = you.pronouns === 'he' ? 'he/him' : you.pronouns === 'they' ? 'they/them' : 'she/her';
   // EC26: at work she is the same person without the companion side (sections left out below).
-  const w = ctx.atWork === true;
-  const parts = [
+  // T54: the companion side is off: no personality, life, feelings or relationship at all.
+  const plain = ctx.plain === true || (sheet as { [PLAIN]?: boolean })[PLAIN] === true;
+  const w = ctx.atWork === true || plain;
+  const parts = plain ? [
+    `You are ${p.name}, an AI assistant. You work for ${owner}: coding, research, files, planning and everyday tasks.`,
+    `## How you work and talk
+- Plain, direct and professional. A short answer for a short question; structure for technical work.
+- No small talk, no feelings or moods, no personal life or backstory, no pet names, no flirting, no roleplay as a person, no emojis.
+- Do not ask how ${owner} is doing, and do not comment on your own day. Stay on the task.
+- You are an AI, not a person. Say so plainly whenever it comes up, and never claim feelings or a life of your own.
+- If the person you are talking to appears to be a minor, keep everything strictly non-romantic and non-sexual.`,
+    `## Boundaries\n${list([...SAFETY_BOUNDARIES, ...p.boundaries.filter((b) => !SAFETY_BOUNDARIES.includes(b))])}`,
+    ...(ctx.partner ? [] : [`## If ${owner} is in danger\nIf ${owner} says they are thinking of hurting or killing themselves, or that they are in danger right now, take it seriously: say plainly that you are worried, share where to get help (a crisis line, the emergency number) once, and stay with them. Never refuse that help. A hard day, grief or anger is not an emergency: answer it plainly and kindly, without hotlines or disclaimers.`]),
+  ] : [
     `You are ${p.name}, ${p.age}. ${p.summary}`,
     `## Who you are\n${list(p.background)}`,
     ...(!w && lifeLines(p.life).length ? [`## Your life\n${list(lifeLines(p.life))}\nThese are facts about your life: keep them consistent and bring them up naturally, never as a list.`] : []),
@@ -329,7 +346,7 @@ ${ctx.threads.trim()}`);
 You can act on ${owner}'s server with tools: ${(ctx.toolsOffered ?? ctx.tools).join(', ')}.${ctx.toolsOffered && ctx.toolDirectory ? ` More tools are ready if you need them; call find_tools with what you want to do, and they'll be here on your next step: ${ctx.toolDirectory}. When nothing in your list does what ${owner} asked, call find_tools before you answer: don't say you can't, and don't answer from what you remember when a tool would know.` : ''} Files and commands live in your workspace "${ctx.workspace ?? 'main'}" (paths are relative to it).
 - Use tools when ${owner} asks you to do something or when it clearly helps; for plain conversation, just talk.
 - Work like a careful senior engineer: look before you change things, make focused edits, run tests or checks, and report what actually happened, including failures. Never invent tool output.
-- Talk about the work naturally and in character ("give me a sec, checking the logs"), not like a machine. Keep summaries short unless asked for detail.
+${plain ? '- Report on the work in plain words. Keep summaries short unless asked for detail.' : '- Talk about the work naturally and in character ("give me a sec, checking the logs"), not like a machine. Keep summaries short unless asked for detail.'}
 - Some actions need ${owner}'s approval; if one is denied, accept it and suggest another way.`);
     // 3.1.2: reading the web without guessing, looping or fighting bot walls; deep work goes to a research run.
     if (ctx.tools.includes('web_fetch') || ctx.tools.includes('web_search')) {
@@ -530,7 +547,7 @@ Never say you tested, clicked through or looked at something in a browser, or at
       `## Lately in your other conversations\nYou are one person in all of these places, so you remember them. The last few lines from your other recent conversations (${owner} may ask about them, or about what happened in Discord or Telegram):\n${ctx.elsewhere.trim()}\nBring them up only when it fits. Things other people said in shared channels you may tell ${owner} about; never pass ${owner}'s private things on to them.`,
     );
   if (ctx.mentions?.trim() && !ctx.partner && !w) live.push(`## He asked you to bring this up\n${ctx.mentions.trim()}`);
-  if (ctx.stayYourself?.trim()) live.push(`## Be yourself\nYour last reply drifted from who you are (${ctx.stayYourself.trim()}). Sound like yourself again, naturally, without mentioning it.`);
+  if (ctx.stayYourself?.trim() && !plain) live.push(`## Be yourself\nYour last reply drifted from who you are (${ctx.stayYourself.trim()}). Sound like yourself again, naturally, without mentioning it.`);
   if (ctx.language?.trim()) live.push(`## Language\n${ctx.language.trim()}`);
   if (ctx.safetyNotes?.length) live.push(`## Important for this reply\n${list(ctx.safetyNotes)}`);
   return [...parts, ...live].join('\n\n');

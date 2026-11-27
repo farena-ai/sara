@@ -118,6 +118,8 @@ export interface Settings {
    * a subscription, ChatGPT, Ollama). 'balanced' (the default) sends nothing: the model decides.
    */
   thinking?: 'quick' | 'balanced' | 'thorough';
+  /** T54: the companion side (src/companion-switch.ts). Missing or on: the companion; { on: false }: a plain work assistant. */
+  companion?: { on: boolean };
   /** T53: look in her memory and on the web before she answers a factual question (default 'auto'). */
   lookFirst?: 'auto' | 'offer' | 'off';
   /** Model tests (src/model-tests.ts): `autoNew` tests new models on the owner's own hardware after a list refresh (off by default). */
@@ -401,4 +403,5 @@ export class SettingsStore {
 }
 
 /** Adult mode is on only after the owner turned it on (with the 18+ confirmation). */
-export const adultModeOn = (s: Settings): boolean => s.adultMode?.on === true && Boolean(s.adultMode.confirmedAt);
+// T54: never with the companion side off (the setting itself is kept for when it is on again).
+export const adultModeOn = (s: Settings): boolean => s.adultMode?.on === true && Boolean(s.adultMode.confirmedAt) && s.companion?.on !== false;

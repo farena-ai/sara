@@ -42,7 +42,9 @@ export interface ProactiveSettings {
 export const DEFAULT_PROACTIVE: ProactiveSettings = { enabled: true, maxPerDay: 2, quietStart: 22, quietEnd: 9, minGapHours: 6 };
 
 export function proactiveSettings(app: AppContext): ProactiveSettings {
-  return { ...DEFAULT_PROACTIVE, ...app.settings.get().proactive };
+  const s = app.settings.get();
+  // T54: nothing is sent first with the companion side off (the owner's own choice is kept for later).
+  return { ...DEFAULT_PROACTIVE, ...s.proactive, ...(s.companion?.on === false ? { enabled: false } : {}) };
 }
 
 /** Phase 118 (PERSIST §3.1 P6): is `h` (a local hour) inside quiet hours start–end (wraps midnight)? */

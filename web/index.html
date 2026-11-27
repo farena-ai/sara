@@ -382,7 +382,7 @@
       <div id="jobs-strip" class="jobs-strip" hidden></div>
       <div id="hf-banner" class="hf-banner" role="status" hidden><span class="cu-badge-dot" aria-hidden="true"></span><span id="hf-text" class="hf-text"></span> <button id="hf-log" type="button" class="ghost small">Steps</button> <button id="hf-stop" type="button" class="danger small">Stop</button><ol id="hf-steps" class="hf-steps" hidden></ol></div>
       <!-- W0.7: Always allow everything is on (web/always-allow.js). -->
-      <div id="alw-banner" class="hf-banner alw-banner" role="status" hidden><span class="cu-badge-dot" aria-hidden="true"></span><span id="alw-banner-text" class="hf-text"></span> <button id="alw-banner-off" type="button" class="ghost small">Turn off</button></div>
+      <div id="alw-banner" class="hf-banner alw-banner" role="status" hidden><span class="cu-badge-dot" aria-hidden="true"></span><span id="alw-banner-text" class="hf-text"></span> <button id="alw-banner-off" type="button" class="ghost small">Turn off</button> <button id="alw-banner-x" type="button" class="ghost icon small" aria-label="Dismiss"><i class="ic" data-icon="close"></i></button></div>
       <div id="cu-badge" class="cu-badge" role="status" hidden><span class="cu-badge-dot" aria-hidden="true"></span><span id="cu-badge-text" class="cu-badge-text"></span> <button id="cu-badge-stop" type="button" class="danger small">Stop</button></div>
       <div id="cu-live" class="cu-live" role="region" aria-label="Live view" hidden>
         <img id="cu-live-img" class="cu-live-img" alt="What Sara sees in the Sara browser">
@@ -500,7 +500,7 @@
           </section>
           <!-- E7: one starter card per everyday area, until used once or dismissed (web/try-cards.js). -->
           <section id="td-try" class="today-start today-try" aria-labelledby="td-try-title" hidden>
-            <div class="today-start-head"><h3 id="td-try-title">Try something new</h3> <button type="button" class="tip" data-tip="Things she can do for you every day. Each card starts a new chat with the first message written for you to finish. A card goes away once you use it, or with its ×.">?</button></div>
+            <div class="today-start-head"><h3 id="td-try-title">Try something new</h3> <button type="button" class="tip" data-tip="Things she can do for you every day. Each card starts a new chat with the first message written for you to finish. A card goes away once you use it, or with its ×.">?</button><button id="td-try-fold" type="button" class="ghost small">Show less</button><button id="td-try-hide" type="button" class="ghost small">Hide</button></div>
             <div id="td-try-list" class="today-try-list"></div>
           </section>
           <section id="td-start" class="today-start" hidden>
@@ -3832,6 +3832,8 @@
       <label>What you mostly do with her
         <select id="use-path"><option value="company">Company: talk, plan my day, remember things</option><option value="coding">Coding: my projects, tests, reviews</option><option value="both">Both</option></select>
       </label>
+      <label class="row"><input id="companion-on" type="checkbox"> Companion side: her personality, moods and life</label>
+      <p class="muted small">Off: a plain assistant for work and coding. No personality, no moods, nothing sent on her own, and her picture and mood leave the screen. All tools and her memory stay, and switching it back on brings everything back as it was.</p>
       <!-- R2: Guided setup and the starter packs (web/get-started.js). -->
       <div id="gs-card" class="tidy-card tidy-stack gs-card" hidden></div>
       <h3>Language</h3>

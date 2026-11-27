@@ -19,11 +19,16 @@ const when = (iso) => {
   }
 };
 
+const ALW_AWAY_KEY = 'sara.alw.away';
+
 function paint() {
   const v = view;
   const bar = $('#alw-banner');
   if (bar) {
-    bar.hidden = !v?.on;
+    // Put away with its ×: stays away for this turn-on (a new one, or a new end time, shows it again).
+    const sig = v?.on ? String(v.until ?? 'on') : '';
+    if (v && !v.on) localStorage.removeItem(ALW_AWAY_KEY);
+    bar.hidden = !v?.on || localStorage.getItem(ALW_AWAY_KEY) === sig;
     const txt = $('#alw-banner-text');
     if (txt && v?.on) txt.textContent = v.until ? t('Always allow is on until {time}: she acts without asking.', { time: when(v.until) }) : t('Always allow is on: she acts without asking until you turn it off.');
   }
@@ -99,5 +104,9 @@ export function initAlwaysAllow(c) {
   $('#alw-on')?.addEventListener('click', () => void turnOn());
   $('#alw-off')?.addEventListener('click', () => void turnOffAlwaysAllow());
   $('#alw-banner-off')?.addEventListener('click', () => void turnOffAlwaysAllow());
+  $('#alw-banner-x')?.addEventListener('click', () => {
+    if (view?.on) localStorage.setItem(ALW_AWAY_KEY, String(view.until ?? 'on'));
+    paint();
+  });
   void refreshAlwaysAllow();
 }

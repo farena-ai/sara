@@ -5,6 +5,16 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.48.0 (2026-11-27): The companion side, off and on again
+
+- New: the companion side can be switched off and on again at any time (Settings → You → About you → "Companion side"). Off, she is a plain assistant for work and coding: no personality, backstory, moods or relationship, short direct work talk, and she says plainly that she is an AI.
+- New: with the companion side off, nothing companion-like happens on its own: no texting first, no pictures of herself, no outfit changes, no moments album or yearly look-back, no typed-like-a-person pauses, and adult mode is off. Her picture, mood, Moments and Story leave the screen, and her character pages leave Settings.
+- New: switching the companion side off deletes nothing. Every tool, her memory (the same memory, not a separate work one), research, coding, reminders, the briefing and the safety rules stay, and switching it on again brings her back as she was, with your own choices for adult mode and texting first kept.
+- Fixed: "Check facts before she answers" (new in 3.47.0) did not save. The setting always went back to "Look it up first"; Offer and Off now stick.
+- Better: projects in the sidebar start collapsed. The first time a device sees a project its group is closed (the one with the open conversation stays open); after that your own clicks are remembered.
+- Better: the trouble bar on Today has an × that puts that problem away on this device (it is still listed under Needs you), and the "Always allow is on" bar has one too, until Always allow is next turned on.
+- Better: "Try something new" on Today can be folded away with Show less and brought back with Show, or put away with Hide.
+
 ## 3.47.0 (2026-11-27): Look first, then answer
 
 - New: Sara looks things up before she answers a question about the real world. This covers news, prices, versions, game or product details, rules, how to do something, and any exact name, number or date. She looks before the model writes anything: first through her memory and past conversations, then on the web with the search you set up. She answers from what was found and names the source. A line in the chat says what was searched ("Looked this up first: …").

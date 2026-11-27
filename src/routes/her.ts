@@ -541,7 +541,7 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
     if (a === 'phone' && b === 'widget' && method === 'GET') {
       const s = app.settings.get();
       const now = app.now();
-      const st = app.inner && s.persona?.innerLife !== false ? app.inner.get(now) : undefined;
+      const st = app.inner && s.persona?.innerLife !== false && s.companion?.on !== false ? app.inner.get(now) : undefined;
       const expression = st ? expressionFor(st, now, s.timeZone, leansPlayful(app.persona.traits)) : 'default';
       const last = app.store.db
         .prepare("SELECT m.id, m.conversation_id, m.content, m.created_at FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE m.role = 'assistant' AND c.partner IS NULL AND m.content != '' AND (m.meta IS NULL OR m.meta NOT LIKE '%\"importedFrom\"%') ORDER BY m.id DESC LIMIT 1")
@@ -578,7 +578,7 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
     if (a === 'sara' && b === 'state' && method === 'GET') {
       const s = app.settings.get();
       const now = app.now();
-      if (!app.inner || s.persona?.innerLife === false) return send(res, 200, { enabled: false });
+      if (!app.inner || s.persona?.innerLife === false || s.companion?.on === false) return send(res, 200, { enabled: false });
       const st = app.inner.get(now);
       const today = localDate(now.toISOString(), s.timeZone);
       return send(res, 200, { enabled: true, ...moodLabel(st, now, s.timeZone), expression: expressionFor(st, now, s.timeZone, leansPlayful(app.persona.traits)), customAvatar: Boolean(avatarFile()), closeness: Math.round(st.closeness * 100) / 100, day: app.life?.get(today) ?? null, today });

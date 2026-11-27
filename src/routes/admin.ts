@@ -1,3 +1,5 @@
+import { companionOff } from '../companion-switch.ts';
+import { lookFirstMode } from '../look-first.ts';
 import { randomUUID } from 'node:crypto';
 import { PUBLIC_MCP_INVESTIGATIONS } from '../addons/discovery.ts';
 import { PUBLIC_DEVELOPER_CONNECTIONS } from '../addons/developer-connections.ts';
@@ -110,6 +112,9 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
           // 3.4.1: Auto (the default), the whole window, or a fixed size; and what that means with her default model.
           historyBudgetMode: historyMode(s),
           thinking: s.thinking ?? 'balanced',
+          // T53: look first, then answer. T54: the companion side (on unless switched off).
+          lookFirst: lookFirstMode(s),
+          companion: { on: !companionOff(s) },
           historyBudget: budgetView(app),
           defaultProviderId: s.defaultProviderId ?? null,
           defaultModel: s.defaultModel ?? null,
@@ -173,6 +178,15 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
         if (body.thinking !== undefined) {
           if (body.thinking !== 'quick' && body.thinking !== 'balanced' && body.thinking !== 'thorough') throw new HttpError(400, 'Pick Quick, Balanced or Thorough.');
           patch.thinking = body.thinking;
+        }
+        if (body.lookFirst !== undefined) {
+          if (body.lookFirst !== 'auto' && body.lookFirst !== 'offer' && body.lookFirst !== 'off') throw new HttpError(400, 'Pick Look it up first, Offer to look it up or Off.');
+          patch.lookFirst = body.lookFirst;
+        }
+        if (body.companion !== undefined) {
+          const on = (body.companion as { on?: unknown } | null)?.on;
+          if (typeof on !== 'boolean') throw new HttpError(400, 'The companion side is on or off.');
+          patch.companion = { on };
         }
         if (body.historyBudgetMode !== undefined) {
           if (body.historyBudgetMode !== 'auto' && body.historyBudgetMode !== 'full' && body.historyBudgetMode !== 'fixed') throw new HttpError(400, 'Pick Auto, the full window or a fixed size.');

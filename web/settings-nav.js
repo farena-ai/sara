@@ -28,12 +28,15 @@ export const OLD_TABS = { yours: 'her-character', models: 'models-default', you:
 // Turn off, and an Open in browser path instead of Turn on. "This computer" only in the desktop app.
 // Phase 71: a household member sees only their own pages (data-member-only), never the owner's
 // (data-owner-only); the household page isn't on the demo server.
+const COMPANION_PAGES = ['her-character', 'her-relationship', 'her-companions', 'her-look', 'her-pictures', 'you-adult'];
 export const settingsPages = () =>
   [...document.querySelectorAll('#settings .settings-page')].filter(
     (p) =>
       !(p.dataset.page === 'desktop-app' && !window.SaraDesktop) &&
       !(isMember() ? 'ownerOnly' in p.dataset : 'memberOnly' in p.dataset) &&
       !(['household', 'dh-recovery', 'dh-operations'].includes(p.dataset.page) && document.body.classList.contains('demo')) &&
+      // T54: with the companion side off, its Settings pages are not listed.
+      !(document.documentElement?.dataset?.companion === 'off' && COMPANION_PAGES.includes(p.dataset.page)) &&
       p.dataset.page !== 'ab-recipes',
   );
 

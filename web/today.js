@@ -920,17 +920,41 @@ function waitingLink() {
   if (!ctx.openWaiting || ctx.demo?.()) return [];
   return [btn('ghost small td-wq-all', t('Everything waiting on you'), () => ctx.openWaiting())];
 }
+const TROUBLE_HIDDEN_KEY = 'sara.trouble.hidden';
+const troubleHidden = () => {
+  try {
+    const v = JSON.parse(localStorage.getItem(TROUBLE_HIDDEN_KEY) ?? '[]');
+    return Array.isArray(v) ? v.filter((k) => typeof k === 'string') : [];
+  } catch {
+    return [];
+  }
+};
 /** 3.3.0: the Today banner: her own trouble in her words, one Fix it (the first notice; the rest are in Needs you). */
 function renderTrouble(d) {
   const box = $('#td-trouble');
   if (!box) return;
-  const [x] = troubleNeeds(d?.needs?.trouble).filter((r) => !(d?.needs?.notToday ?? []).includes(r.key));
+  // A problem he put away (the × here) stays away on this device; it is still listed under Needs you.
+  const away = troubleHidden();
+  const [x] = troubleNeeds(d?.needs?.trouble).filter((r) => !(d?.needs?.notToday ?? []).includes(r.key) && !away.includes(r.key));
   box.hidden = !x;
   if (!x) return box.replaceChildren();
   const ic = el('span', 'td-trouble-ic');
   ic.setAttribute('aria-hidden', 'true');
   ic.append(icon('warn') ?? '!');
   box.replaceChildren(ic, raw(el('p', 'td-trouble-text', troubleText(x.ref))), btn('small', t(x.ref.fix?.label || 'Fix it'), () => (closeToday({ focus: false }), void ctx.openSettings(x.ref.fix?.page || 'models-providers'))));
+  const close = btn('ghost icon small td-trouble-x', '');
+  close.append(icon('close') ?? document.createTextNode('×'));
+  close.setAttribute('aria-label', t('Dismiss'));
+  close.title = t('Dismiss');
+  close.addEventListener('click', () => {
+    try {
+      localStorage.setItem(TROUBLE_HIDDEN_KEY, JSON.stringify([...troubleHidden(), x.key].slice(-64)));
+    } catch {
+      /* private window: it is gone until the page loads again */
+    }
+    renderTrouble(d);
+  });
+  box.append(close);
 }
 
 function needsRow(x, d) {

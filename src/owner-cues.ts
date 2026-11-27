@@ -4,7 +4,7 @@ import { ownerCuesNote, recentOwnerCues } from './attunement.ts';
 
 /** Fresh read-only evidence for the actual provider handoff; never a persisted mood profile. */
 export function ownerCueNote(app: AppContext, conversationId: string, turn: OwnerEvidenceTurn): string | undefined {
-  if (app.settings.get().persona?.innerLife === false) return undefined;
+  if (app.settings.get().persona?.innerLife === false || app.settings.get().companion?.on === false) return undefined;
   const conversation = ownerEvidenceConversation(app, conversationId, turn);
   if (!conversation) return undefined;
   const now = app.now();
