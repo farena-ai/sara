@@ -5,6 +5,14 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.47.0 (2026-11-27): Look first, then answer
+
+- New: Sara looks things up before she answers a question about the real world. This covers news, prices, versions, game or product details, rules, how to do something, and any exact name, number or date. She looks before the model writes anything: first through her memory and past conversations, then on the web with the search you set up. She answers from what was found and names the source. A line in the chat says what was searched ("Looked this up first: …").
+- New: she says when she could not check a fact. When web search is not set up, the conversation is private or the search failed, she is told to say what she is not sure about and never to present a guess as a fact.
+- New: Settings → Models & usage → "Check facts before she answers": Look it up first (the default), Offer to look it up, or Off. A story, a game or roleplay you are playing is left alone, and so are small talk, coding conversations, voice calls and other people's chats.
+- Better: a question about your own life or about what you two said before is looked up in your past conversations even when you do not say "remember", which helps most at the start of a new conversation.
+- Privacy: with "Look it up first", the search words for a factual question go to your search service without you asking each time. They are written without your name or private details, the web is never searched from a private conversation or with "Nothing leaves this computer" on, and every search is shown in the chat.
+
 ## 3.46.1 (2026-11-26): Models on your own computer answer sooner
 
 - Fixed: a model on your own computer is no longer loaded again on every message. Each chat title was written by another model on the same computer (the Private one), and a computer that holds one model at a time swapped the two every turn, so about 13 GB was loaded again and the whole prompt was read from the start. Small jobs like titles now use the model that is already loaded there. It is the same computer, so it is just as private.

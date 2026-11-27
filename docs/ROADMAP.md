@@ -108,6 +108,12 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Look first, then answer, in 3.47.0
+
+When you ask about the real world, Sara now looks in her memory and searches the web before the model
+writes anything, and answers from what she found with the source. If she could not check, she says
+she is not sure. A story or game you are playing is left alone. You can set it to offer first, or off.
+
 ## Models on your own computer answer sooner, in 3.46.1
 
 A model on your own computer is no longer loaded again on every message, and on Balanced thinking it

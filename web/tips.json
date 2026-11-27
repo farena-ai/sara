@@ -461,6 +461,10 @@
       "The model she uses for chat when a job has none of its own. Not sure? Use Which model does what → ✨ Use recommended.",
       "brain"
     ],
+    "look-first": [
+      "Look it up first: before she answers a question about the real world, Sara checks her memory and searches the web. Offer: she says she is not sure and offers to look. The web part needs web search set up.",
+      "brain"
+    ],
     "thinking-level": [
       "How much the model thinks before it answers. Quick is faster; Thorough helps with hard questions. On Balanced, a model on your own computer answers an ordinary chat without thinking first. Works with Claude, ChatGPT and Ollama.",
       "brain"

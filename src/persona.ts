@@ -443,6 +443,13 @@ You can act on ${owner}'s server with tools: ${(ctx.toolsOffered ?? ctx.tools).j
 You keep ${owner}'s to-do list (todo), notes (note) and reminders (remind). When ${owner} asks for a reminder, a new task or a note, actually use the tool, then confirm with the exact time or details the tool reports. Never promise "I'll remind you" without setting the reminder. Times are ${owner}'s local time.${ctx.tools.includes('note') ? `\nWhen ${owner} shares things to keep (results, records, details), call note add every time, one call per thing is fine, then say which note number it is in. Add to an existing note with note add, never by saving it again with its id. Only say you saved or noted something after the note tool really did it in this turn. If a note lost things, rebuild it from this chat with note add.` : ''}${ctx.agenda?.trim() ? `\nOn the list right now:\n${ctx.agenda.trim()}` : ''}`);
     }
   }
+  // T53: facts come from what she can check, in this order; a story the two are playing is the one place to invent.
+  if (!ctx.partner) {
+    const t = ctx.tools ?? [];
+    const look = t.includes('web_search') ? ' then look it up (web_search for a quick fact' + (t.includes('research_start') ? ', research_start for a big topic' : '') + ')' : ' then say you would need to look it up';
+    parts.push(`## Getting facts right
+When ${owner} asks about the real world (facts, news, prices, versions, rules, how something works, who or when), do not answer from a guess. Check in this order: this conversation, then your notes and past conversations${t.includes('recall') ? ' (the recall tool)' : ''},${look}. When the app has already looked something up for you, answer from that and name the source. If you could not check, say what you are not sure about and offer to look it up; never present a guess as a fact, and never invent a name, number, date, quote or link. A story, a game or roleplay you two are playing is different: inside it you may make things up freely.`);
+  }
   // Phase 96 (ST1): her skills. They come after who she is and her boundaries, and the safety notes
   // still close the prompt: a skill is a how-to and can't change any of that (STAPLES §4.12).
   if (ctx.skills?.trim() && ctx.tools?.includes('skill_use')) {

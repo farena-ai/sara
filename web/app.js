@@ -9752,6 +9752,7 @@ async function loadSettingsPages(onCore = () => {}) {
   $('#story-yearly').checked = Boolean(s.storyYearly);
   $('#model-auto-switch').checked = s.modelAutoSwitch !== false;
   $('#thinking-level').value = s.thinking ?? 'balanced';
+  $('#look-first').value = s.lookFirst ?? 'auto';
   {
     // 3.4.1: Auto (the default) follows the model; a fixed size an owner chose stays.
     const sel = $('#history-budget');
@@ -9862,6 +9863,7 @@ async function saveCoreSettings() {
       ...(['auto', 'full'].includes($('#history-budget').value) ? { historyBudgetMode: $('#history-budget').value } : { historyBudgetMode: 'fixed', historyBudgetChars: Number($('#history-budget').value) }),
       modelAutoSwitch: $('#model-auto-switch').checked,
       thinking: $('#thinking-level').value,
+      lookFirst: $('#look-first').value,
     },
   });
   if (saveModel) savedDefaultModelRevision = modelRevision;

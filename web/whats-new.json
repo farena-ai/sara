@@ -2,6 +2,28 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.47.0",
+   "date": "2026-11-27",
+   "title": "Look first, then answer",
+   "items": [
+    {
+     "id": "3-47-0-sara-looks-things-up-before",
+     "kind": "new",
+     "text": "Sara looks things up before she answers a question about the real world."
+    },
+    {
+     "id": "3-47-0-she-says-when-she-could",
+     "kind": "new",
+     "text": "She says when she could not check a fact. When web search is not set up, the conversation is private or the search failed."
+    },
+    {
+     "id": "3-47-0-settings-models-usage-check-facts",
+     "kind": "new",
+     "text": "Settings → Models & usage → \"Check facts before she answers\": Look it up first (the default), Offer to look it up, or Off."
+    }
+   ]
+  },
+  {
    "version": "3.46.1",
    "date": "2026-11-26",
    "title": "Models on your own computer answer sooner",
@@ -188,38 +210,6 @@
      "id": "3-42-0-the-crisis-lines-no-longer",
      "kind": "fixed",
      "text": "The crisis lines no longer appear for a cut finger, a gym injury, a film plot, the news, or someone else's death years ago."
-    }
-   ]
-  },
-  {
-   "version": "3.41.0",
-   "date": "2026-11-24",
-   "title": "Meaning search with no setup, a thinking level, quicker long chats",
-   "items": [
-    {
-     "id": "3-41-0-meaning-search-turns-itself-on",
-     "kind": "new",
-     "text": "Meaning search turns itself on. When an embedding model is already on this computer (for example in Ollama), she sets Meaning search to it once."
-    },
-    {
-     "id": "3-41-0-research-asks-said-your-own",
-     "kind": "new",
-     "text": "Research asks said your own way (\"look into which air purifiers are worth buying\", \"get to the bottom of whether robot vacuums are worth it\") reach your research model."
-    },
-    {
-     "id": "3-41-0-how-hard-she-thinks-settings",
-     "kind": "new",
-     "text": "\"How hard she thinks\" (Settings → Models & usage → Default model): Quick, Balanced or Thorough."
-    },
-    {
-     "id": "3-41-0-on-a-computer-that-keeps",
-     "kind": "fixed",
-     "text": "On a computer that keeps one model loaded at a time, finding tools and research asks by meaning made every turn wait for two model loads and often got nothing for it."
-    },
-    {
-     "id": "3-41-0-a-new-install-is-no",
-     "kind": "fixed",
-     "text": "A new install is no longer told its backups are more than 2 days old before the first one is made."
     }
    ]
   }

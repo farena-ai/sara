@@ -118,6 +118,8 @@ export interface Settings {
    * a subscription, ChatGPT, Ollama). 'balanced' (the default) sends nothing: the model decides.
    */
   thinking?: 'quick' | 'balanced' | 'thorough';
+  /** T53: look in her memory and on the web before she answers a factual question (default 'auto'). */
+  lookFirst?: 'auto' | 'offer' | 'off';
   /** Model tests (src/model-tests.ts): `autoNew` tests new models on the owner's own hardware after a list refresh (off by default). */
   modelTests?: { autoNew?: boolean };
   /** S1: Meaning search was set by itself once (src/meaning-auto.ts); after that it is the owner's to turn on or off. */

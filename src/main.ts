@@ -1795,6 +1795,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   const issueWatcher = isMember ? undefined : new IssueWatcher(app);
   // Phase 37: things to do together and shared lists.
   app.together = new TogetherStore(store.db, () => app.now());
+  app.lookFirst = true;
   // E5: read together (memory only; a restart ends sharing).
   app.readTogether = new ReadTogether(() => app.now());
   tools.add(createSharedListTool(() => app.together));

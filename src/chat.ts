@@ -110,6 +110,7 @@ import { writingNote } from './humanize.ts';
 import { packNote } from './pack-hint.ts';
 import { OWNER_CUES_MARK } from './attunement.ts';
 import { autoRecall, lastTimeNote, sharedOwnerFacts, sharedWithApps } from './recall.ts';
+import { lookFirst, lookFirstMode } from './look-first.ts';
 import { checkReply, driftMode, shouldCheck } from './drift.ts';
 import { awayLine, CONFLICT, STOP_NOTE, usedStopWord } from './bond.ts';
 import { wearingLine } from './wardrobe.ts';
@@ -369,6 +370,8 @@ export interface AppContext {
   /** Phase 36: her closet. */
   /** Phase 37: things to do together and shared lists. */
   together?: import('./together.ts').TogetherStore;
+  /** T53: the look before a reply (src/look-first.ts) is part of this app (the real server sets it; a test opts in). */
+  lookFirst?: boolean;
   /** E5: read together (the shared passage per conversation; memory only). */
   readTogether?: import('./read-together.ts').ReadTogether;
   wardrobe?: import('./wardrobe.ts').WardrobeWorker;
@@ -457,7 +460,7 @@ export interface AppContext {
 
 export type ChatEvent =
   /** Phase 61: `key` + `params` (fallback notices) let the app and the bridges word it in the owner's language; `text` is the English. */
-  | { type: 'notice'; kind: 'disclosure' | 'crisis' | 'fallback' | 'compact' | 'continuity' | 'websearch' | 'picture'; text: string; key?: string; params?: Record<string, unknown>; oneTap?: boolean }
+  | { type: 'notice'; kind: 'disclosure' | 'crisis' | 'fallback' | 'compact' | 'continuity' | 'websearch' | 'picture' | 'lookup'; text: string; key?: string; params?: Record<string, unknown>; oneTap?: boolean }
   | { type: 'token'; text: string }
   /** The model is thinking before its words (characters so far in this step); nothing of the thinking itself. */
   | { type: 'reasoning'; chars: number }
@@ -2875,6 +2878,25 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   // that changed mid-turn made the model re-read the whole conversation (no cache hit after it).
   const turnClock = app.now();
   const webTurn = new WebTurn({ canResearch: Boolean(app.research) && !conv.private && !conv.partner && !opts.group && !opts.outside && !opts.externalApp });
+  // T53: look first, then answer (src/look-first.ts). His own ordinary chat turns only; her memory first,
+  // then the web, before the model writes a word. A story or game going on here is left alone.
+  let lookNote: string | undefined;
+  if (app.lookFirst && userMsg && !opts.resume && !opts.replay && !opts.recorder && !opts.group && !opts.externalApp && !opts.outside && !opts.persist && !opts.talk && !opts.noTools && !conv.partner && conv.mode !== 'coding') {
+    const s0 = app.settings.get();
+    const canSearch = tools.some((t) => t.spec.name === 'web_search') && app.tools.permission('web_search', s0.toolPermissions) === 'auto';
+    const earlier = store.messagesPage(conv.id, { limit: 6 }).messages.filter((m) => (m.role === 'user' || m.role === 'assistant') && m.id !== userMsg.id && !m.meta?.forgotten && m.content.trim()).map((m) => `${m.role === 'user' ? 'Person' : 'Assistant'}: ${m.content}`);
+    const look = await lookFirst(app, conv, text, { mode: lookFirstMode(s0), ordinary: true, crisis: crisisNow, playing: Boolean(app.together?.activity(conv.id)), canSearch }, { exclude: { conversationId: conv.id, fromId: userMsg.id }, owner: s0.ownerName?.trim() || 'the owner', alreadyRecalled: Boolean(recalled), earlier, signal });
+    if (look?.recalled) recalled = recalled ? `${recalled}
+${look.recalled}` : look.recalled;
+    if (look?.note) lookNote = look.note;
+    if (look?.urls.length) webTurn.noteFound(look.urls);
+    if (look?.query) {
+      const key = look.results ? en('Looked this up first: {query}') : en('Looked this up first and found nothing: {query}');
+      const params = { query: look.query };
+      store.addMessage(conv.id, 'notice', `lookup:${fill(key, params)}`, { key, params });
+      yield { type: 'notice', kind: 'lookup', text: fill(key, params), key, params };
+    }
+  }
   // EC21: the model's own tool calls so far this turn (code mode is offered from the second on).
   let callsThisTurn = 0;
   // 3.4.5: the slow-model notice comes once a turn.
@@ -3477,6 +3499,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // Nothing leaves this computer on (or a private chat), only a model on this computer sees it.
     const readTogether = readTogetherSection(app, conv, { ...nowGate, local: !(privateLocalOn() || conv.private) || onThisComputer(provider.config, model) });
     if (readTogether) messages.push({ role: 'system', content: readTogether });
+    // T53: what the look before this reply found on the web (fenced as data), or the rule to say she is not sure.
+    if (lookNote) messages.push({ role: 'system', content: lookNote });
     // W4.3: the language-practice chat keeps her in the language, at the level, with gentle corrections.
     const practice = conv.partner ? undefined : learnTalkNote(app, conv);
     if (practice) messages.push({ role: 'system', content: practice });
