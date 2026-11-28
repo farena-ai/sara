@@ -30,6 +30,7 @@ import { closeProgress, deliverOutgoing, DISCORD_FILE_OUT, isOwnPicture, FIRST_4
 import { finalLine, ProgressMessage } from './progress.ts';
 import { PRIO_FILE, PRIO_REPLY, RateLimited, realClock, SendQueue, type Clock } from './sendq.ts';
 import type { TurnExtra } from './telegram.ts';
+import { exclusivityOf, partnerAllowed } from '../exclusivity.ts';
 import { PENDING_LINES, pendingFor, snippet, whileBusySettings, type PendingItem } from '../pending.ts';
 import { adultModeOn } from '../settings.ts';
 import { readFileSync } from 'node:fs';
@@ -494,7 +495,7 @@ export class DiscordBridge {
             take: (kind: 'steer' | 'queue' | 'interrupt', text: string) => {
               const conv = app.store.currentChannelConversation(channel, channelId, ownerSide ? 'owner' : 'partner') ?? this.#newConversation(channel, channelId, place === 'owner-dm', place === 'work-room');
               const content = place === 'owner-dm' ? text : `[${(asker.name ?? 'someone').replace(/[[\]]/g, '')}]: ${text}`;
-              return this.#enqueue(conv, channelId, content, ownerSide, false, [], { place, lang: ownerSide ? ownerLanguage(app) : 'en', userId: asker.userId, ...(asker.msgId ? { msgId: asker.msgId } : {}) }, {}, kind, false);
+              return this.#enqueue(conv, channelId, content, ownerSide, false, [], { place, lang: ownerSide ? ownerLanguage(app) : 'en', userId: asker.userId, ...(asker.name ? { name: asker.name } : {}), ...(asker.msgId ? { msgId: asker.msgId } : {}) }, {}, kind, false);
             },
           }
         : {}),
@@ -901,7 +902,7 @@ export class DiscordBridge {
         }
         if (got.length) {
           const shown = (msg.author.global_name || msg.author.username).replace(/[[\]]/g, '') || 'someone';
-          const adult = adultModeOn(this.#app.settings.get()) && nsfw;
+          const adult = adultModeOn(this.#app.settings.get()) && nsfw && (isOwner || fromOwner || partnerAllowed(exclusivityOf(this.#app.settings.get()), { platform: 'discord', id: msg.author.id }));
           const taken = await takeIncoming(this.#app, conv, { bridge: 'discord', chatKey: msg.channel_id, who, name: shown, place, adult }, got);
           if (taken.blocked) return void (await this.send(msg.channel_id, taken.blocked.why === 'minor' ? taken.blocked.reply : say(this.#app, lang, taken.blocked.reply)));
           for (const r of taken.refused) await line(r);
@@ -936,7 +937,7 @@ export class DiscordBridge {
     const content = isDm ? said : `[${name}]: ${said.replace(new RegExp(`<@!?${this.#me?.id}>`, 'g'), `@${this.#app.persona.name}`)}`;
     const voice = speechOf(this.#app).replyWithVoice(Boolean(heard));
     if (isBot && !(await this.#takeBotTurn(msg.channel_id, cfg))) return;
-    const where = { place: (isOwnerDm ? 'owner-dm' : ownerWork ? 'work-room' : 'room') as Place, lang: isOwner ? ownerLanguage(this.#app) : 'en', userId: msg.author.id, msgId: msg.id, replyTo: msg.message_reference?.message_id ?? msg.referenced_message?.id ?? null };
+    const where = { place: (isOwnerDm ? 'owner-dm' : ownerWork ? 'work-room' : 'room') as Place, lang: isOwner ? ownerLanguage(this.#app) : 'en', userId: msg.author.id, name, msgId: msg.id, replyTo: msg.message_reference?.message_id ?? msg.referenced_message?.id ?? null };
     const line = await this.#enqueue(conv, msg.channel_id, content, isOwner, voice, docs, where, extra, isBot ? 'queue' : undefined);
     if (line) await this.send(msg.channel_id, line);
   }
@@ -946,8 +947,10 @@ export class DiscordBridge {
    * she works the owner's plain message is a steer or waits (`chats.whileBusy`, /steer, /queue);
    * everyone else's (and bots') always waits. Returns the line to say ('' = nothing).
    */
-  async #enqueue(conv: Conversation, channelId: string, content: string, isOwner: boolean, voice: boolean, docs: SharedDoc[], where: { place: Place; lang: string; userId: string; msgId?: string; replyTo?: string | null }, extra: TurnExtra, explicit?: 'steer' | 'queue' | 'interrupt', wait = true): Promise<string> {
+  async #enqueue(conv: Conversation, channelId: string, content: string, isOwner: boolean, voice: boolean, docs: SharedDoc[], where: { place: Place; lang: string; userId: string; name?: string; msgId?: string; replyTo?: string | null }, extra: TurnExtra, explicit?: 'steer' | 'queue' | 'interrupt', wait = true): Promise<string> {
     const app = this.#app;
+    // 2026-11-28: who wrote it, for her exclusivity (src/exclusivity.ts); decided per message author.
+    if (!isOwner && where.userId) extra = { ...extra, partnerAuthor: { platform: 'discord', id: where.userId, ...(where.name ? { name: where.name } : {}), ...(isDiscordOwner(discordSettings(app), where.userId) ? { owner: true } : {}) } };
     const pend = pendingFor(app);
     const runner = async (item?: PendingItem) => {
       if (item?.kind === 'steer') await this.send(channelId, say(app, where.lang, PENDING_LINES.moved)).catch(() => undefined);

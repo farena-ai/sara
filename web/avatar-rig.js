@@ -132,9 +132,11 @@ export const tierLimits = (tier) => LIMITS[tier] ?? LIMITS.small;
  * `regions` are in percent (see fitRegions / web/avatar-gl.js findFace).
  */
 export function faceCrop(regions, aspect, tier) {
-  const cx = regions.eyes.x / 100;
-  const cy = (regions.eyes.y * 0.55 + regions.mouth.y * 0.45) / 100;
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  // T65: regions that can't be a face (found in her hair, say) never steer the crop: a gentle, centred one.
+  const ok = plausibleFace(regions);
+  const cx = ok ? regions.eyes.x / 100 : 0.5;
+  const cy = ok ? (regions.eyes.y * 0.55 + regions.mouth.y * 0.45) / 100 : 0.45;
   let w;
   let h;
   if (tier === 'large') {
@@ -142,11 +144,35 @@ export function faceCrop(regions, aspect, tier) {
     else [w, h] = [aspect, 1];
   } else {
     const unit = Math.max(2, regions.mouth.y - regions.eyes.y) / 100;
-    const s = clamp(unit * (tier === 'tiny' ? 3.6 : 4.2), 0.15, 1);
+    // Never so tight that her face leaves the circle: both eyes and the mouth stay well inside.
+    const span = Math.max(unit, regions.eyeL && regions.eyeR ? Math.abs(regions.eyeR.x - regions.eyeL.x) / 100 : 0);
+    const s = ok ? clamp(Math.max(unit * (tier === 'tiny' ? 3.6 : 4.2), span * 2.6), 0.3, 1) : 0.9;
     if (aspect >= 1) [w, h] = [s, s / aspect];
     else [w, h] = [s * aspect, s];
   }
   return { x: clamp(cx - w / 2, 0, 1 - w), y: clamp(cy - h / 2, 0, 1 - h), w, h };
+}
+
+/** T65: where the middle of the eyes of a found face may be (percent): the upper middle of a portrait. */
+export const EYES_BOX = { x: [22, 78], y: [10, 60] };
+
+/**
+ * T65: whether regions (percent) can be a face: eyes in the picture (with `found`, regions found from
+ * frames: in the upper middle, EYES_BOX), the mouth below the eyes and not too far, eyes apart but not
+ * wider than a face.
+ */
+export function plausibleFace(r, found = false) {
+  const e = r?.eyes;
+  const m = r?.mouth;
+  if (!e || !m || ![e.x, e.y, m.x, m.y].every(Number.isFinite)) return false;
+  const [x0, x1] = found ? EYES_BOX.x : [8, 92];
+  const [y0, y1] = found ? EYES_BOX.y : [4, 75];
+  if (e.x < x0 || e.x > x1 || e.y < y0 || e.y > y1) return false;
+  const unit = m.y - e.y;
+  if (unit < 2 || unit > 40 || m.y > 95) return false;
+  const span = r.eyeL && r.eyeR ? Math.abs(r.eyeR.x - r.eyeL.x) : unit;
+  if (span < 2 || span > 45) return false;
+  return Math.abs(m.x - e.x) <= Math.max(span, unit) * 0.8;
 }
 
 /** Your picture's "fit the face" dots (percent: left eye, right eye, mouth) → regions, or null. */

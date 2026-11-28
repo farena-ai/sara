@@ -108,6 +108,11 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Personality tuning for companion mode, and her look at a glance, in 3.51
+
+A companion with Adult mode on has new personality tuning on her Relationship page. The Look page shows
+her look as it is now, keeps its style, and can rebuild her whole set of moving pictures in one go.
+
 ## Separate companions and one model switch, in 3.50
 
 Each companion is her own identity now: her own planner, projects, details, look and accounts, so one

@@ -40,6 +40,7 @@ import { loadSignalPage } from './signal.js';
 import { loadEmailPage } from './email.js';
 import { loadMailAccounts } from './mail-accounts.js';
 import { loadCompanionAccess } from './companion-access.js';
+import { loadExclusivity } from './exclusivity.js';
 import { loadBusinessDetails, saveBusinessDetails } from './business-details.js';
 import { loadMyDetails, saveMyDetails } from './my-details.js';
 import { loadWritingStyle } from './writing-style.js';
@@ -9547,6 +9548,8 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'you-business' || pick === 'ab-google' || pick === 'ab-mail') void loadWorkApps(pick);
   // T62: while another companion is open, what she may use of these accounts.
   if (pick === 'ab-google' || pick === 'ab-mail') void loadCompanionAccess(pick);
+  // 2026-11-28: her romantic and sexual exclusivity (only with Adult mode on).
+  if (pick === 'her-relationship') void loadExclusivity();
   if (pick === 'co-whatsapp') void loadWhatsAppPage();
   if (pick === 'co-matrix') void loadMatrixPage();
   if (pick === 'co-imessage') void loadIMessagePage();
@@ -13978,7 +13981,9 @@ async function refreshLook() {
   else if (st.state === 'failed') $('#look-status').textContent = st.error ?? t('Something went wrong.');
   else if (st.state === 'done') $('#look-status').textContent = t('New look ready.');
   else if (l.hasDraft) $('#look-status').textContent = t('Here is a first picture. Use it, or try again for a different one.');
+  else if (l.custom && l.missing && l.noFrames) $('#look-status').textContent = t("This look won't blink or talk: {engine} can't make the extra frames. Grok Imagine can.", { engine: l.noFrames });
   else $('#look-status').textContent = l.custom ? t('Using your custom look.') : t('Using the default look.');
+  renderLookNow(l, busy);
   if (l.hasDraft && st.state !== 'building') {
     $('#look-draft-img').src = `/api/look/draft.jpg?v=${Date.now()}`;
     $('#look-draft-box').hidden = false;
@@ -13992,6 +13997,43 @@ async function refreshLook() {
   renderLookExtras(l);
   renderDefaultLook(l);
 }
+
+// T65: her look now (portrait, the style and place it was made with, whether it moves), the style picker
+// set from it, and a whole rebuild from the current portrait.
+function renderLookNow(l, busy) {
+  const w = (l.custom && l.wearing) || {};
+  $('#look-now-img').src = `/sara-portrait.jpg${state.lookVersion ? `?v=${state.lookVersion}` : ''}`;
+  const styleSel = $('#look-style');
+  const styleOpt = w.style ? styleSel.querySelector(`option[value="${CSS.escape(w.style)}"]`) : null;
+  if (styleOpt && !yours.lookStyleTouched) styleSel.value = w.style;
+  const place = (l.places ?? []).find((p) => p.id === w.place);
+  const keep = $('#look-place').querySelector('option[value=""]');
+  if (keep) keep.textContent = place ? t('Keep the same place ({place})', { place: place.label }) : t('Keep the same place');
+  const made = [styleOpt ? t('Style: {style}', { style: styleOpt.textContent }) : '', place || w.place ? t('Place: {place}', { place: place?.label ?? w.place }) : ''].filter(Boolean);
+  $('#look-now-made').textContent = made.join(' · ');
+  $('#look-now-made').hidden = !made.length;
+  $('#look-now-moves').textContent = !l.custom || !l.missing ? t('Moves: blinks, moods and talking') : l.noFrames ? t("This look won't blink or talk: {engine} can't make the extra frames. Grok Imagine can.", { engine: l.noFrames }) : t('Missing {n} pictures for blinking, moods and talking.', { n: l.missing });
+  $('#look-rebuild').hidden = !l.custom || busy;
+  if (!l.custom || busy) $('#look-rebuild-ask').hidden = true;
+}
+$('#look-style').addEventListener('change', () => (yours.lookStyleTouched = true));
+$('#look-rebuild').addEventListener('click', () => {
+  const l = yours.look;
+  if (l?.noFrames) return ($('#look-status').textContent = t("This look won't blink or talk: {engine} can't make the extra frames. Grok Imagine can.", { engine: l.noFrames }));
+  $('#look-rebuild-count').textContent = t('This makes {n} picture edits on your picture engine, each paid per use. Rebuild every mood, blink and mouth picture from her current portrait?', { n: l?.rebuildCount ?? 35 });
+  $('#look-rebuild-go').textContent = t('Rebuild {n} pictures', { n: l?.rebuildCount ?? 35 });
+  $('#look-rebuild-ask').hidden = false;
+});
+$('#look-rebuild-cancel').addEventListener('click', () => ($('#look-rebuild-ask').hidden = true));
+$('#look-rebuild-go').addEventListener('click', async () => {
+  $('#look-rebuild-ask').hidden = true;
+  try {
+    await api('/look/rebuild', { method: 'POST', body: { confirm: true } });
+  } catch (err) {
+    $('#look-status').textContent = err.message;
+  }
+  refreshLook();
+});
 
 // Phase 21: outfits and saved looks. Phase 36: places, one change at a time, face lock, the closet
 // with scenarios, and dressing automatically.
@@ -14389,9 +14431,13 @@ function lookChanged() {
   const v = Date.now();
   state.lookVersion = v;
   $('#my-face').src = `/sara-portrait.jpg?v=${v}`;
+  $('#look-now-img').src = `/sara-portrait.jpg?v=${v}`;
   for (const img of document.querySelectorAll('img.avatar, img.login-portrait')) img.src = `/sara-avatar.jpg?v=${v}`;
   setLookVersion(v);
   refreshSaraStatus();
+  // T65: whether she has a look of her own (companions list) changes with it: reload it and draw her face
+  // again everywhere, so a first look shows without a reload (not the orb).
+  void loadCompanions().then(() => state.lastFace && setFace(state.lastFace), () => undefined);
 }
 
 $('#look-draft').addEventListener('click', async () => {
@@ -14411,6 +14457,8 @@ $('#look-draft').addEventListener('click', async () => {
 });
 $('#look-again').addEventListener('click', () => $('#look-draft').click());
 $('#look-complete').addEventListener('click', async () => {
+  // T65: an engine that can't edit pictures can't add frames: say so instead of failing.
+  if (yours.look?.noFrames) return ($('#look-status').textContent = t("This look won't blink or talk: {engine} can't make the extra frames. Grok Imagine can.", { engine: yours.look.noFrames }));
   try {
     await api('/look/complete', { method: 'POST', body: {} });
   } catch (err) {

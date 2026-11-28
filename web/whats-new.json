@@ -2,6 +2,38 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.51.0",
+   "date": "2026-11-28",
+   "title": "Personality tuning for companion mode, her look at a glance",
+   "items": [
+    {
+     "id": "3-51-0-personality-tuning-for-companion-mode",
+     "kind": "new",
+     "text": "Personality tuning for companion mode. A companion with Adult mode on has a new section on her Relationship page that sets how she keeps her closeness for you."
+    },
+    {
+     "id": "3-51-0-the-look-page-shows-her",
+     "kind": "new",
+     "text": "The Look page shows her look now: her current picture, its style and place, and whether she blinks, changes mood and talks."
+    },
+    {
+     "id": "3-51-0-the-style-of-a-look",
+     "kind": "fixed",
+     "text": "The style of a look (for example photo-realistic) is kept when a look is saved or tagged, and the Look page shows it instead of \"illustrated\"."
+    },
+    {
+     "id": "3-51-0-her-picture-changes-everywhere-as",
+     "kind": "fixed",
+     "text": "Her picture changes everywhere as soon as a new look is ready, without reloading the page."
+    },
+    {
+     "id": "3-51-0-the-big-round-picture-of",
+     "kind": "fixed",
+     "text": "The big round picture of a companion with a close-up photo look showed her neck and hair instead of her face."
+    }
+   ]
+  },
+  {
    "version": "3.50.0",
    "date": "2026-11-28",
    "title": "Separate companions, one model switch, a stronger code review",
@@ -166,18 +198,6 @@
      "id": "3-46-1-the-quick-thinking-level-now",
      "kind": "fixed",
      "text": "The Quick thinking level now turns thinking off on Ollama models that can only think or not think."
-    }
-   ]
-  },
-  {
-   "version": "3.46.0",
-   "date": "2026-11-24",
-   "title": "Why a model got its score, and a quicker start",
-   "items": [
-    {
-     "id": "3-46-0-test-my-models-says-why",
-     "kind": "new",
-     "text": "Test my models says why a model got its score."
     }
    ]
   }

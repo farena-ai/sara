@@ -116,7 +116,7 @@ test('discord: link, owner DM with tools and approval buttons, mirror to DMs', a
 
 test('discord: servers answer on mention as partners; adult only in NSFW channels', async (t) => {
   const { app, bridge } = await setup(t, { ownerUserId: '100' });
-  app.settings.update({ routes: { adult: { providerId: 'p', model: 'adult-model' } }, adultMode: { on: true, confirmedAt: '2026-10-24T00:00:00Z' } });
+  app.settings.update({ routes: { adult: { providerId: 'p', model: 'adult-model' } }, adultMode: { on: true, confirmedAt: '2026-10-24T00:00:00Z' }, exclusivity: { mode: 'anyone' } });
   const bob = { id: '7', username: 'bob', global_name: 'Bob' };
   // Not mentioned: ignored.
   await bridge.handleMessage(msg({ channel_id: '200', guild_id: 'g', author: bob, content: 'hello all' }));
@@ -232,7 +232,7 @@ test('discord: answers her name without @ and @everyone only when switched on', 
 
 test('discord: channels listed as adult count as NSFW (with Adult mode on)', async (t) => {
   const { app, bridge } = await setup(t, { ownerUserId: '100', nsfwChannelIds: ['600'] });
-  app.settings.update({ routes: { adult: { providerId: 'p', model: 'adult-model' } }, adultMode: { on: true, confirmedAt: '2026-10-24T00:00:00Z' } });
+  app.settings.update({ routes: { adult: { providerId: 'p', model: 'adult-model' } }, adultMode: { on: true, confirmedAt: '2026-10-24T00:00:00Z' }, exclusivity: { mode: 'anyone' } });
   const bob = { id: '7', username: 'bob', global_name: 'Bob' };
   app.script.push(text('Mm.'));
   await bridge.handleMessage(msg({ channel_id: '600', guild_id: 'g', author: bob, content: '<@900> you are so sexy', mentions: [BOT] }));

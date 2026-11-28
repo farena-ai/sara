@@ -33,6 +33,7 @@ import { PENDING_LINES, pendingFor, snippet, whileBusySettings, type PendingItem
 import { PRIO_FILE, PRIO_REPLY, RateLimited, realClock, SendQueue, type Clock } from './sendq.ts';
 import { readFileSync } from 'node:fs';
 import { adultModeOn } from '../settings.ts';
+import { exclusivityOf, partnerAllowed } from '../exclusivity.ts';
 
 export interface TelegramSettings {
   enabled: boolean;
@@ -61,6 +62,8 @@ export interface TurnExtra {
   via?: string;
   /** Phase 116: the queued message this turn runs (src/pending.ts). */
   pendingId?: string;
+  /** 2026-11-28: who wrote it in a partner chat (src/exclusivity.ts). */
+  partnerAuthor?: import('../exclusivity.ts').PartnerAuthor;
 }
 
 export const DEFAULT_TELEGRAM: TelegramSettings = { enabled: false, allowOthers: false, mirror: true, ownerUserIds: [], ownerWorkInGroups: false, nsfwChatIds: [], answerName: false, answerEveryone: false };
@@ -605,6 +608,8 @@ export class TelegramBridge {
    */
   async #enqueue(msg: TgMessage, conv: Conversation, content: string, isOwner: boolean, voice: boolean, docs: SharedDoc[], place: Place, fromOwner: boolean, extra: TurnExtra, queued: boolean, explicit?: 'steer' | 'queue' | 'interrupt'): Promise<string> {
     const app = this.#app;
+    // 2026-11-28: who wrote it, for her exclusivity (src/exclusivity.ts); decided per message author.
+    if (!isOwner && msg.from) extra = { ...extra, partnerAuthor: { platform: 'telegram', id: String(msg.from.id), name: msg.from.first_name || msg.from.username || '', ...(fromOwner ? { owner: true } : {}) } };
     const where = { place, lang: fromOwner ? ownerLanguage(app) : askerLanguage(msg.from?.language_code), ownerChat: msg.from!.id, msgId: String(msg.message_id), replyTo: msg.reply_to_message?.message_id !== undefined ? String(msg.reply_to_message.message_id) : null };
     const pend = pendingFor(app);
     const runner = async (item?: PendingItem) => {
@@ -661,7 +666,7 @@ export class TelegramBridge {
     if (!files.length) return;
     const conv = this.#conversation(msg, c.isOwnerChat, c.ownerWork);
     const from = msg.from?.first_name || msg.from?.username || 'someone';
-    const adult = adultModeOn(app.settings.get()) && (conv.channel.endsWith('-nsfw') || c.place === 'partner-dm');
+    const adult = adultModeOn(app.settings.get()) && (conv.channel.endsWith('-nsfw') || c.place === 'partner-dm') && (c.isOwner || c.fromOwner || (msg.from !== undefined && partnerAllowed(exclusivityOf(app.settings.get()), { platform: 'telegram', id: String(msg.from.id) })));
     const taken = await takeIncoming(app, conv, { bridge: 'telegram', chatKey: key, who, name: from, place: c.place, adult }, files);
     if (taken.blocked) return void (await this.send(chatId, taken.blocked.why === 'minor' ? taken.blocked.reply : say(app, lang, taken.blocked.reply)));
     for (const r of taken.refused) await line(r);

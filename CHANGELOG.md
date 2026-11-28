@@ -5,6 +5,15 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.51.0 (2026-11-28): Personality tuning for companion mode, her look at a glance
+
+- New: personality tuning for companion mode. A companion with Adult mode on has a new section on her Relationship page that sets how she keeps her closeness for you, and who else it may include (your other companions, people and bots you name). She stays warm and friendly with everyone else, in chat apps and group chats alike, and her home chat tells you once a day if someone keeps pushing.
+- New: the Look page shows her look now: her current picture, its style and place, and whether she blinks, changes mood and talks. Her current look is in the closet from the start, and "Rebuild her whole set" remakes every mood picture and moving frame from it (it says how many paid picture edits that is before it starts).
+- Fixed: the style of a look (for example photo-realistic) is kept when a look is saved or tagged, and the Look page shows it instead of "illustrated".
+- Fixed: her picture changes everywhere as soon as a new look is ready, without reloading the page.
+- Fixed: the big round picture of a companion with a close-up photo look showed her neck and hair instead of her face.
+- Better: when her picture engine can't make the moving frames, the Look page says so plainly instead of failing.
+
 ## 3.50.0 (2026-11-28): Separate companions, one model switch, a stronger code review
 
 - New, on by default: a stronger review of coding work. When a Review model is set (Which model does what → Reviewing) and it is not the model writing the code, it reads the project and her change before a coding reply ends (it can open and search files and run her tests again in a throwaway copy, a few steps at most), and when it finds real gaps it takes the turn over and fixes them. Measured on the repository benchmark with a mid-size model coding: 6 of 24 alone, 14 of 24 with this review. With no Review model set, nothing changes. Switch: Settings → Skills & tools → Check her edits → Stronger review of coding work.

@@ -165,6 +165,7 @@ import type { SecurityPass } from './security/pass.ts';
 import { declinedInstallOutput, type AdvisoryCard } from './security/advisories.ts';
 import { recordTurnFindings, type FindingStore } from './security/findings.ts';
 import { interruptible, pendingFor } from './pending.ts';
+import { committedNote, countDeclinedAttempt, exclusivityGate } from './exclusivity.ts';
 import { blockedOutput, LOOP_NOTE, LoopGuard, toolsPausedNote, type GuardHit } from './loop-guard.ts';
 import { EDITOR_TOOLS, editorCalls, editorNote, editorTools, type EditorLink } from './editor-link.ts';
 
@@ -1432,6 +1433,11 @@ export interface TurnOptions {
    */
   group?: GroupTurn;
   /**
+   * 2026-11-28 (src/exclusivity.ts): who wrote this message in a partner chat (Discord or Telegram,
+   * set by the bridge per message), so her exclusivity is decided per author.
+   */
+  partnerAuthor?: import('./exclusivity.ts').PartnerAuthor;
+  /**
    * Phase 78: the run recorder for this turn, passed explicitly (risk 1: an AsyncLocalStorage scope
    * doesn't reliably carry into code the caller's next() resumes). runTurn opens one when unset.
    */
@@ -1796,6 +1802,8 @@ export interface GroupTurn {
   note: string;
   /** The other companions' names (lines she writes for them are cut). */
   others: string[];
+  /** The other companions' ids (her exclusivity, src/exclusivity.ts). */
+  otherIds?: string[];
 }
 
 /** Phase 57: how an app's own instructions reach her: after her own, and clearly lower in rank. */
@@ -2160,15 +2168,17 @@ function scopeTools(app: AppContext, conv: Conversation, opts: TurnOptions, x: S
  * room has Adult mode on. Phase 72: voice assistants speak in a room (Alexa, Home Assistant): never
  * explicit, whatever Adult mode says. Phase 100: never with another agent (its output may reach anyone).
  */
-function scopeAdult(app: AppContext, conv: Conversation, opts: TurnOptions): { voiceRoom: boolean; adultOn: boolean } {
+function scopeAdult(app: AppContext, conv: Conversation, opts: TurnOptions): { voiceRoom: boolean; adultOn: boolean; committed: boolean } {
   const voiceRoom = isVoiceRoomChannel(conv.channel) || Boolean(opts.voiceRoom);
   // EC26: never at work, whatever Adult mode says.
-  const adultOn = adultModeOn(app.settings.get()) && (!opts.group || opts.group.adult) && !voiceRoom && !opts.outside && conv.channel !== 'a2a' && !atWork(app, conv) && !opts.kidSafe;
-  return { voiceRoom, adultOn };
+  const base = adultModeOn(app.settings.get()) && (!opts.group || opts.group.adult) && !voiceRoom && !opts.outside && conv.channel !== 'a2a' && !atWork(app, conv) && !opts.kidSafe;
+  // 2026-11-28: her exclusivity (src/exclusivity.ts), per message author in a partner chat; the owner's own chats are never touched.
+  const gate = exclusivityGate(app, conv, opts, base);
+  return { voiceRoom, adultOn: base && gate.allow, committed: gate.declined };
 }
 
 /** R2a: the turn's base safety notes (who she talks with, rooms, Adult mode off); crisis and stop word stay per turn. */
-function scopeSafetyNotes(app: AppContext, conv: Conversation, text: string, opts: TurnOptions, adultOn: boolean, voiceRoom: boolean): string[] {
+function scopeSafetyNotes(app: AppContext, conv: Conversation, text: string, opts: TurnOptions, adultOn: boolean, voiceRoom: boolean, committed = false): string[] {
   const safetyNotes: string[] = [];
   // EC26: her work profile (work name, tone, what stays out) comes first at work.
   const work = atWork(app, conv);
@@ -2177,11 +2187,12 @@ function scopeSafetyNotes(app: AppContext, conv: Conversation, text: string, opt
     // Phase 47: bots in the chat (recently, or this message) get one more sentence.
     const bots = isBotLine(text) || app.store.messagesPage(conv.id, { limit: 30 }).messages.some((m) => m.role === 'user' && isBotLine(m.content));
     safetyNotes.push(partnerNote(conv.partner, app.settings.get().ownerName?.trim() || 'the owner', conv.channel, adultOn, bots));
+    if (committed) safetyNotes.push(committedNote(app.settings.get().ownerName?.trim() || 'the owner', 'partner'));
   }
   else {
     if (isWorkChannel(conv.channel)) safetyNotes.push(workNote(app.settings.get().ownerName?.trim() || 'the owner', conv.channel, adultOn));
     if (voiceRoom) safetyNotes.push(voiceRoomNote(app.settings.get().ownerName?.trim() || 'the owner', isVoiceRoomChannel(conv.channel) ? conv.channel : 'wake'));
-    if (!adultOn && !work) safetyNotes.push(ADULT_OFF_NOTE);
+    if (!adultOn && !work) safetyNotes.push(committed ? committedNote(app.settings.get().ownerName?.trim() || 'the owner', 'group') : ADULT_OFF_NOTE);
     // R8: kid-safe member mode: her tone and rules for a child (src/family.ts).
     const kid = app.member?.child?.() ?? opts.kidSafe;
     if (kid) safetyNotes.push(kidNote(kid, app.member?.record()?.name ?? 'them', app.member?.child?.() ? kidLeft(app.member.id, kid) : undefined)); // W5.4: wind-down
@@ -2248,12 +2259,12 @@ export interface TurnScope {
  */
 export function turnScope(app: AppContext, conv: Conversation, opts: TurnOptions & { call?: 'live'; text?: string } = {}): TurnScope {
   const { call, text = '', ...turn } = opts;
-  const { voiceRoom, adultOn } = scopeAdult(app, conv, turn);
+  const { voiceRoom, adultOn, committed } = scopeAdult(app, conv, turn);
   const external = turn.externalApp === true || Boolean(turn.outside) || ['api', 'mcp', 'home-assistant', 'alexa', 'a2a', 'webhook'].includes(conv.channel);
   const checkpointExternal = external || Boolean(turn.externalApp || turn.outside || turn.clientHistory || turn.clientNote || turn.roomNote || turn.roomNow || turn.roomId !== undefined || turn.recorder);
   const continuity = continuityForTurn(app, conv.id, turn);
   const tools = scopeTools(app, conv, turn, { noModel: false, external, checkpointExternal, session: Boolean(continuity), sceneCanon: false, pluginTurn: false }).filter((t) => t.spec.name !== FIND_TOOLS);
-  const sections: TurnScope['sections'] = { safetyNotes: scopeSafetyNotes(app, conv, text, turn, adultOn, voiceRoom) };
+  const sections: TurnScope['sections'] = { safetyNotes: scopeSafetyNotes(app, conv, text, turn, adultOn, voiceRoom, committed) };
   const memCfg = memorySettings(app);
   if (app.memory && memCfg.enabled && !conv.partner && !external && !turn.group && !turn.outside && !turn.replay) {
     const s = app.settings.get();
@@ -2618,8 +2629,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   }
 
   // R2a: the adult rule and the base safety notes come from the shared turn scope (calls use it too).
-  const { voiceRoom, adultOn } = scopeAdult(app, conv, opts);
-  const safetyNotes: string[] = scopeSafetyNotes(app, conv, text, opts, adultOn, voiceRoom);
+  const { voiceRoom, adultOn, committed } = scopeAdult(app, conv, opts);
+  const safetyNotes: string[] = scopeSafetyNotes(app, conv, text, opts, adultOn, voiceRoom, committed);
+  if (!opts.resume && !opts.replay) countDeclinedAttempt(app, conv, opts.partnerAuthor, text); // her exclusivity: declined attempts (src/exclusivity.ts)
   if (detectCrisis(text) || label === 'CRISIS' || opts.group?.crisis || opts.roomCrisis) {
     // B4: the app's notice once per conversation (every time for a child); the event every time.
     let again = false;

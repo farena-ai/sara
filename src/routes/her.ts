@@ -657,7 +657,16 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
       if (!look) throw new HttpError(404, 'Not available');
       // Phase 36: adults-only looks are listed only with Adult mode on, and never in the apps.
       const adultOk = () => adultModeOn(app.settings.get()) && !fromPhoneApp(req);
+      const busy = () => look.status.state === 'drafting' || look.status.state === 'building';
       const view = async () => {
+        // T65: her current look is always listed in the closet (a first look, or one made before this).
+        if (look.custom && !busy() && !look.currentSavedId()) {
+          try {
+            look.keepInCloset(app.now());
+          } catch {
+            /* a full closet */
+          }
+        }
         const w = wardrobeSettings(app);
         const plan = await app.wardrobe?.plan().catch(() => undefined);
         return {
@@ -680,6 +689,9 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
           saved: look.saved().filter((x) => adultOk() || !x.adult),
           current: look.currentSavedId() ?? null,
           wearing: look.custom ? look.currentMeta() : {},
+          // T65: the engine that can't make blink/talk frames (none: Grok Imagine), and what a whole rebuild makes.
+          noFrames: look.noFramesEngine() ?? null,
+          rebuildCount: look.rebuildCount,
           faceLock: app.settings.get().faceLock !== false,
           hasFace: Boolean(look.faceRef()) || existsSync(look.faceFile),
           wardrobe: { ...w, manual: w.manual && Date.parse(w.manual.until) > app.now().getTime() ? w.manual : undefined },
@@ -702,7 +714,22 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
         return send(res, 202, await view());
       }
       if (b === 'complete' && method === 'POST') {
+        const engine = look.noFramesEngine();
+        if (engine && look.missingFrames().length) throw new HttpError(400, "This look won't blink or talk: {engine} can't make the extra frames. Grok Imagine can.", { params: { engine } });
         look.complete().then(() => app.events?.publish({ type: 'look' }), () => {});
+        return send(res, 202, await view());
+      }
+      // T65: remake her whole set (every expression and frame) from her current portrait. Paid per picture
+      // on the owner's engine, so owner only, never on the demo, one at a time, and only once confirmed.
+      if (b === 'rebuild' && method === 'POST') {
+        if (opts.demo || app.demo || opts.member || app.member) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
+        const body = await readJson(req);
+        if (!look.custom) throw new HttpError(400, 'This is the default look: make a custom look first.');
+        const engine = look.noFramesEngine();
+        if (engine) throw new HttpError(400, "This look won't blink or talk: {engine} can't make the extra frames. Grok Imagine can.", { params: { engine } });
+        if (busy()) throw new HttpError(409, 'A picture is already being made.');
+        if (body.confirm !== true) throw new HttpError(400, 'Confirm the {n} picture edits first.', { params: { n: String(look.rebuildCount) } });
+        look.rebuild().then(() => app.events?.publish({ type: 'look' }), () => {});
         return send(res, 202, await view());
       }
       // Phase 21: the current look in another outfit (a draft to accept like any other).

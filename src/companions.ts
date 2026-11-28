@@ -22,7 +22,7 @@ export const MAIN_ID = 'main';
  * 18+ confirmation). T62: so are the companion side (on/off), her work profile and the synced app
  * look; a companion with no value of her own has the default (companion side on, no work profile).
  */
-export const COMPANION_KEYS = ['persona', 'voice', 'adultMode', 'memory', 'proactive', 'calls', 'briefing', 'weeklyReview', 'leaveBy', 'disclosureAcceptedAt', 'photos', 'wardrobe', 'faceLock', 'companionModel', 'story', 'moments', 'presence', 'skillLearning', 'plugins', 'agenda', 'usePath', 'companion', 'workProfile', 'appearance'] as const satisfies readonly (keyof Settings)[];
+export const COMPANION_KEYS = ['persona', 'voice', 'adultMode', 'memory', 'proactive', 'calls', 'briefing', 'weeklyReview', 'leaveBy', 'disclosureAcceptedAt', 'photos', 'wardrobe', 'faceLock', 'companionModel', 'story', 'moments', 'presence', 'skillLearning', 'plugins', 'agenda', 'usePath', 'companion', 'workProfile', 'appearance', 'exclusivity'] as const satisfies readonly (keyof Settings)[];
 type CompanionKey = (typeof COMPANION_KEYS)[number];
 const isCompanionKey = (k: string): k is CompanionKey => (COMPANION_KEYS as readonly string[]).includes(k);
 

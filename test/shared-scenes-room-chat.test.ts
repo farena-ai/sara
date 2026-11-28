@@ -17,7 +17,7 @@ function fixture(opts: { adult?: boolean } = {}) {
   assert.equal(typeof (policy as any).roomSeatAllowed, 'function', 'R1B3 room seats are missing');
   const temp = tempDir(); const clock = { now: new Date(NOW) };
   const app = makeApp(temp.dir, clock);
-  app.settings.update({ providers: [{ id: 'p', label: 'Fixture', kind: 'openai-compatible', baseUrl: 'http://127.0.0.1:1', local: true }], defaultProviderId: 'p', defaultModel: 'fixture', ownerName: 'Alex', disclosureAcceptedAt: NOW, memory: { enabled: false }, chats: { continuity: { enabled: false } }, discord: { enabled: true }, ...(opts.adult ? { adultMode: { on: true, confirmedAt: NOW } } : {}) } as never);
+  app.settings.update({ providers: [{ id: 'p', label: 'Fixture', kind: 'openai-compatible', baseUrl: 'http://127.0.0.1:1', local: true }], defaultProviderId: 'p', defaultModel: 'fixture', ownerName: 'Alex', disclosureAcceptedAt: NOW, memory: { enabled: false }, chats: { continuity: { enabled: false } }, discord: { enabled: true }, ...(opts.adult ? { adultMode: { on: true, confirmedAt: NOW }, exclusivity: { mode: 'anyone' } } : {}) } as never);
   app.runs = new RunStore(app.store.db, () => clock.now);
   const web = app.store.createConversation({ title: 'Web story' });
   const adult = Boolean(opts.adult);

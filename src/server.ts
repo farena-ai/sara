@@ -171,6 +171,7 @@ import { policy } from './policy-profile.ts';
 import { shares } from './share.ts';
 import { createUsageReportRoutes } from './routes/usage-report.ts';
 import { createCompanionAccessRoutes } from './routes/companion-access.ts';
+import { createExclusivityRoutes } from './routes/exclusivity.ts';
 import { createTrustReportRoutes } from './routes/trust-report.ts';
 import { createMemberToolsRoutes } from './routes/member-tools.ts';
 import { createPhoneHelperRoutes } from './routes/phone-helper.ts';
@@ -1280,6 +1281,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   // EC15: usage and cost reports and budgets (src/routes/usage-report.ts).
   const usageReportRoutes = createUsageReportRoutes(ctx);
   const companionAccessRoutes = createCompanionAccessRoutes(ctx);
+  // 2026-11-28: her romantic and sexual exclusivity (src/routes/exclusivity.ts).
+  const exclusivityRoutes = createExclusivityRoutes(ctx);
   // C8: spend limits and Token Saver, the owner's only (src/routes/spend.ts).
   const spendRoutes = createSpendRoutes(ctx);
   // EC25: the trust report (src/routes/trust-report.ts).
@@ -1788,6 +1791,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     // Models: providers, model jobs, subscriptions, local models, private local mode, usage: src/routes/models.ts.
     if ((await usageReportRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await companionAccessRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await exclusivityRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await spendRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await trustReportRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await phoneHelperRoutes(req, res, method, parts)) !== NEXT) return;

@@ -300,3 +300,16 @@ html.shell:where(:not([data-palette="classic"])) .shell-drag { display: none; }
   .cmp-model-pop { left: 4px; width: calc(100vw - 24px); max-height: 60vh; }
   .cmp-model-pop .pop-item { min-height: 44px; }
 }
+/* 2026-11-28: Relationship, Romantic and sexual exclusivity (web/exclusivity.js). */
+.excl { margin: 16px 0 8px; }
+.excl-modes .row, .excl-comps .row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.excl-lists { margin: 6px 0 0 24px; }
+.excl-ids { list-style: none; margin: 4px 0; padding: 0; }
+.excl-id { display: flex; align-items: center; gap: 8px; margin: 2px 0; }
+
+/* T65: her look now, at the top of the Look page. */
+.look-now { display: flex; gap: 12px; align-items: flex-start; margin: 8px 0 12px; }
+.look-now > img { width: 96px; height: 96px; flex: none; object-fit: cover; border-radius: 14px; }
+.look-now-text { min-width: 0; }
+.look-now-text h3 { margin: 0 0 4px; }
+.look-now-text p { margin: 2px 0; }

@@ -6,7 +6,7 @@
 // mouth: a warped jaw or a full warp blink looked smeared on real photos (docs/ops/A1_AVATAR_DESIGN.md).
 // Mood changes cross-fade. The canvas is at most 2 device pixels per CSS pixel and MAX_PX long;
 // destroy() releases the context (loseContext) so leaving a page frees the GPU.
-import { fitRegions } from './avatar-rig.js';
+import { EYES_BOX, fitRegions, plausibleFace } from './avatar-rig.js';
 import { findRegions } from './presence.js';
 
 export const MAX_PX = 768;
@@ -182,28 +182,55 @@ export function localPeaks(d, n, box, count) {
 export async function findFace(base, blink, talk) {
   const n = 160;
   const [b, k, t] = await Promise.all([pixelsOf(base, n), pixelsOf(blink, n), pixelsOf(talk, n)]);
-  if (!b || !k || !t) return findRegions(base, blink, talk).then(legacyFace);
+  const legacy = () =>
+    findRegions(base, blink, talk).then(
+      (r) => {
+        const f = r && legacyFace(r);
+        return f && plausibleFace(f, true) ? f : null;
+      },
+      () => null,
+    );
+  if (!b || !k || !t) return legacy();
+  return faceFromPixels(b, k, t, n) ?? legacy();
+}
+
+/**
+ * The face (regions, percent) from a picture and its blink and "ah" frames as RGBA pixels (n × n), or
+ * null when nothing plausible is found (the caller then shows the whole picture, centred and still).
+ * T65: every picture-edit frame redraws the whole picture a little, and long hair drifts between edits,
+ * so the strongest blink change can be a lock of hair (owner, 2026-11-28: Stacy's hero showed her neck
+ * and purple hair). Real eyes change when she blinks but hardly when she talks, sit in the upper middle
+ * of a portrait, and have a mouth below them: changes that are as strong in the "ah" frame (hair, light)
+ * don't count as eyes.
+ */
+export function faceFromPixels(b, k, t, n) {
   const eyesDiff = diffMap(b, k, n, 2);
   const talkDiff = diffMap(b, t, n, 2);
   // The mouth moves most between the face and "ah"; the eyes are the pair above it that changes most
   // when she blinks (a generated blink frame may also have touched the mouth, so the pair is searched
   // above the mouth only, two blobs at about the same height).
-  const peaks = localPeaks(eyesDiff, n, [5, 95, 5, 85], 16);
+  const raw = localPeaks(eyesDiff, n, [5, 95, 5, 85], 24);
+  // How much of a blink change is the blink only (not also in the "ah" frame, as drifting hair is).
+  const at = (d, p) => d[Math.min(n - 1, Math.round((p.y / 100) * n)) * n + Math.min(n - 1, Math.round((p.x / 100) * n))];
+  const peaks = raw.map((p) => ({ ...p, v: p.v * Math.max(0, 1 - at(talkDiff, p) / p.v) ** 2 })).filter((p) => p.v > 0);
   const talkMax = Math.max(1, ...talkDiff);
   let pair = null;
   for (let i = 0; i < peaks.length; i++)
     for (let j = i + 1; j < peaks.length; j++) {
       const [a, c] = [peaks[i], peaks[j]];
       const dx = Math.abs(a.x - c.x);
-      if (Math.abs(a.y - c.y) > dx * 0.3 || dx < 3.5 || dx > 18) continue;
+      if (Math.abs(a.y - c.y) > dx * 0.3 || dx < 3.5 || dx > 30) continue;
       // A real pair of eyes has a mouth below its middle that moves when she talks.
       const mx = (a.x + c.x) / 2;
       const my = (a.y + c.y) / 2;
+      if (mx < EYES_BOX.x[0] || mx > EYES_BOX.x[1] || my < EYES_BOX.y[0] || my > EYES_BOX.y[1]) continue;
       const below = blob(talkDiff, n, [mx - dx * 0.5, mx + dx * 0.5, my + dx * 0.6, my + dx * 1.7], 0.5);
-      const score = Math.min(a.v, c.v) * ((below?.peak ?? 0) / talkMax) * (1 - Math.abs(a.v - c.v) / Math.max(a.v, c.v) * 0.5);
+      // Faces in portraits sit near the middle, eyes a little above it.
+      const centred = Math.exp(-(((mx - 50) / 30) ** 2) - (((my - 38) / 35) ** 2));
+      const score = Math.min(a.v, c.v) * ((below?.peak ?? 0) / talkMax) * (1 - Math.abs(a.v - c.v) / Math.max(a.v, c.v) * 0.5) * centred;
       if (!pair || score > pair.score) pair = { a, c, score };
     }
-  if (!pair) return findRegions(base, blink, talk).then(legacyFace);
+  if (!pair || pair.score <= 0) return null;
   let [L, R] = [pair.a, pair.c];
   if (L.x > R.x) [L, R] = [R, L];
   const dist = Math.max(3, Math.hypot(R.x - L.x, R.y - L.y));
@@ -215,7 +242,8 @@ export async function findFace(base, blink, talk) {
   const mouthBlob = blob(prior, n, [ex - dist * 0.8, ex + dist * 0.8, ey + dist * 0.5, ey + dist * 1.8], 0.5);
   const my = mouthBlob ? mouthBlob.py : want;
   const mx = mouthBlob && Math.abs(mouthBlob.px - ex) < dist * 0.5 ? mouthBlob.px : ex;
-  return fitRegions({ le: L, re: R, mouth: { x: mx, y: my } }) ?? findRegions(base, blink, talk).then(legacyFace);
+  const r = fitRegions({ le: L, re: R, mouth: { x: mx, y: my } });
+  return r && plausibleFace(r, true) ? r : null;
 }
 function legacyFace(r) {
   const eyes = r.eyes;

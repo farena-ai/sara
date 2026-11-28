@@ -139,7 +139,9 @@ export async function* runGroupRound(o: RoundOptions): AsyncGenerator<GroupEvent
   /** One reply from one companion; copies it to the others' copies. */
   async function* reply(m: RoundMember, mode: 'owner' | 'mentioned' | 'banter' | 'crisis'): AsyncGenerator<GroupEvent> {
     const others = members.filter((x) => x !== m).map((x) => x.speaker.name);
-    const group: GroupTurn = { ownerTurn: !reacted.has(m.id) && mode !== 'banter', crisis, adult, others, note: groupNote({ name: m.speaker.name, owner, title: room.title, others, mode, lastSpeaker: members.find((x) => x.id === spoken.at(-1))?.speaker.name }) };
+    // 2026-11-28: the others' ids, for her exclusivity (src/exclusivity.ts).
+    const otherIds = members.filter((x) => x !== m).map((x) => x.id);
+    const group: GroupTurn = { ownerTurn: !reacted.has(m.id) && mode !== 'banter', crisis, adult, others, otherIds, note: groupNote({ name: m.speaker.name, owner, title: room.title, others, mode, lastSpeaker: members.find((x) => x.id === spoken.at(-1))?.speaker.name }) };
     reacted.add(m.id);
     yield { type: 'speaker', speaker: m.speaker };
     let doneId = 0;

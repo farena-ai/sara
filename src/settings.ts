@@ -122,6 +122,8 @@ export interface Settings {
   companion?: { on: boolean };
   /** EC26: her work profile (src/work-profile.ts; read and checked there). T62: per companion. */
   workProfile?: Partial<import('./work-profile.ts').WorkProfile>;
+  /** 2026-11-28: with whom she may be romantic and sexual outside the owner's chats (src/exclusivity.ts). Per companion. */
+  exclusivity?: Partial<import('./exclusivity.ts').Exclusivity>;
   /** T59 and before: Check her edits (src/diagnostics.ts preciseSettings; read and checked there). */
   precise?: { checks?: Partial<import('./diagnostics.ts').PreciseSettings['checks']>; refs?: Partial<import('./diagnostics.ts').PreciseSettings['refs']> };
   /** T53: look in her memory and on the web before she answers a factual question (default 'auto'). */

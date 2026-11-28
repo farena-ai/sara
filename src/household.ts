@@ -593,6 +593,8 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'runs',
   // her
   'persona', 'look', 'sara', 'character', 'gallery', 'companions', 'groups', 'adult', 'photos',
+  // 2026-11-28: her romantic and sexual exclusivity, for their own companion (src/routes/exclusivity.ts)
+  'exclusivity',
   // memory and life
   'memories', 'memory', 'memory-tidy', 'working-style', 'scrapbook', 'moments', 'story', 'together',
   // Phase 101 (ST6): their own people cards (each person's space, per companion; nothing shared)

@@ -3062,6 +3062,29 @@
         <div id="bd-samples" class="samples" hidden></div>
         <p id="bd-status" class="muted small" role="status"></p>
       </div>
+      <!-- 2026-11-28: her romantic and sexual exclusivity, only with Adult mode on (web/exclusivity.js, src/routes/exclusivity.ts). -->
+      <div id="bd-excl" class="excl" data-noauto data-nodirty hidden>
+        <h3>Romantic and sexual exclusivity <button type="button" class="tip" data-tip="Who she may be romantic and sexual with outside your own chats (Discord, Telegram, group chats), and only where adult content is allowed today. With anyone else she stays friendly and turns it down in her own voice.">?</button></h3>
+        <div class="excl-modes" role="radiogroup" aria-label="Romantic and sexual exclusivity">
+          <label class="row"><input type="radio" name="bd-excl-mode" value="owner"> Only with you</label>
+          <label class="row"><input type="radio" name="bd-excl-mode" value="allowed"> You and those you allow</label>
+          <label class="row"><input type="radio" name="bd-excl-mode" value="anyone"> Anyone, where adult content is allowed</label>
+        </div>
+        <div id="bd-excl-lists" class="excl-lists" hidden>
+          <div id="bd-excl-comp-box" hidden>
+            <p class="small">Her other companions</p>
+            <div id="bd-excl-comps" class="excl-comps"></div>
+          </div>
+          <p class="small">Discord ids</p>
+          <ul id="bd-excl-discord" class="excl-ids"></ul>
+          <div class="add-row"><label>Add a Discord id <input id="bd-excl-discord-new" inputmode="numeric" maxlength="25" autocomplete="off" placeholder="123456789012345678"> <button type="button" class="tip" data-tip="Ids, not names: anyone can copy a name. In Discord, turn on Developer Mode (Settings, Advanced), then right-click the person or bot and choose Copy User ID.">?</button></label> <button id="bd-excl-discord-add" type="button" class="ghost small">Add</button></div>
+          <p class="small">Telegram ids</p>
+          <ul id="bd-excl-telegram" class="excl-ids"></ul>
+          <div class="add-row"><label>Add a Telegram id <input id="bd-excl-telegram-new" inputmode="numeric" maxlength="20" autocomplete="off" placeholder="123456789"> <button type="button" class="tip" data-tip="Ids, not names: anyone can copy a name. A Telegram id is a number; the person can get theirs from a bot like @userinfobot and send it to you.">?</button></label> <button id="bd-excl-telegram-add" type="button" class="ghost small">Add</button></div>
+        </div>
+        <p id="bd-excl-count" class="muted small"></p>
+        <p id="bd-excl-status" class="muted small" role="status"></p>
+      </div>
         </section>
         <section class="settings-page desktop-only" data-page="desktop-app" data-group="Connections" data-title="This computer" hidden>
       <p class="muted small page-lead">Settings for the Sara app on this computer.</p>
@@ -3279,6 +3302,16 @@
         </section>
         <section class="settings-page" data-page="her-look" data-group="Sara" data-title="Look" hidden>
       <p class="small muted look-where">Which picture shows (the moving orb, her portrait, your own picture or a 3D model) is chosen in Appearance, under Her picture. <button type="button" class="linkish" data-open-page="you-appearance">Open Appearance</button></p>
+      <div id="look-now" class="look-now" data-noauto>
+        <img id="look-now-img" src="/sara-portrait.jpg" alt="Her look now">
+        <div class="look-now-text">
+          <h3>Her look now</h3>
+          <p id="look-now-made" class="muted small"></p>
+          <p id="look-now-moves" class="small" role="status"></p>
+          <p><button id="look-rebuild" type="button" class="ghost small" hidden>Rebuild her whole set</button></p>
+          <p id="look-rebuild-ask" class="small" hidden><span id="look-rebuild-count"></span> <button id="look-rebuild-go" type="button" class="small">Rebuild</button> <button id="look-rebuild-cancel" type="button" class="ghost small">Cancel</button></p>
+        </div>
+      </div>
       <p class="muted small page-lead">Describe a look and Grok Imagine paints it (on your Grok subscription, or an xAI key). Like it? Sara then gets matching happy, caring and sleepy pictures and blink/talk frames, so she animates like the default. About a minute.</p>
       <label>Describe the look <input id="look-desc" maxlength="600" placeholder="e.g. a man in his 30s with short dark curly hair, a beard and a denim jacket"></label>
       <div class="add-row">

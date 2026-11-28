@@ -210,7 +210,7 @@ test('telegram: her name and @all only when switched on', async (t) => {
 
 test('telegram: groups listed as adult allow adult content (with Adult mode on)', async (t) => {
   const { app, bridge } = await setup(t);
-  app.settings.update({ telegram: { ...app.settings.get().telegram!, ownerChatId: OWNER, allowOthers: true, nsfwChatIds: [-100780] }, routes: { adult: { providerId: 'p', model: 'adult-model' } }, adultMode: { on: true, confirmedAt: '2026-10-24T00:00:00Z' } });
+  app.settings.update({ telegram: { ...app.settings.get().telegram!, ownerChatId: OWNER, allowOthers: true, nsfwChatIds: [-100780] }, routes: { adult: { providerId: 'p', model: 'adult-model' } }, adultMode: { on: true, confirmedAt: '2026-10-24T00:00:00Z' }, exclusivity: { mode: 'anyone' } });
   app.script.push(text('Mm.'), text('Hey.'));
   await bridge.handle(group(-100780, 3003, '@sara_test_bot you are so sexy'));
   assert.equal(app.requests.at(-1)!.model, 'adult-model');

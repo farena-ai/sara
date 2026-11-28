@@ -379,6 +379,13 @@ export class LookBuilder {
       renameSync(work, this.dir);
       rmSync(old, { recursive: true, force: true });
       rmSync(dirname(this.draftFile), { recursive: true, force: true });
+      // T65: the new look is in the closet too (a first look was never listed); a rebuild of the same
+      // portrait refreshes its closet copy's pictures instead of adding another.
+      try {
+        this.keepInCloset();
+      } catch {
+        /* a full closet: the look itself is in place */
+      }
       this.status = { state: 'done', step: total, total };
     } catch (err) {
       rmSync(work, { recursive: true, force: true });
@@ -392,11 +399,59 @@ export class LookBuilder {
     return this.custom ? LOOK_PATHS.filter((rel) => rel.startsWith('sara/') && !existsSync(join(this.dir, rel))) : [];
   }
 
+  /** T65: the picture engine's name when it can't edit pictures (so no expressions or blink/talk frames). */
+  noFramesEngine(): string | undefined {
+    return this.#d.textEngine?.()?.label;
+  }
+
+  /** T65: picture edits a whole set takes (each expression, then a blink and the mouth shapes per expression). */
+  get rebuildCount(): number {
+    return EXPRESSIONS.length - 1 + EXPRESSIONS.length * (1 + MOUTHS.length);
+  }
+
+  /**
+   * T65: remakes every expression and frame from her CURRENT portrait (same style, place and closet tags),
+   * swapped in atomically like any build. Runs in the background; follow `status`.
+   */
+  async rebuild(): Promise<void> {
+    if (!this.custom) throw new Error('This is the default look: make a custom look first.');
+    const noFrames = this.noFramesEngine();
+    if (noFrames) throw new Error(noFramesMessage(noFrames));
+    const { newFace: _n, ...meta } = this.currentMeta() as LookMeta & { newFace?: boolean };
+    await this.build(readFileSync(join(this.dir, 'sara-portrait.jpg')), meta);
+  }
+
+  /**
+   * T65: the current custom look is listed in the closet. Not there yet: saved (named by the date). There
+   * already (the same portrait): its closet copy gets the current pictures, keeping its name and tags.
+   */
+  keepInCloset(now = new Date()): void {
+    if (!this.custom) return;
+    const id = this.currentSavedId();
+    if (!id) {
+      if (this.saved().length < 30) this.save(`Look from ${now.toISOString().slice(0, 10)}`, now);
+      return;
+    }
+    const dir = join(this.savedDir, id);
+    // Scratch folders outside the closet, so a crash midway never lists a half copy.
+    const fresh = join(this.#d.dataDir, 'look-closet-new');
+    rmSync(fresh, { recursive: true, force: true });
+    cpSync(this.dir, fresh, { recursive: true });
+    for (const f of ['look.json', 'meta.json']) if (existsSync(join(dir, f))) cpSync(join(dir, f), join(fresh, f));
+    const stale = join(this.#d.dataDir, 'look-closet-old');
+    rmSync(stale, { recursive: true, force: true });
+    renameSync(dir, stale);
+    renameSync(fresh, dir);
+    rmSync(stale, { recursive: true, force: true });
+  }
+
   /** Makes only the missing frames for the current custom look, from its own expressions. */
   async complete(): Promise<void> {
     if (this.status.state === 'drafting' || this.status.state === 'building') throw new Error('A look is already being made.');
     const todo = this.missingFrames();
     if (!todo.length) return;
+    const noFrames = this.noFramesEngine();
+    if (noFrames) throw new Error(noFramesMessage(noFrames));
     const total = todo.length;
     this.status = { state: 'building', step: 0, total };
     try {
@@ -620,5 +675,12 @@ export function cleanMeta(m: LookMeta): LookMeta {
   if (typeof m.place === 'string' && m.place.trim()) out.place = m.place.trim().slice(0, 200);
   if (Array.isArray(m.scenarios)) out.scenarios = [...new Set(m.scenarios.filter((x) => typeof x === 'string' && SCENARIO_ID.test(x)))].slice(0, 20);
   if (m.adult === true) out.adult = true;
+  // T65: the art style stays with the look (only a known style), so later pictures and outfits keep it.
+  if (typeof m.style === 'string' && Object.hasOwn(LOOK_STYLES, m.style)) out.style = m.style;
   return out;
+}
+
+/** T65: what the Look page and the buttons say when the picture engine can't make blink/talk frames. */
+export function noFramesMessage(engine: string): string {
+  return `This look won't blink or talk: ${engine} can't make the extra frames. Grok Imagine can.`;
 }

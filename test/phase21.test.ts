@@ -58,7 +58,9 @@ test('outfits: a draft of the current look in new clothes; using it keeps the ol
   await settled();
   const v1 = await (await call('/api/look')).json();
   assert.equal(v1.custom, true);
-  assert.deepEqual(v1.saved, [], 'the built-in look is not saved (it is always there)');
+  // T65: the new look is in the closet right away (as the current one); the built-in look never is.
+  assert.equal(v1.saved.length, 1, 'only the new look: the built-in look is always there');
+  assert.equal(v1.current, v1.saved[0].id);
   // Save it by name, then a second outfit: the first is kept.
   const saved = await (await call('/api/look/saved', { name: 'Winter' })).json();
   assert.equal(saved.saved.length, 1);
@@ -76,8 +78,8 @@ test('outfits: a draft of the current look in new clothes; using it keeps the ol
   await call('/api/look/build', { from: 'draft' });
   await settled();
   const v2 = await (await call('/api/look')).json();
-  assert.equal(v2.saved.length, 1, 'the winter look was already saved: not saved twice');
-  assert.equal(v2.current, null, 'the summer look is not saved yet');
+  assert.equal(v2.saved.length, 2, 'the winter look was already saved: not saved twice; the summer look is listed too');
+  assert.notEqual(v2.current, saved.saved[0].id, 'wearing the summer look');
   // Switch back: the unsaved summer look is saved first, so nothing is lost.
   const back = await (await call(`/api/look/saved/${saved.saved[0].id}/use`, {})).json();
   assert.equal(back.saved.length, 2);
@@ -119,7 +121,7 @@ test('character file: export and load name, personality, look and voice choice; 
   assert.equal(app.persona.name, 'Juniper');
   assert.equal(app.settings.get().voice?.xai?.voiceId, 'ara', 'voice left alone when unticked');
   assert.deepEqual(readFileSync(join(dir, 'look', 'sara-portrait.jpg')), jpeg('juniper'));
-  assert.equal((await (await call('/api/look')).json()).saved.length, before, 'the previous look was already saved');
+  assert.equal((await (await call('/api/look')).json()).saved.length, before + 1, 'the previous look was already saved; the loaded one is listed as current');
   await call('/api/character/import', { file: other, look: false, voice: true });
   assert.equal(app.settings.get().voice?.xai?.voiceId, 'eve');
   assert.equal(app.vault.get('voice:xai'), 'secret-key-123');
