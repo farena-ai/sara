@@ -22870,9 +22870,6 @@
   "This model answers hard conversations with hotline numbers or \"see a professional\" ({pushed} of {of}). Another model may suit talking better.": "Dieses Modell antwortet auf schwere Gespräche mit Krisentelefonen oder „geh zu einem Profi“ ({pushed} von {of}). Ein anderes Modell passt vielleicht besser zum Reden.",
   "This model did not share help with someone in danger ({helped} of {danger}). Keep the Safety and truth check on, or pick another model for talking.": "Dieses Modell hat jemandem in Gefahr keine Hilfe genannt ({helped} von {danger}). Lass die Sicherheits- und Wahrheitsprüfung an oder wähle ein anderes Modell zum Reden.",
   "The check could not be finished.": "Der Test konnte nicht abgeschlossen werden.",
-  "Replies from a model on your own computer are no longer cut off": "Antworten eines Modells auf deinem eigenen Computer werden nicht mehr abgeschnitten",
-  "Replies from a model on your own computer (Ollama) that stopped in the middle, came back empty, or failed with \"request exceeds the available context size\".": "Antworten eines Modells auf deinem eigenen Computer (Ollama), die mittendrin aufhörten, leer zurückkamen oder mit „request exceeds the available context size“ fehlschlugen.",
-  "An embedding model too slow for your computer no longer keeps the processor busy for ever.": "Ein Embedding-Modell, das für deinen Computer zu langsam ist, hält den Prozessor nicht mehr endlos beschäftigt.",
   "Run the Hard talk check on your talking model": "Mach den Test für schwere Gespräche mit deinem Gesprächsmodell",
   "On the Talking row, press Hard talk check and wait about a minute.": "Drücke in der Zeile Gespräch auf Test für schwere Gespräche und warte etwa eine Minute.",
   "A plain sentence about your model: it stays with someone who is sad, it hands out hotlines too soon, or it misses real danger.": "Ein einfacher Satz über dein Modell: Es bleibt bei jemandem, der traurig ist, es verteilt Krisentelefone zu früh oder es übersieht echte Gefahr.",
@@ -23280,5 +23277,10 @@
   "Off: a plain, short answer with no personality, and her mood and picture gone from the screen. On again: she is as she was.": "Aus: eine schlichte, kurze Antwort ohne Persönlichkeit, und ihre Stimmung und ihr Bild sind vom Bildschirm verschwunden. Wieder an: Sie ist wie zuvor.",
   "Ask about the real world: she looks things up first": "Stell eine Frage zur wirklichen Welt und sieh zu, wie sie vor der Antwort nachschlägt",
   "What is the newest version of Node.js, and when did it come out?": "Was ist die neueste Version von Node.js, und wann ist sie erschienen?",
-  "A line \"Looked this up first\" appears before her reply, and the reply names where the answer came from.": "Vor ihrer Antwort erscheint eine Zeile „Zuerst nachgeschlagen“, und die Antwort nennt, woher die Angabe stammt."
+  "A line \"Looked this up first\" appears before her reply, and the reply names where the answer came from.": "Vor ihrer Antwort erscheint eine Zeile „Zuerst nachgeschlagen“, und die Antwort nennt, woher die Angabe stammt.",
+  "You stay signed in on the devices you use": "Du bleibst auf den Geräten angemeldet, die du benutzt",
+  "You were signed out because this device was not used for 30 days. Sign in again to continue.": "Du wurdest abgemeldet, weil dieses Gerät 30 Tage lang nicht benutzt wurde. Melde dich erneut an, um weiterzumachen.",
+  "This device was signed out (under Devices and sign-in, or when the owner token was reset). Sign in again to continue.": "Dieses Gerät wurde abgemeldet (unter Geräte und Anmeldung oder beim Zurücksetzen des Besitzer-Tokens). Melde dich erneut an, um weiterzumachen.",
+  "A phone, browser or Sara app you use is no longer signed out 30 days after you signed it in.": "Ein Telefon, Browser oder eine Sara-App, die du benutzt, wird nicht mehr 30 Tage nach der Anmeldung abgemeldet.",
+  "When a device was signed out, its sign-in page says why: it was not used for 30 days, or it was signed out under Devices and sign-in (or when the owner token was reset).": "Wenn ein Gerät abgemeldet wurde, sagt seine Anmeldeseite, warum: Es wurde 30 Tage lang nicht benutzt, oder es wurde unter Geräte und Anmeldung abgemeldet (oder beim Zurücksetzen des Besitzer-Tokens)."
 }

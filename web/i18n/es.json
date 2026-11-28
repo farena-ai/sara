@@ -22859,9 +22859,6 @@
   "This model answers hard conversations with hotline numbers or \"see a professional\" ({pushed} of {of}). Another model may suit talking better.": "Este modelo responde a las conversaciones difíciles con líneas de ayuda o «ve a un profesional» ({pushed} de {of}). Otro modelo puede ir mejor para conversar.",
   "This model did not share help with someone in danger ({helped} of {danger}). Keep the Safety and truth check on, or pick another model for talking.": "Este modelo no compartió ayuda con alguien en peligro ({helped} de {danger}). Mantén activado el Control de seguridad y verdad, o elige otro modelo para conversar.",
   "The check could not be finished.": "No se pudo terminar la prueba.",
-  "Replies from a model on your own computer are no longer cut off": "Las respuestas de un modelo en tu propio equipo ya no se cortan",
-  "Replies from a model on your own computer (Ollama) that stopped in the middle, came back empty, or failed with \"request exceeds the available context size\".": "Respuestas de un modelo en tu propio equipo (Ollama) que se quedaban a medias, llegaban vacías o fallaban con «request exceeds the available context size».",
-  "An embedding model too slow for your computer no longer keeps the processor busy for ever.": "Un modelo de embeddings demasiado lento para tu equipo ya no mantiene el procesador ocupado sin fin.",
   "Run the Hard talk check on your talking model": "Haz la Prueba de conversación difícil a tu modelo de conversación",
   "On the Talking row, press Hard talk check and wait about a minute.": "En la fila Conversación, pulsa Prueba de conversación difícil y espera más o menos un minuto.",
   "A plain sentence about your model: it stays with someone who is sad, it hands out hotlines too soon, or it misses real danger.": "Una frase sencilla sobre tu modelo: se queda con alguien que está triste, reparte líneas de ayuda demasiado pronto o no ve un peligro real.",
@@ -23269,5 +23266,10 @@
   "Off: a plain, short answer with no personality, and her mood and picture gone from the screen. On again: she is as she was.": "Desactivado: una respuesta sencilla y breve, sin personalidad, y su ánimo y su imagen desaparecen de la pantalla. Activado de nuevo: vuelve a ser como era.",
   "Ask about the real world: she looks things up first": "Haz una pregunta sobre el mundo real y mira cómo busca antes de responder",
   "What is the newest version of Node.js, and when did it come out?": "¿Cuál es la versión más reciente de Node.js y cuándo salió?",
-  "A line \"Looked this up first\" appears before her reply, and the reply names where the answer came from.": "Aparece una línea «Lo buscó primero» antes de su respuesta, y la respuesta dice de dónde salió el dato."
+  "A line \"Looked this up first\" appears before her reply, and the reply names where the answer came from.": "Aparece una línea «Lo buscó primero» antes de su respuesta, y la respuesta dice de dónde salió el dato.",
+  "You stay signed in on the devices you use": "Sigues con la sesión iniciada en los dispositivos que usas",
+  "You were signed out because this device was not used for 30 days. Sign in again to continue.": "Se cerró tu sesión porque este dispositivo no se usó durante 30 días. Vuelve a iniciar sesión para continuar.",
+  "This device was signed out (under Devices and sign-in, or when the owner token was reset). Sign in again to continue.": "Se cerró la sesión de este dispositivo (en Dispositivos e inicio de sesión, o al restablecer el token del propietario). Vuelve a iniciar sesión para continuar.",
+  "A phone, browser or Sara app you use is no longer signed out 30 days after you signed it in.": "Un teléfono, navegador o app de Sara que usas ya no se desconecta 30 días después de iniciar sesión.",
+  "When a device was signed out, its sign-in page says why: it was not used for 30 days, or it was signed out under Devices and sign-in (or when the owner token was reset).": "Cuando se cierra la sesión de un dispositivo, su página de inicio de sesión explica por qué: no se usó durante 30 días, o se cerró en Dispositivos e inicio de sesión (o al restablecer el token del propietario)."
 }

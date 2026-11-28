@@ -31,7 +31,7 @@ token: being signed in as the owner is enough.
 ## Also on this page
 
 - **Devices at most**: over the limit, the device you used longest ago is signed out. API keys, Home
-  Assistant and Sara's hands don't count. Any browser sign-in unused for 30 days is signed out.
+  Assistant and Sara's hands don't count. Any sign-in (browser, Sara app, an app approved with a code) unused for 30 days is signed out; one in use never is (since 3.49.1). When a device was signed out, its sign-in page says why: 30 days without use, or signed out under Devices and sign-in.
 - **Allowed addresses**: the names this server answers to besides localhost and IP addresses (for
   example `sara.example.com, .ts.net`). A page on another site that points its own name at your
   computer (DNS rebinding) gets no answer. Leave it empty to accept any name that comes through a

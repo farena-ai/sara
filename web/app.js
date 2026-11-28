@@ -338,6 +338,12 @@ async function boot() {
     return boot();
   }
   if (!session.authenticated) {
+    // 3.49.1: why this device was signed out (30 days without use, or signed out under Devices).
+    const why = $('#login-why');
+    if (why) {
+      why.textContent = session.signedOut === 'idle' ? t('You were signed out because this device was not used for 30 days. Sign in again to continue.') : session.signedOut === 'removed' ? t('This device was signed out (under Devices and sign-in, or when the owner token was reset). Sign in again to continue.') : '';
+      why.hidden = !why.textContent;
+    }
     offerPhoneApp(session);
     showClaim(session.claim);
     // Phase 71: joining a household with an invite (not on the demo server).

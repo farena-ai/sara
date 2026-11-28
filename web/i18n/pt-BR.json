@@ -22863,9 +22863,6 @@
   "This model answers hard conversations with hotline numbers or \"see a professional\" ({pushed} of {of}). Another model may suit talking better.": "Este modelo responde a conversas difíceis com linhas de ajuda ou “procure um profissional” ({pushed} de {of}). Outro modelo pode servir melhor para conversar.",
   "This model did not share help with someone in danger ({helped} of {danger}). Keep the Safety and truth check on, or pick another model for talking.": "Este modelo não mostrou ajuda a alguém em perigo ({helped} de {danger}). Mantenha a Verificação de segurança e verdade ligada, ou escolha outro modelo para conversar.",
   "The check could not be finished.": "Não foi possível concluir o teste.",
-  "Replies from a model on your own computer are no longer cut off": "As respostas de um modelo no seu próprio computador não são mais cortadas",
-  "Replies from a model on your own computer (Ollama) that stopped in the middle, came back empty, or failed with \"request exceeds the available context size\".": "Respostas de um modelo no seu próprio computador (Ollama) que paravam no meio, voltavam vazias ou falhavam com “request exceeds the available context size”.",
-  "An embedding model too slow for your computer no longer keeps the processor busy for ever.": "Um modelo de embeddings lento demais para o seu computador não mantém mais o processador ocupado para sempre.",
   "Run the Hard talk check on your talking model": "Faça o Teste de conversa difícil no seu modelo de conversa",
   "On the Talking row, press Hard talk check and wait about a minute.": "Na linha Conversa, pressione Teste de conversa difícil e espere cerca de um minuto.",
   "A plain sentence about your model: it stays with someone who is sad, it hands out hotlines too soon, or it misses real danger.": "Uma frase simples sobre o seu modelo: ele fica com quem está triste, distribui linhas de ajuda cedo demais ou não vê um perigo real.",
@@ -23273,5 +23270,10 @@
   "Off: a plain, short answer with no personality, and her mood and picture gone from the screen. On again: she is as she was.": "Desligado: uma resposta simples e curta, sem personalidade, e o humor e a imagem dela somem da tela. Ligado de novo: ela volta a ser como era.",
   "Ask about the real world: she looks things up first": "Faça uma pergunta sobre o mundo real e veja ela pesquisar antes de responder",
   "What is the newest version of Node.js, and when did it come out?": "Qual é a versão mais recente do Node.js e quando ela saiu?",
-  "A line \"Looked this up first\" appears before her reply, and the reply names where the answer came from.": "Uma linha “Pesquisou primeiro” aparece antes da resposta, e a resposta diz de onde veio a informação."
+  "A line \"Looked this up first\" appears before her reply, and the reply names where the answer came from.": "Uma linha “Pesquisou primeiro” aparece antes da resposta, e a resposta diz de onde veio a informação.",
+  "You stay signed in on the devices you use": "Você continua conectado nos dispositivos que usa",
+  "You were signed out because this device was not used for 30 days. Sign in again to continue.": "Você foi desconectado porque este dispositivo não foi usado por 30 dias. Entre de novo para continuar.",
+  "This device was signed out (under Devices and sign-in, or when the owner token was reset). Sign in again to continue.": "Este dispositivo foi desconectado (em Dispositivos e entrada, ou quando o token do proprietário foi redefinido). Entre de novo para continuar.",
+  "A phone, browser or Sara app you use is no longer signed out 30 days after you signed it in.": "Um telefone, navegador ou app da Sara que você usa não é mais desconectado 30 dias depois de entrar.",
+  "When a device was signed out, its sign-in page says why: it was not used for 30 days, or it was signed out under Devices and sign-in (or when the owner token was reset).": "Quando um dispositivo é desconectado, a página de entrada dele diz por quê: não foi usado por 30 dias, ou foi desconectado em Dispositivos e entrada (ou quando o token do proprietário foi redefinido)."
 }

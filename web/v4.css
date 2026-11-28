@@ -249,3 +249,6 @@ html.shell:where(:not([data-palette="classic"])) .shell-drag { display: none; }
 :root[data-companion="off"] :is(#sara-status, #open-moments, #open-story, #together-bar, #together, #td-her, #hp-open-her, #hp-portrait, #hp-mood-text) { display: none !important; }
 /* Today: a folded "Try something new" list stays hidden (its grid would show it again). */
 :root #td-try-list[hidden] { display: none; }
+/* 3.49.1: why this device was signed out, above the sign-in field. */
+#login-why { margin: 0 0 10px; padding: 8px 12px; border-left: 3px solid var(--warn); border-radius: 6px; background: color-mix(in srgb, var(--warn) 10%, transparent); }
+#login-why[hidden] { display: none; }

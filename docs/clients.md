@@ -18,8 +18,8 @@ and sign-in**, where signing one out ends it.
    minutes and live only in the server's memory.
 
 Device tokens look like `sara_dev.<id>.<secret>`; the server keeps only a hash. They work with
-two-step sign-in on (you approved them while signed in), stop after 30 days without use (and, in
-1.0, after 90 days at most), and an app can't approve another app or change devices and sign-in
+two-step sign-in on (you approved them while signed in), stop after 30 days without use (since 3.49.1 that is the only limit: an app you use keeps
+working; before, they also ended 90 days after approval), and an app can't approve another app or change devices and sign-in
 settings (that needs you in the web app). The clients send the token only to the server it was
 issued for.
 

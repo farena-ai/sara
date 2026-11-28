@@ -2,6 +2,23 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.49.1",
+   "date": "2026-11-27",
+   "title": "You stay signed in on the devices you use",
+   "items": [
+    {
+     "id": "3-49-1-when-a-device-was-signed",
+     "kind": "new",
+     "text": "When a device was signed out, its sign-in page says why: it was not used for 30 days, or it was signed out under Devices and sign-in (or when the owner token was reset)."
+    },
+    {
+     "id": "3-49-1-a-phone-browser-or-sara",
+     "kind": "fixed",
+     "text": "A phone, browser or Sara app you use is no longer signed out 30 days after you signed it in."
+    }
+   ]
+  },
+  {
    "version": "3.49.0",
    "date": "2026-11-27",
    "title": "Safer coding: checked edits and tests before done",
@@ -188,23 +205,6 @@
      "id": "3-44-0-memory-notes-for-a-conversation",
      "kind": "fixed",
      "text": "Memory notes for a conversation the background model answers with nothing (some models decline a conversation without saying so)."
-    }
-   ]
-  },
-  {
-   "version": "3.43.1",
-   "date": "2026-11-24",
-   "title": "Replies from a model on your own computer are no longer cut off",
-   "items": [
-    {
-     "id": "3-43-1-replies-from-a-model-on",
-     "kind": "fixed",
-     "text": "Replies from a model on your own computer (Ollama) that stopped in the middle, came back empty, or failed with \"request exceeds the available context size\"."
-    },
-    {
-     "id": "3-43-1-an-embedding-model-too-slow",
-     "kind": "fixed",
-     "text": "An embedding model too slow for your computer no longer keeps the processor busy for ever."
     }
    ]
   }

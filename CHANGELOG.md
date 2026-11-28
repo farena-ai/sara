@@ -5,6 +5,12 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.49.1 (2026-11-27): You stay signed in on the devices you use
+
+- Fixed: a phone, browser or Sara app you use is no longer signed out 30 days after you signed it in. The sign-in carried a fixed end 30 days after the day you signed in, while Devices says a device is signed out after 30 days unused; now a sign-in in use gets a fresh 30 days (at most once a day). Devices already signed out need one more sign-in: on a device that still works, Settings → Connections → Devices and sign-in → Add a phone or computer makes a one-time code.
+- Better: one rule for every sign-in, 30 days without use. Apps approved with a code (the terminal, VS Code) no longer stop 90 days after approval while you use them. API keys and Shortcuts keep working until you remove them, as before.
+- New: when a device was signed out, its sign-in page says why: it was not used for 30 days, or it was signed out under Devices and sign-in (or when the owner token was reset). An app with a device token gets the same reason in its error.
+
 ## 3.49.0 (2026-11-27): Safer coding: checked edits and tests before done
 
 - New: in a coding chat she no longer finishes on files changed after her last test run. When she changed files and the project has tests, and no test run came after her last change (or the last run failed and her reply does not say so), she gets one more step to run them and report the real result. At most twice a turn; not when you tell her not to run the tests.

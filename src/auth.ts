@@ -15,7 +15,12 @@ const FILE = 'owner.json';
 const BACKUP = 'owner.json.bak';
 export const SESSION_COOKIE = 'sara_session';
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-/** A device token (terminal, VS Code) ends 90 days after approval even when used every day. */
+/** 3.49.1: a sign-in cookie in use is given a fresh 30 days at most once a day (renewSession). */
+const SESSION_RENEW_MS = 24 * 60 * 60 * 1000;
+/** 3.49.1: how long the browser keeps the sign-in cookie. Longer than the 30 days on purpose: the
+ * server, not the browser, ends it (30 days unused), and can then say why (signedOutReason). */
+const COOKIE_KEEP_S = 400 * 24 * 60 * 60;
+/** Sara's hands: the token's own end; the app renews it while connected, so hands in use never reach it. */
 export const DEVICE_TOKEN_MAX_MS = 90 * 24 * 60 * 60 * 1000;
 
 interface DeviceSession {
@@ -352,7 +357,7 @@ export class OwnerAuth {
     sessions.push({ id, label: label.slice(0, 60), createdAt: now.toISOString(), lastSeen: now.toISOString(), ...(o.pending ? { pending: true as const } : {}), ...(o.ip ? { ip: o.ip.slice(0, 64) } : {}), ...(o.remote ? { remote: true } : {}) });
     this.#owner.sessions = capSessions(sessions, o.maxDevices);
     this.#save();
-    return { value: `${payload}.${this.#sign(payload)}`, maxAgeSeconds: SESSION_TTL_MS / 1000, id };
+    return { value: `${payload}.${this.#sign(payload)}`, maxAgeSeconds: COOKIE_KEEP_S, id };
   }
 
   /** The device id of a valid session cookie, or undefined. */
@@ -384,6 +389,59 @@ export class OwnerAuth {
       this.#save();
     }
     return id;
+  }
+
+  /**
+   * 3.49.1: a fresh cookie for a sign-in that is being used. The cookie used to carry a fixed end,
+   * 30 days after the sign-in, while the server forgets a device only after 30 days unused (the
+   * Devices list says so): every device the owner used daily was signed out on its 30th day
+   * (found on the owner's server, 2026-11-27). Now a cookie older than a day comes back with a new
+   * 30 days for the same device; nothing else about the device changes. Undefined when the cookie
+   * is not a valid sign-in, or was made less than a day ago.
+   */
+  renewSession(value: string | undefined): { value: string; maxAgeSeconds: number } | undefined {
+    const id = this.sessionId(value);
+    if (!id || !value) return undefined;
+    const expires = Number(value.slice(0, value.lastIndexOf('.')).split('.')[0]);
+    const now = this.#now().getTime();
+    if (expires - now > SESSION_TTL_MS - SESSION_RENEW_MS) return undefined;
+    const d = this.#owner.sessions?.find((x) => x.id === id);
+    if (!d || d.kind || d.pending) return undefined;
+    const payload = `${now + SESSION_TTL_MS}.${id}`;
+    return { value: `${payload}.${this.#sign(payload)}`, maxAgeSeconds: COOKIE_KEEP_S };
+  }
+
+  /**
+   * 3.49.1 (owner, 2026-11-27: "provide a notice as to why it was logged out"): why a cookie with a
+   * good signature no longer signs in. 'idle' = unused for 30 days; 'removed' = signed out under
+   * Devices (or by a sign-out everywhere). Undefined for a cookie that still works, one waiting for
+   * approval, or anything that is not a cookie of this server.
+   */
+  signedOutReason(value: string | undefined): 'idle' | 'removed' | undefined {
+    if (!value) return undefined;
+    const i = value.lastIndexOf('.');
+    if (i < 0) return undefined;
+    const payload = value.slice(0, i);
+    if (!safeEqual(this.#sign(payload), value.slice(i + 1))) return undefined;
+    const [exp, id] = payload.split('.');
+    if (!id) return undefined;
+    const now = this.#now().getTime();
+    const d = this.#owner.sessions?.find((x) => x.id === id);
+    if (d?.pending) return undefined;
+    if (!(Number(exp) > now)) return 'idle';
+    if (d) return !d.kind && Date.parse(d.lastSeen) < now - SESSION_TTL_MS ? 'idle' : undefined;
+    return this.#owner.legacy ? undefined : 'removed';
+  }
+
+  /** 3.49.1: the same for an app's device token (terminal, VS Code): why it no longer works. */
+  deviceTokenReason(token: string | undefined): 'idle' | 'removed' | undefined {
+    if (!token?.startsWith(DEVICE_TOKEN_PREFIX)) return undefined;
+    const [id, secret] = token.slice(DEVICE_TOKEN_PREFIX.length).split('.');
+    if (!id || !secret) return undefined;
+    const d = this.#owner.sessions?.find((x) => x.id === id);
+    if (!d) return 'removed';
+    if (!d.tokenHash || !safeEqual(sha256(secret), d.tokenHash)) return undefined;
+    return d.kind !== 'api' && d.kind !== 'a2a' && Date.parse(d.lastSeen) < this.#now().getTime() - SESSION_TTL_MS ? 'idle' : undefined;
   }
 
   verifySession(value: string | undefined): boolean {
@@ -631,10 +689,7 @@ export class OwnerAuth {
     return this.#owner.sessions?.find((x) => x.id === id)?.label;
   }
 
-  /**
-   * The device id of a valid device token, or undefined. Unused for 30 days = signed out; and in any
-   * case 90 days after it was approved (the app then asks to be approved again).
-   */
+  /** The device id of a valid device token, or undefined. Unused for 30 days = signed out. */
   deviceTokenId(token: string | undefined): string | undefined {
     if (!token?.startsWith(DEVICE_TOKEN_PREFIX)) return undefined;
     const [id, secret] = token.slice(DEVICE_TOKEN_PREFIX.length).split('.');
@@ -647,10 +702,9 @@ export class OwnerAuth {
     // Phase 100: an agent's key works until its expiry (or until the owner removes it).
     if (d.kind === 'a2a' && !(Date.parse(d.expiresAt ?? '') > now)) return undefined;
     // Phase 57: an API key works until the owner removes it (it can only reach /v1 and /mcp).
-    if (d.kind !== 'api' && d.kind !== 'a2a') {
-      if (Date.parse(d.lastSeen) < now - SESSION_TTL_MS) return undefined;
-      if (!(Date.parse(d.createdAt) > now - DEVICE_TOKEN_MAX_MS)) return undefined;
-    }
+    // 3.49.1 (owner, 2026-11-27): one rule for every sign-in, 30 days without use. The 90 days after
+    // approval that used to end an app in daily use are gone.
+    if (d.kind !== 'api' && d.kind !== 'a2a' && Date.parse(d.lastSeen) < now - SESSION_TTL_MS) return undefined;
     if (now - Date.parse(d.lastSeen) > 60 * 60 * 1000) {
       d.lastSeen = new Date(now).toISOString();
       this.#save();

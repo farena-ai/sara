@@ -347,7 +347,11 @@ export function pickCompanion(companions: import('./companions.ts').CompanionMan
 }
 
 // Pairing codes: 12 letters/digits without look-alikes (about 59 bits), shown as XXXX-XXXX-XXXX.
-const PAIR_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+/** 3.49.1: why a sign-in ended, in the 401 body and on the sign-in page (translated in the apps). */
+export const SIGNED_OUT_IDLE = en('You were signed out because this device was not used for 30 days. Sign in again to continue.');
+export const SIGNED_OUT_REMOVED = en('This device was signed out (under Devices and sign-in, or when the owner token was reset). Sign in again to continue.');
+
+const PAIR_ALPHABET ='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const PAIR_LEN = 12;
 const PAIR_MS = 10 * 60_000;
 export function newPairCode(): string {
@@ -411,6 +415,14 @@ export function createSaraServer(opts: ServerOptions): Server {
   const homeSso = opts.demo ? undefined : (opts.sso ?? (opts.member ? undefined : new HomeSso({ dataDir: app.dataDir, vault: app.vault, people: () => ssoPeople(app.settings.get().ownerName ?? '', opts.household?.store), privateLocal: privateLocalOn })));
   // C15: approve a new device from chat (src/device-gate.ts).
   const gate = createDeviceGate({ app, auth, demo: Boolean(opts.demo), member: Boolean(opts.member), ...(opts.trustProxy ? { trustProxy: opts.trustProxy } : {}) });
+
+  /** 3.49.1: why this request's sign-in (a cookie, or an app's device token) no longer works, if it is one that ended. */
+  function signedOutWhy(req: IncomingMessage): 'idle' | 'removed' | undefined {
+    const header = req.headers.authorization;
+    if (header?.startsWith(`Bearer ${DEVICE_TOKEN_PREFIX}`)) return auth.deviceTokenReason(header.slice(7));
+    if (header) return undefined;
+    return auth.signedOutReason(cookies(req)[SESSION_COOKIE]);
+  }
 
   function isAuthed(req: IncomingMessage): boolean {
     const header = req.headers.authorization;
@@ -1551,6 +1563,11 @@ export function createSaraServer(opts: ServerOptions): Server {
         disclosure: authed ? disclosureText(app.persona.name, appLanguage(app.settings.get())) : DISCLOSURE_TEXT.replace(/^Sara is/, 'This is'),
         disclosureAccepted: authed ? (opts.demo ? demoAccepted.has(visitorKey(req)) : Boolean(app.settings.get().disclosureAcceptedAt)) : false,
         ...(opts.demo ? { demo: true } : {}),
+        // 3.49.1: the sign-in page says why this device was signed out.
+        ...(!authed && !opts.demo ? (() => {
+          const why = signedOutWhy(req);
+          return why ? { signedOut: why } : {};
+        })() : {}),
         // C15: a device waiting for the owner's approval shows its code.
         ...(!authed && !opts.demo ? (() => {
           const p = gate.pendingOf(req);
@@ -1682,7 +1699,17 @@ export function createSaraServer(opts: ServerOptions): Server {
     if (a === 'family-screen') return familyScreenRoutes(app, req, res, method, parts, clientIp(req, opts.trustProxy));
     // C15: the asking device checks its own request before (and after) it is signed in.
     if (await gate.publicRoutes(req, res, method, parts)) return;
-    if (!isAuthed(req)) throw new HttpError(401, 'Sign in first.');
+    if (!isAuthed(req)) {
+      // 3.49.1: say why when a sign-in this server made has ended (the apps show the message).
+      const why = opts.demo ? undefined : signedOutWhy(req);
+      throw new HttpError(401, why === 'idle' ? SIGNED_OUT_IDLE : why === 'removed' ? SIGNED_OUT_REMOVED : 'Sign in first.', why ? { signedOut: why } : undefined);
+    }
+    // 3.49.1: a sign-in in use stays signed in: its cookie gets a fresh 30 days (once a day). A route
+    // that sets its own cookie later (signing out) replaces this one.
+    if (!opts.demo && !req.headers.authorization) {
+      const renewed = auth.renewSession(cookies(req)[SESSION_COOKIE]);
+      if (renewed) res.setHeader('set-cookie', cookie(renewed.value, renewed.maxAgeSeconds));
+    }
     // Phase 126: Hey Sara isn't on the demo server (WAKE.md §11).
     if (opts.demo && a === 'wake') throw new HttpError(404, 'Not found');
     // Phase 71: a household member's space answers only the member routes (src/household.ts).

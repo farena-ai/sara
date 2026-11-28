@@ -1,5 +1,5 @@
-// Pre-1.0 hardening (M2, M3, L9): device-code sign-in. Device tokens end 90 days after approval
-// even when used daily; start/poll have their own rate limit (they can't lock the owner out of
+// Pre-1.0 hardening (M2, M3, L9): device-code sign-in. Device tokens end after 30 days without use
+// (3.49.1, owner: one rule for every sign-in; before, also 90 days after approval); start/poll have their own rate limit (they can't lock the owner out of
 // signing in, and failed sign-ins don't block apps); approving needs proof it's the owner.
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
@@ -29,7 +29,7 @@ after(() => {
 const post = (path: string, body: unknown, bearer?: string) =>
   fetch(base + path, { method: 'POST', headers: { 'content-type': 'application/json', origin: base, ...(bearer ? { authorization: `Bearer ${bearer}` } : {}) }, body: JSON.stringify(body) });
 
-test('device tokens: 30 days unused ends them, and 90 days after approval ends them even when used every day', () => {
+test('device tokens: 30 days unused ends them; used every day, they keep working past 90 days (3.49.1)', () => {
   const { token: dev } = auth.createDeviceToken('sara-chat');
   const start = clock.now.getTime();
   try {
@@ -38,7 +38,10 @@ test('device tokens: 30 days unused ends them, and 90 days after approval ends t
       assert.ok(auth.deviceTokenId(dev), `day ${day}`);
     }
     clock.now = new Date(start + DEVICE_TOKEN_MAX_MS + 60_000);
-    assert.equal(auth.deviceTokenId(dev), undefined, 'past 90 days');
+    assert.ok(auth.deviceTokenId(dev), 'past 90 days, used every few days');
+    clock.now = new Date(start + DEVICE_TOKEN_MAX_MS + 31 * 86_400_000);
+    assert.equal(auth.deviceTokenId(dev), undefined, '31 days unused');
+    assert.equal(auth.deviceTokenReason(dev), 'idle');
   } finally {
     clock.now = new Date(start);
   }

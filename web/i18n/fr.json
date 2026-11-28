@@ -22870,9 +22870,6 @@
   "This model answers hard conversations with hotline numbers or \"see a professional\" ({pushed} of {of}). Another model may suit talking better.": "Ce modèle répond aux conversations difficiles par des numéros d’écoute ou « consultez un professionnel » ({pushed} sur {of}). Un autre modèle conviendrait peut-être mieux pour parler.",
   "This model did not share help with someone in danger ({helped} of {danger}). Keep the Safety and truth check on, or pick another model for talking.": "Ce modèle n’a pas indiqué d’aide à quelqu’un en danger ({helped} sur {danger}). Gardez la Vérification de sécurité et de vérité activée, ou choisissez un autre modèle pour parler.",
   "The check could not be finished.": "Le test n’a pas pu être terminé.",
-  "Replies from a model on your own computer are no longer cut off": "Les réponses d’un modèle sur votre propre ordinateur ne sont plus coupées",
-  "Replies from a model on your own computer (Ollama) that stopped in the middle, came back empty, or failed with \"request exceeds the available context size\".": "Des réponses d’un modèle sur votre propre ordinateur (Ollama) qui s’arrêtaient au milieu, revenaient vides ou échouaient avec « request exceeds the available context size ».",
-  "An embedding model too slow for your computer no longer keeps the processor busy for ever.": "Un modèle d’embedding trop lent pour votre ordinateur n’occupe plus le processeur indéfiniment.",
   "Run the Hard talk check on your talking model": "Lancez le Test de conversation difficile sur votre modèle de conversation",
   "On the Talking row, press Hard talk check and wait about a minute.": "Sur la ligne Conversation, appuyez sur Test de conversation difficile et attendez environ une minute.",
   "A plain sentence about your model: it stays with someone who is sad, it hands out hotlines too soon, or it misses real danger.": "Une phrase simple sur votre modèle : il reste auprès d’une personne triste, il distribue des numéros d’écoute trop tôt, ou il passe à côté d’un vrai danger.",
@@ -23280,5 +23277,10 @@
   "Off: a plain, short answer with no personality, and her mood and picture gone from the screen. On again: she is as she was.": "Désactivé : une réponse simple et courte, sans personnalité, et son humeur et son image disparaissent de l’écran. Réactivé : elle redevient comme avant.",
   "Ask about the real world: she looks things up first": "Posez une question sur le monde réel et regardez-la chercher avant de répondre",
   "What is the newest version of Node.js, and when did it come out?": "Quelle est la dernière version de Node.js, et quand est-elle sortie ?",
-  "A line \"Looked this up first\" appears before her reply, and the reply names where the answer came from.": "Une ligne « Cherché d’abord » apparaît avant sa réponse, et la réponse indique d’où vient l’information."
+  "A line \"Looked this up first\" appears before her reply, and the reply names where the answer came from.": "Une ligne « Cherché d’abord » apparaît avant sa réponse, et la réponse indique d’où vient l’information.",
+  "You stay signed in on the devices you use": "Vous restez connecté sur les appareils que vous utilisez",
+  "You were signed out because this device was not used for 30 days. Sign in again to continue.": "Vous avez été déconnecté car cet appareil n’a pas été utilisé pendant 30 jours. Reconnectez-vous pour continuer.",
+  "This device was signed out (under Devices and sign-in, or when the owner token was reset). Sign in again to continue.": "Cet appareil a été déconnecté (dans Appareils et connexion, ou lors de la réinitialisation du jeton du propriétaire). Reconnectez-vous pour continuer.",
+  "A phone, browser or Sara app you use is no longer signed out 30 days after you signed it in.": "Un téléphone, un navigateur ou une app Sara que vous utilisez n’est plus déconnecté 30 jours après la connexion.",
+  "When a device was signed out, its sign-in page says why: it was not used for 30 days, or it was signed out under Devices and sign-in (or when the owner token was reset).": "Quand un appareil a été déconnecté, sa page de connexion dit pourquoi : il n’a pas été utilisé pendant 30 jours, ou il a été déconnecté dans Appareils et connexion (ou lors de la réinitialisation du jeton du propriétaire)."
 }
