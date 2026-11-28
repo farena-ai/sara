@@ -1,0 +1,148 @@
+# Nightly import, 2026-11-18. The first run was killed by the deploy; the second is the restart.
+# Lines starting with "> " are what relay printed; the rest is the --log output.
+$ relay run examples/nightly-2026-11-18.ndjson --journal journal --segment-size 16 --batch 5 --rate 4 --lock acct-2:1200 --max-attempts 6 --stop-after 32
+t=0000000 journal: new journal in /srv/relay/journal
+t=0000000 recovery: 0 submitted, 0 delivered, 0 dead, 0 pending; next seq 1
+t=0000000 batch: #1 4/5 [evt-0001 evt-0002 evt-0003 evt-0004] held=0 waiting=0 left=0
+t=0000000 dispatch: #1 sink rejected evt-0003 (account locked); accepted 3, to retry 1
+t=0000000 retry: evt-0003 failed (account locked); attempt 2 due at 100
+t=0000050 batch: #2 3/5 [evt-0005 evt-0006 evt-0008] held=1 waiting=1 left=2
+t=0000050 batch: #3 1/5 [evt-0007] held=0 waiting=1 left=1
+t=0000100 journal: rotated to segment-2.log
+t=0000100 batch: #4 4/5 [evt-0003(#2) evt-0009 evt-0010 evt-0012] held=1 waiting=0 left=1
+t=0000100 dispatch: #4 sink rejected evt-0003 (account locked); accepted 3, to retry 1
+t=0000100 retry: evt-0003(#2) failed (account locked); attempt 3 due at 300
+t=0000150 batch: #5 3/5 [evt-0013 evt-0014 evt-0015] held=1 waiting=1 left=3
+t=0000150 batch: #6 1/5 [evt-0016] held=1 waiting=1 left=2
+t=0000200 journal: rotated to segment-3.log
+t=0000200 batch: #7 2/5 [evt-0018 evt-0019] held=2 waiting=1 left=4
+t=0000200 batch: #8 1/5 [evt-0020] held=2 waiting=1 left=3
+t=0000250 batch: #9 1/5 [evt-0022] held=3 waiting=1 left=6
+t=0000250 batch: #10 1/5 [evt-0023] held=3 waiting=1 left=5
+t=0000250 batch: #11 1/5 [evt-0024] held=3 waiting=1 left=4
+t=0000300 journal: rotated to segment-4.log
+t=0000300 batch: #12 2/5 [evt-0003(#3) evt-0025] held=3 waiting=0 left=6
+t=0000300 dispatch: #12 sink rejected evt-0003 (account locked); accepted 1, to retry 1
+t=0000300 retry: evt-0003(#3) failed (account locked); attempt 4 due at 700
+t=0000300 batch: #13 1/5 [evt-0026] held=3 waiting=1 left=6
+t=0000300 batch: #14 1/5 [evt-0027] held=3 waiting=1 left=5
+t=0000450 journal: rotated to segment-5.log
+t=0000650 journal: rotated to segment-6.log
+t=0000700 batch: #15 1/5 [evt-0003(#4)] held=4 waiting=0 left=36
+t=0000700 dispatch: #15 sink rejected evt-0003 (account locked); accepted 0, to retry 1
+t=0000700 retry: evt-0003(#4) failed (account locked); attempt 5 due at 1500
+t=0000850 journal: rotated to segment-7.log
+t=0001050 journal: rotated to segment-8.log
+t=0001250 journal: rotated to segment-9.log
+t=0001450 journal: rotated to segment-10.log
+t=0001500 batch: #16 1/5 [evt-0003(#5)] held=4 waiting=0 left=100
+t=0001500 batch: #17 2/5 [evt-0011 evt-0029] held=3 waiting=0 left=98
+t=0001500 batch: #18 3/5 [evt-0017 evt-0030 evt-0031] held=2 waiting=0 left=95
+t=0001500 batch: #19 3/5 [evt-0021 evt-0032 evt-0033] held=2 waiting=0 left=92
+t=0001500 batch: #20 4/5 [evt-0028 evt-0035 evt-0036 evt-0037] held=1 waiting=0 left=88
+t=0001500 journal: rotated to segment-11.log
+t=0001500 batch: #21 3/5 [evt-0034 evt-0038 evt-0039] held=2 waiting=0 left=85
+t=0001500 batch: #22 3/5 [evt-0040 evt-0042 evt-0043] held=2 waiting=0 left=82
+t=0001500 batch: #23 3/5 [evt-0041 evt-0044 evt-0046] held=2 waiting=0 left=79
+t=0001500 batch: #24 4/5 [evt-0045 evt-0048 evt-0049 evt-0050] held=1 waiting=0 left=75
+t=0001500 journal: rotated to segment-12.log
+t=0001500 batch: #25 3/5 [evt-0047 evt-0051 evt-0053] held=2 waiting=0 left=72
+t=0001500 batch: #26 5/5 [evt-0052 evt-0054 evt-0055 evt-0056 evt-0057] held=0 waiting=0 left=67
+t=0001500 batch: #27 5/5 [evt-0058 evt-0059 evt-0060 evt-0061 evt-0062] held=0 waiting=0 left=62
+t=0001500 batch: #28 3/5 [evt-0063 evt-0064 evt-0066] held=2 waiting=0 left=59
+t=0001500 journal: rotated to segment-13.log
+t=0001500 batch: #29 4/5 [evt-0065 evt-0067 evt-0068 evt-0069] held=1 waiting=0 left=55
+t=0001500 batch: #30 5/5 [evt-0070 evt-0071 evt-0072 evt-0073 evt-0074] held=0 waiting=0 left=50
+t=0001500 batch: #31 4/5 [evt-0075 evt-0076 evt-0077 evt-0078] held=1 waiting=0 left=46
+t=0001500 batch: #32 5/5 [evt-0079 evt-0080 evt-0081 evt-0082 evt-0083] held=0 waiting=0 left=41
+t=0001500 journal: rotated to segment-14.log
+t=0001500 batch: #33 3/5 [evt-0084 evt-0085 evt-0086] held=2 waiting=0 left=38
+t=0001500 batch: #34 4/5 [evt-0087 evt-0089 evt-0090 evt-0091] held=1 waiting=0 left=34
+t=0001500 batch: #35 3/5 [evt-0088 evt-0094 evt-0095] held=2 waiting=0 left=31
+t=0001500 batch: #36 4/5 [evt-0092 evt-0096 evt-0097 evt-0098] held=1 waiting=0 left=27
+t=0001500 journal: rotated to segment-15.log
+t=0001500 batch: #37 5/5 [evt-0093 evt-0099 evt-0100 evt-0101 evt-0102] held=0 waiting=0 left=22
+t=0001500 batch: #38 4/5 [evt-0103 evt-0105 evt-0106 evt-0107] held=1 waiting=0 left=18
+t=0001500 batch: #39 4/5 [evt-0104 evt-0108 evt-0109 evt-0111] held=1 waiting=0 left=14
+t=0001500 batch: #40 4/5 [evt-0110 evt-0113 evt-0114 evt-0115] held=1 waiting=0 left=10
+t=0001500 journal: rotated to segment-16.log
+t=0001500 batch: #41 3/5 [evt-0112 evt-0116 evt-0117] held=2 waiting=0 left=7
+t=0001500 batch: #42 3/5 [evt-0118 evt-0119 evt-0121] held=2 waiting=0 left=4
+t=0001500 batch: #43 2/5 [evt-0120 evt-0122] held=2 waiting=0 left=2
+t=0001500 batch: #44 2/5 [evt-0123 evt-0124] held=0 waiting=0 left=0
+t=0001550 batch: #45 4/5 [evt-0125 evt-0126 evt-0127 evt-0128] held=0 waiting=0 left=0
+t=0001550 journal: rotated to segment-17.log
+> submitted 128, duplicates 0, delivered 128, retried 4, dead 0, pending 0
+>   acct-1            1018.54
+>   acct-2            1746.67
+>   acct-3            1060.93
+>   acct-4             807.33
+>   acct-5            1087.02
+>   acct-6            1360.40
+>   acct-7             644.53
+>   acct-8            1222.87
+$ relay run examples/nightly-2026-11-18.ndjson --journal journal --segment-size 16 --batch 5 --rate 4 --lock acct-2:1200 --max-attempts 6
+t=0000000 journal: opened 17 segments [segment-1.log, segment-10.log, segment-11.log, segment-12.log, segment-13.log, segment-14.log, segment-15.log, segment-16.log, segment-17.log, segment-2.log, segment-3.log, segment-4.log, segment-5.log, segment-6.log, segment-7.log, segment-8.log, segment-9.log]; appending to segment-9.log (16 records)
+t=0000000 recovery: 128 submitted, 128 delivered, 0 dead, 93 pending; next seq 129
+t=0001600 journal: rotated to segment-10.log
+t=0001600 batch: #46 2/5 [evt-0011 evt-0029] held=3 waiting=0 left=95
+t=0001600 batch: #47 3/5 [evt-0017 evt-0030 evt-0031] held=2 waiting=0 left=92
+t=0001600 batch: #48 3/5 [evt-0021 evt-0032 evt-0033] held=2 waiting=0 left=89
+t=0001600 batch: #49 4/5 [evt-0028 evt-0035 evt-0036 evt-0037] held=1 waiting=0 left=85
+t=0001600 batch: #50 3/5 [evt-0034 evt-0038 evt-0039] held=2 waiting=0 left=82
+t=0001600 journal: rotated to segment-11.log
+t=0001600 batch: #51 3/5 [evt-0040 evt-0042 evt-0043] held=2 waiting=0 left=79
+t=0001600 batch: #52 3/5 [evt-0041 evt-0044 evt-0046] held=2 waiting=0 left=76
+t=0001600 batch: #53 4/5 [evt-0045 evt-0048 evt-0049 evt-0050] held=1 waiting=0 left=72
+t=0001600 batch: #54 3/5 [evt-0047 evt-0051 evt-0053] held=2 waiting=0 left=69
+t=0001600 batch: #55 5/5 [evt-0052 evt-0054 evt-0055 evt-0056 evt-0057] held=0 waiting=0 left=64
+t=0001600 journal: rotated to segment-12.log
+t=0001600 batch: #56 5/5 [evt-0058 evt-0059 evt-0060 evt-0061 evt-0062] held=0 waiting=0 left=59
+t=0001600 batch: #57 3/5 [evt-0063 evt-0064 evt-0066] held=2 waiting=0 left=56
+t=0001600 batch: #58 4/5 [evt-0065 evt-0067 evt-0068 evt-0069] held=1 waiting=0 left=52
+t=0001600 journal: rotated to segment-13.log
+t=0001600 batch: #59 5/5 [evt-0070 evt-0071 evt-0072 evt-0073 evt-0074] held=0 waiting=0 left=47
+t=0001600 batch: #60 4/5 [evt-0075 evt-0076 evt-0077 evt-0078] held=1 waiting=0 left=43
+t=0001600 batch: #61 5/5 [evt-0079 evt-0080 evt-0081 evt-0082 evt-0083] held=0 waiting=0 left=38
+t=0001600 batch: #62 3/5 [evt-0084 evt-0085 evt-0086] held=2 waiting=0 left=35
+t=0001600 journal: rotated to segment-14.log
+t=0001600 batch: #63 4/5 [evt-0087 evt-0089 evt-0090 evt-0091] held=1 waiting=0 left=31
+t=0001600 batch: #64 3/5 [evt-0088 evt-0094 evt-0095] held=2 waiting=0 left=28
+t=0001600 batch: #65 4/5 [evt-0092 evt-0096 evt-0097 evt-0098] held=1 waiting=0 left=24
+t=0001600 batch: #66 5/5 [evt-0093 evt-0099 evt-0100 evt-0101 evt-0102] held=0 waiting=0 left=19
+t=0001600 journal: rotated to segment-15.log
+t=0001600 batch: #67 4/5 [evt-0103 evt-0105 evt-0106 evt-0107] held=1 waiting=0 left=15
+t=0001600 batch: #68 4/5 [evt-0104 evt-0108 evt-0109 evt-0111] held=1 waiting=0 left=11
+t=0001600 batch: #69 4/5 [evt-0110 evt-0113 evt-0114 evt-0115] held=1 waiting=0 left=7
+t=0001600 batch: #70 5/5 [evt-0112 evt-0116 evt-0117 evt-0129 evt-0130] held=0 waiting=0 left=2
+t=0001600 journal: rotated to segment-16.log
+t=0001600 batch: #71 2/5 [evt-0131 evt-0132] held=0 waiting=0 left=0
+t=0001650 batch: #72 3/5 [evt-0133 evt-0134 evt-0136] held=1 waiting=0 left=1
+t=0001650 batch: #73 1/5 [evt-0135] held=0 waiting=0 left=0
+t=0001700 journal: rotated to segment-17.log
+t=0001700 batch: #74 3/5 [evt-0137 evt-0139 evt-0140] held=1 waiting=0 left=1
+t=0001700 batch: #75 1/5 [evt-0138] held=0 waiting=0 left=0
+t=0001750 batch: #76 2/5 [evt-0141 evt-0142] held=2 waiting=0 left=2
+t=0001750 batch: #77 2/5 [evt-0143 evt-0144] held=0 waiting=0 left=0
+t=0001800 journal: rotated to segment-18.log
+t=0001800 batch: #78 4/5 [evt-0145 evt-0146 evt-0147 evt-0148] held=0 waiting=0 left=0
+t=0001850 batch: #79 2/5 [evt-0149 evt-0150] held=0 waiting=0 left=0
+> submitted 150, duplicates 0, delivered 243, retried 4, dead 0, pending 0
+> skipped 128 events already in the journal
+>   acct-1            1461.05
+>   acct-2            1800.51
+>   acct-3            1130.23
+>   acct-4             574.39
+>   acct-5             794.40
+>   acct-6            1249.77
+>   acct-7             634.53
+>   acct-8             689.23
+$ relay totals --journal journal
+>   acct-1            2479.59
+>   acct-2            3547.18
+>   acct-3            2191.16
+>   acct-4            1381.72
+>   acct-5            1881.42
+>   acct-6            2610.17
+>   acct-7            1279.06
+>   acct-8            1912.10

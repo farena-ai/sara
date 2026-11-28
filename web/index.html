@@ -12,6 +12,7 @@
   <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials">
   <link rel="icon" href="/app-icon.png?s=64" sizes="64x64" type="image/png">
   <link rel="apple-touch-icon" href="/app-icon.png?s=180&amp;shape=square">
+  <script src="/companion-keys.js"></script>
   <script src="/theme-boot.js"></script>
   <script src="/viewport.js"></script>
   <link rel="stylesheet" href="/theme.css">
@@ -249,6 +250,7 @@
         </div>
         <div class="side-foot-row">
           <button id="open-sara" type="button" title="Her page: her day, mood, character (Alt+H)"><img class="side-face avatar" src="/sara-avatar.jpg" alt=""><span class="side-her">Sara</span></button>
+          <div id="side-companion-menu" class="companion-menu side-companion-menu" role="menu" hidden></div>
           <button id="open-help" type="button" class="side-icon" title="Help: tours, the guide, and asking her" aria-label="Help"><i class="ic" data-icon="help"></i></button>
           <button id="open-settings" type="button" class="side-icon" title="Settings (Ctrl+,)" aria-label="Settings"><i class="ic" data-icon="settings"></i></button>
         </div>
@@ -284,9 +286,9 @@
             <p id="ctx-tidy-note" class="muted small" role="status"></p>
           </div>
         </div>
-        <button id="head-more" class="ghost icon head-more" type="button" aria-label="This conversation: model, voice and server" aria-expanded="false" aria-controls="head-chips">⋯</button>
+        <button id="head-more" class="ghost icon head-more" type="button" aria-label="This conversation: settings, voice and server" aria-expanded="false" aria-controls="head-chips">⋯</button>
         <div id="head-chips" class="head-chips">
-          <button id="conv-settings-btn" class="ghost small" type="button" title="Model, workspace and mode for this conversation"><i class="ic" data-icon="settings"></i><span id="conv-summary">…</span></button>
+          <button id="conv-settings-btn" class="ghost small" type="button" title="Settings for this chat: mode, workspace, privacy, thinking and project"><i class="ic" data-icon="settings"></i><span id="conv-summary">…</span></button>
           <button id="speak-toggle" class="ghost small icon" type="button" title="Read her replies aloud" aria-pressed="false" hidden><i class="ic" data-icon="speaker"></i></button>
           <button id="cnt-phone" class="ghost small icon" type="button" title="Continue on my phone" aria-label="Continue on my phone" hidden><i class="ic" data-icon="handoff"></i></button>
           <button id="server-btn" class="server-btn" type="button" title="Which server this app shows. Switch to another one" hidden><i class="ic" data-icon="switch"></i><span id="server-btn-name">Sara</span><span id="server-btn-count" class="srv-count" hidden></span></button>
@@ -435,6 +437,8 @@
         <div class="plus-wrap">
           <button id="composer-plus" class="ghost icon" type="button" aria-label="Add: a file, a photo or something to do together" aria-haspopup="menu" aria-expanded="false" aria-controls="composer-menu"><i class="ic" data-icon="plus"></i></button>
           <div id="composer-menu" class="composer-menu head-pop" role="menu" hidden>
+            <!-- T63: phones have no model chip; this opens the same picker (web/chat-model.js). -->
+            <button id="cmp-model-item" class="pop-item cmp-model-item" type="button" role="menuitem" title="Pick the model for this chat. It is used from your next message." hidden><i class="ic" data-icon="sparkle"></i> <span id="cmp-model-item-name" data-raw>Model</span></button>
             <button id="attach" class="pop-item" type="button" role="menuitem" title="Send a photo or a document (or paste / drop one)"><i class="ic" data-icon="attach"></i> Attach a file</button>
             <button id="attach-photo" class="pop-item" type="button" role="menuitem" title="Send a photo from this device"><i class="ic" data-icon="image"></i> Photo</button>
             <button id="show-screen" class="pop-item" type="button" role="menuitem" title="Pick a window or your screen in your browser's own prompt: one picture of it is added to your message" hidden><i class="ic" data-icon="monitor"></i> Show Sara my screen</button>
@@ -444,6 +448,11 @@
             <button id="persist-loop" class="pop-item" type="button" role="menuitem" title="She checks again on a timer and tells you when something changes" hidden><i class="ic" data-icon="update"></i> Repeat this…</button>
           </div>
         </div>
+        <!-- T63 (web/chat-model.js): the model this chat's next message uses, and its picker. Wide screens only (v4.css). -->
+        <div class="cmp-model-wrap">
+          <button id="cmp-model" class="cmp-model" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="cmp-model-pop" hidden><span id="cmp-model-name" class="cmp-model-name" data-raw>…</span><i class="ic" data-icon="chevron-down"></i></button>
+        </div>
+        <div id="cmp-model-pop" class="cmp-model-pop head-pop" role="menu" aria-label="Model for this chat" hidden></div>
         <input id="attach-file" type="file" multiple hidden>
         <input id="attach-photo-file" type="file" accept="image/*" multiple hidden>
         <button id="call" class="ghost icon" type="button" title="Hands-free call: just talk, interrupt her any time" hidden><i class="ic" data-icon="phone"></i></button>
@@ -2734,12 +2743,8 @@
       </div>
       <div class="tidy-card tidy-stack">
         <label class="row"><input id="cs-private" type="checkbox"> Private: local models only, no web or MCP tools (nothing leaves your server)</label>
-        <label>Model service
-          <select id="cs-provider"></select>
-        </label>
-        <label>Model
-          <select id="cs-model"></select>
-        </label>
+        <!-- T63: the model has one place, the message box (web/chat-model.js). -->
+        <p class="muted small cs-model-where">Pick this chat's model in the message box, next to + (on a phone: in the + menu).</p>
         <p id="cs-status" class="muted small"></p>
         <label>Thinking <button type="button" class="tip" data-tip="How hard she thinks in this chat only. Quick answers sooner; Thorough takes longer and helps with hard questions. Same as Settings follows Settings → Models &amp; usage → Default model.">?</button>
           <select id="cs-thinking">
@@ -3212,6 +3217,9 @@
         <section class="settings-page" data-page="her-companions" data-group="Sara" data-title="Companions" hidden>
       <p class="muted small page-lead">You can have more than one companion on this server. Each has her own name, character, look, voice, conversations and memories. They share your sign-in, devices, keys, models, tools and backups. Switch between them with ⇄ at the top of the sidebar.</p>
       <ul id="cmp-list" class="cmp-list"></ul>
+      <h3>Planner</h3>
+      <label>To-dos, reminders and notes <select id="cmp-planner"><option value="separate">Each companion keeps her own</option><option value="shared">One planner, shared by all companions</option></select></label>
+      <p id="cmp-planner-note" class="muted small">A change applies after the next restart or update.</p>
       <h3>Add a companion</h3>
       <div class="add-row">
         <label>Name <input id="cmp-name" maxlength="40" autocomplete="off"></label>
@@ -3230,9 +3238,6 @@
       <p class="small"><button id="bring-preview" type="button">See what comes over</button> <span id="bring-status" class="muted small" role="status"></span></p>
       <div id="bring-draft" class="bring-draft" hidden></div>
       </div>
-      <h3>Planner</h3>
-      <label>To-dos, reminders and notes <select id="cmp-planner"><option value="shared">One planner, shared by all companions</option><option value="separate">Each companion keeps her own</option></select></label>
-      <p id="cmp-planner-note" class="muted small">A change applies after the next restart or update.</p>
         </section>
         <section class="settings-page" data-page="her-import" data-group="Privacy & system" data-title="Bring her from another app" data-host="dh-data" data-owner-only hidden>
       <p class="muted small page-lead">Bring your chats from Character.AI, SillyTavern, Replika, Nomi, Kindroid, ChatGPT, Claude or a saved transcript. She reads them and suggests what she learned about you, your history together and her character. Nothing is saved until you check it and press Save. <a href="/help#import" target="_blank" rel="noopener">How to export from each app</a></p>
@@ -3639,6 +3644,7 @@
       </div>
         </section>
         <section class="settings-page" data-page="models-default" data-group="Models & usage" data-title="Default model" hidden>
+      <p class="own-choices small" data-own-choices hidden></p>
       <div id="model-empty" class="lean-card" hidden>
         <h3>Connect a brain</h3>
         <p>No model provider set up</p>
@@ -3738,6 +3744,7 @@
       </div>
         </section>
         <section class="settings-page" data-page="models-routes" data-group="Models & usage" data-title="Which model does what" data-owner-only hidden>
+      <p class="own-choices small" data-own-choices hidden></p>
       <p class="muted small">Every job uses your default model unless you pick one here. A conversation's own model choice still wins. <em>✨ Use recommended</em> fills in picks from what's connected; changes save by themselves.</p>
       <p id="jobs-default-line" class="jobs-default-line" data-raw></p>
       <div class="jobs-top">
@@ -3955,7 +3962,7 @@
           <select id="ap-size"><option value="14">Small</option><option value="15">Normal</option><option value="17">Large</option><option value="19">Larger</option></select>
         </label>
         <label>Her picture
-          <select id="ap-herpic"><option value="orb">Presence orb (default)</option><option value="portrait">Her portrait, animated</option><option value="portrait-still">Her portrait, still</option><option value="own">Your picture</option><option value="vrm">A 3D model (.vrm)</option></select>
+          <select id="ap-herpic"><option value="orb">Presence orb</option><option value="portrait">Her portrait, animated</option><option value="portrait-still">Her portrait, still</option><option value="own">Your picture</option><option value="vrm">A 3D model (.vrm)</option></select>
         </label>
         <p class="small muted ap-herpic-note">A picture shows round, with a thin ring that moves with her like the orb. <button id="ap-herpic-upload" type="button" class="linkish">Upload your picture of her</button></p>
         <!-- 3.3.0 (ezplain): everything about her picture starts here; Look and her page point back. -->
@@ -4108,6 +4115,7 @@
         <!-- N4 (docs/MY_DETAILS.md): My details, for filling forms in your own browser (web/my-details.js). -->
         <section class="settings-page" data-page="you-details" data-group="You" data-title="My details" hidden>
       <p class="muted small page-lead">What you type into forms again and again, so Sara can fill a web form in your own browser for you (you review every field on your computer, and you press Submit). Only you see these; leave out anything you don't want to use. Never passwords, card numbers or Social Security numbers: Sara refuses to keep them. <a href="/help#my-details" target="_blank" rel="noopener">How My details work</a></p>
+      <p id="md-copy-row" class="small" hidden data-owner-only><button id="md-copy" type="button" class="ghost small"></button></p>
       <h3>Name and contact <button type="button" class="tip" data-tip="Your name as forms want it, your emails and phone numbers. The first email and the mobile phone are used unless a form asks for the other one.">?</button></h3>
       <div class="row-grid">
         <label>First name <input id="md-first" maxlength="120" autocomplete="off"></label>
@@ -4337,6 +4345,7 @@
       <div id="mk-reports" class="mk-installed" hidden></div>
         </section>
         <section class="settings-page" data-page="ab-tools" data-group="Skills & tools" data-title="Tools and approvals" data-owner-only hidden>
+      <p class="own-choices small" data-own-choices hidden></p>
       <p id="sandbox-status" class="muted"></p>
       <p id="sandbox-note" class="small" hidden></p>
       <div class="lean-card">
@@ -4398,6 +4407,7 @@
       <p class="muted small page-lead">Your own mailboxes: Gmail, Outlook.com and Microsoft 365, Yahoo, iCloud, Fastmail and more. She reads and searches them; drafting, sending, organizing and calendar changes always ask you first, and nothing is ever deleted for good.</p>
       <p id="ma-status" class="muted small" role="status"></p>
       <div id="ma-page"></div>
+      <div id="cacc-mail" class="cacc-block" data-nodirty data-noauto hidden></div>
       <h3>Combined inbox and Today <button type="button" class="tip" data-tip="Which mailboxes she reads together for Today's Mail, searches and “waiting for my answer”. Each email says which mailbox it is in.">?</button></h3>
       <div id="ma-combined" data-nodirty data-noauto></div>
       <h3>Calendars <button type="button" class="tip" data-tip="Pick which calendars of each account show on Today, in the briefing and for your booking page, and where new events go.">?</button></h3>
@@ -4413,6 +4423,7 @@
         <section class="settings-page" data-page="ab-google" data-group="Connections" data-title="Gmail and Calendar" data-tile="accounts" data-owner-only hidden>
       <h3>Your accounts <button type="button" class="tip" data-tip="Every account she reads: each Google account with what it is used for, and your other mailboxes. + Add an account adds one more next to them; it never replaces one.">?</button></h3>
       <div id="g-accounts" data-nodirty data-noauto></div>
+      <div id="cacc-google" class="cacc-block" data-nodirty data-noauto hidden></div>
       <h3>Your Google app <button type="button" class="tip" data-tip="Google sign-in goes through a small Google app you own (set up once). Every Google account you add signs in through it.">?</button></h3>
       <p id="g-status" class="muted small" role="status"></p>
       <div id="g-connected" class="add-row" hidden><button id="g-disconnect" type="button" class="ghost">Sign out of Google</button></div>
@@ -4609,6 +4620,7 @@
         </section>
         <!-- Phase 120 (PRECISE §4.14, §5.10): checks after her edits and @-references (web/refs.js). -->
         <section class="settings-page" data-page="ab-precise" data-group="Skills & tools" data-title="Check her edits" data-owner-only hidden>
+      <p class="own-choices small" data-own-choices hidden></p>
       <div id="pc-form">
       <p class="muted small page-lead">After Sara changes a file, your project's own type checker or linter looks at it and she sees the errors before she answers. And in any chat, type @ to attach a file, a few lines, your changes, this branch, the current errors or a web page.</p>
       <h3>Check her edits</h3>
@@ -4620,6 +4632,7 @@
         <label>Remind her to fix what she broke <button type="button" class="tip" data-tip="She fixes the errors her own edits caused, up to twice per reply, inside the reply's budget. Anything left is listed here, never hidden.">?</button> <select id="pc-nudges"></select></label>
       </div>
       <label class="row"><input id="pc-warnings" type="checkbox"> Also show warnings <button type="button" class="tip" data-tip="Off: only errors are written out and warnings are counted in one line. On: ESLint and pyright warnings are written out too.">?</button></label>
+      <label class="row"><input id="pc-strong" type="checkbox"> Stronger review of coding work <button type="button" class="tip" data-tip="When a Review model is set (Which model does what → Reviewing) and differs from the coding model, it reads the project and her change before a coding reply ends, and takes over to fix real gaps. A few extra calls to that model.">?</button></label>
       <h3>Projects <button type="button" class="tip" data-tip="Some checkers run code from your project (an ESLint config, mypy plugins, Rust build scripts). That's why each project asks once. Off any time here.">?</button></h3>
       <div class="add-row"><label>Workspace <button type="button" class="tip" data-tip="The workspace whose projects are listed below, with the checkers found in each, their exact commands and the last result.">?</button> <select id="pc-ws"></select></label></div>
       <div id="pc-projects" class="pc-projects"></div>

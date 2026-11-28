@@ -3,6 +3,7 @@
 //   GET    /api/my-details    {details, updatedAt, leaveStoreTab}
 //   PUT    /api/my-details    {…details, leaveStoreTab?} → {details, leaveStoreTab}   (400 {error, field} on a refused value)
 //   DELETE /api/my-details    forget them all
+//   POST   /api/my-details/copy  T62: a second companion with none of her own copies the main companion's once (owner only)
 // V2.6 (docs/UPKEEP.md): Car and house upkeep, a section of the same page (src/upkeep.ts)
 //   GET    /api/my-details/upkeep                    {cars, items, found, odometer, table}
 //   POST   /api/my-details/upkeep/setup|add|miles|skip {…}  → {ok, added?, item?}
@@ -17,7 +18,7 @@ export function createMyDetailsRoutes(ctx: RouteCtx): RouteHandler {
   const { app } = ctx;
   return async (req, res, method, parts) => {
     const [a, b, c, d] = parts;
-    if (a !== 'my-details' || (b !== undefined && b !== 'upkeep')) return NEXT;
+    if (a !== 'my-details' || (b !== undefined && b !== 'upkeep' && b !== 'copy')) return NEXT;
     if (ctx.opts.demo) {
       if (method !== 'GET') await readJson(req).catch(() => undefined);
       throw new HttpError(403, 'Not on the demo.');
@@ -37,7 +38,25 @@ export function createMyDetailsRoutes(ctx: RouteCtx): RouteHandler {
       }
     }
     const store = app.myDetails ?? myDetailsFor(app.store.db);
-    if (method === 'GET') return send(res, 200, { details: store.get(), updatedAt: store.updatedAt(), leaveStoreTab: store.leaveStoreTab() });
+    // T62: each companion keeps her own details; the main companion's, when a second one may copy them.
+    const copyFrom = () => {
+      const main = ctx.opts.companions?.main;
+      if (!main || main.app === app || ctx.opts.member || app.member || Object.keys(store.get()).length) return undefined;
+      const theirs = main.app.myDetails ?? myDetailsFor(main.app.store.db);
+      return Object.keys(theirs.get()).length ? { name: main.app.persona.name, store: theirs } : undefined;
+    };
+    if (b === 'copy') {
+      if (method !== 'POST') throw new HttpError(405, 'Method not allowed');
+      await readJson(req).catch(() => undefined);
+      const from = copyFrom();
+      if (!from) throw new HttpError(404, 'Not found');
+      const details = store.set(from.store.get() as Record<string, unknown>, app.now());
+      return send(res, 200, { details, leaveStoreTab: store.leaveStoreTab() });
+    }
+    if (method === 'GET') {
+      const from = copyFrom();
+      return send(res, 200, { details: store.get(), updatedAt: store.updatedAt(), leaveStoreTab: store.leaveStoreTab(), copyFrom: from ? from.name : null });
+    }
     if (method === 'PUT') {
       const body = (await readJson(req)) as Record<string, unknown>;
       if (!body || typeof body !== 'object' || Array.isArray(body)) throw new HttpError(400, 'Send your details as an object.');

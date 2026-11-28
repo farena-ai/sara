@@ -6,7 +6,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { chmodSync, chownSync, existsSync, lstatSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { dirname, join, posix, win32 } from 'node:path';
+import { basename, dirname, join, posix, win32 } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { containerRunArgv, containerUser } from '../container.ts';
 import { egressAllowlist, engineEnv, openEgress, sandboxNode } from '../egress-run.ts';
@@ -79,7 +79,9 @@ export function prepareForToolsUser(workspace: string, gid: number): void {
       walk(workspace);
     }
     // Its parents (the workspaces folder and the data folder): passable (x) but not readable.
-    for (let d = dirname(workspace), i = 0; i < 2; d = dirname(d), i++) {
+    // T62: another companion's (data/companions/<id>/workspaces/<ws>): her folder and companions/ too.
+    const levels = basename(dirname(dirname(dirname(workspace)))) === 'companions' ? 4 : 2;
+    for (let d = dirname(workspace), i = 0; i < levels; d = dirname(d), i++) {
       const st = statSync(d);
       if ((st.mode & 0o001) === 0) chmodSync(d, (st.mode & 0o7770) | 0o001);
     }
@@ -95,6 +97,12 @@ export function prepareForToolsUser(workspace: string, gid: number): void {
  */
 export function lockDataDir(dataDir: string): void {
   const skip = new Set([join(dataDir, 'workspaces'), join(dataDir, 'mcp')]);
+  // T62: the other companions' own workspaces (data/companions/<id>/workspaces) too.
+  try {
+    for (const n of readdirSync(join(dataDir, 'companions'))) skip.add(join(dataDir, 'companions', n, 'workspaces'));
+  } catch {
+    /* no other companions */
+  }
   const walk = (p: string) => {
     if (skip.has(p)) return;
     let st;
@@ -110,6 +118,8 @@ export function lockDataDir(dataDir: string): void {
   walk(dataDir);
   chmodSync(dataDir, 0o711);
   for (const d of skip) if (existsSync(d)) chmodSync(d, (statSync(d).mode & 0o7770) | 0o001);
+  // T62: the folders on the way to another companion's workspaces stay passable (x), not readable.
+  for (const d of skip) if (existsSync(d) && dirname(dirname(dirname(d))) === dataDir) for (const p of [dirname(d), dirname(dirname(d))]) chmodSync(p, (statSync(p).mode & 0o7770) | 0o001);
 }
 
 export type SandboxMode = 'bwrap' | 'user' | 'seatbelt' | 'container' | 'none';

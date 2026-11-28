@@ -44,7 +44,7 @@ test('V4e: Settings is a centred panel on desktop (no longer a right-hand sheet)
 
 test('V4e: Violet is the default colour for every palette but Sara Classic (boot, app, server, CSS fallbacks)', () => {
   assert.match(read('web', 'theme-boot.js'), /var looks = \{ accent: pal === 'classic' \? 'rose' : 'violet',/);
-  assert.match(read('web', 'app.js'), /const accentPick = \(pal = palettePick\(\)\) => localStorage\.getItem\('sara\.accent'\) \?\? paletteDefaultAccent\(pal\);/);
+  assert.match(read('web', 'app.js'), /const accentPick = \(pal = palettePick\(\)\) => look\.get\('sara\.accent'\) \?\? paletteDefaultAccent\(pal\);/);
   assert.match(read('web', 'accent.js'), /export const paletteDefaultAccent = \(pal\) => \(pal === 'classic' \? 'rose' : 'violet'\);/);
   assert.match(read('src', 'appearance.ts'), /accent: pick\(o\.accent, ACCENTS, o\.palette === 'classic' \? 'rose' : 'violet'\),/);
   const theme = read('web', 'theme.css');

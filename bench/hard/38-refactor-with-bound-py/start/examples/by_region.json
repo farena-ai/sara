@@ -1,0 +1,6 @@
+{
+  "title": "Sales by region, March 2026",
+  "group_by": ["region"],
+  "top_products": 2,
+  "order": "revenue"
+}

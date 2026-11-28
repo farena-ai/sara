@@ -8,7 +8,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node
 import { join } from 'node:path';
 import type { AppContext } from '../chat.ts';
 import { writeFileAtomic } from '../fs-util.ts';
-import { workspaceDir } from '../tools/workspace.ts';
+import { workspaceDir, workspacesBase } from '../tools/workspace.ts';
 import { batch, type BatchRow, type LivesLine, type Report, type ReportLine, UNDO_DAYS } from './batch.ts';
 import type { CodeCard } from './code-read.ts';
 import type { Proposal } from './config.ts';
@@ -92,8 +92,8 @@ export function rebuildTask(app: AppContext, batchId: string, key: string): { co
   if (!line || !plan) throw new Error('That rebuild plan is gone.');
   const slug = String(plan.manifest.id ?? 'moved-in').replace(/[^a-z0-9-]/g, '').slice(0, 40) || 'moved-in';
   let ws = `rebuild-${slug}`;
-  for (let k = 2; existsSync(join(app.rootDir ?? app.dataDir, 'workspaces', ws)); k++) ws = `rebuild-${slug}-${k}`;
-  const dir = workspaceDir(app.rootDir ?? app.dataDir, ws);
+  for (let k = 2; existsSync(join(workspacesBase(app), 'workspaces', ws)); k++) ws = `rebuild-${slug}-${k}`;
+  const dir = workspaceDir(workspacesBase(app), ws);
   // The old code as reference text (the .txt copies the batch kept), never as runnable files.
   const src = join(app.dataDir, 'movein', batchId, 'code', `${plan.kind}-${plan.name.replace(/[^\w.-]/g, '_')}`);
   let copied = 0;

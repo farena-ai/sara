@@ -1,0 +1,11 @@
+order,day,region,store,product,category,customer,qty,price
+o,2026-03-01,n,s1,Zebra,k,c1,1,5
+o,2026-03-01,n,s1,apple,k,c1,1,5
+o,2026-03-01,n,s1,Äpfel,k,c1,1,5
+o,2026-03-01,n,s1,banana,k,c1,1,4
+o,2026-03-01,n,s1,Zebra,k,c1,1,0.00
+o,2026-03-01,s,s1,mug,k,c1,2,2.50
+o,2026-03-01,s,s1,cup,k,c1,1,5
+o,2026-03-01,s,s1,bowl,k,c1,5,1
+o,2026-03-01,s,s1,zz,k,c1,1,1
+o,2026-03-01,e,s1,only,k,c1,1,1

@@ -67,7 +67,7 @@ import { checkFile } from './security/rules.ts';
 import { analyze, type Entry } from './security/threat-graph.ts';
 import type { Conversation } from './store.ts';
 import { lessonText, normalizeMessage } from './triggers.ts';
-import { workspaceDir } from './tools/workspace.ts';
+import { workspaceDir, workspacesBase } from './tools/workspace.ts';
 
 // ------------------------------------------------------------------------------------------------
 // Settings (Settings → Skills & tools → Coding projects → Red-team before shipping)
@@ -1145,6 +1145,6 @@ export interface RedTeamGateCard {
 
 /** Where a finding's workspace folder is (for routes). */
 export function wsDirOf(app: AppContext, workspace: string): string {
-  return workspaceDir(app.rootDir ?? app.dataDir, workspace);
+  return workspaceDir(workspacesBase(app), workspace);
 }
 

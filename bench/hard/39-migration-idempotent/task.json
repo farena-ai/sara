@@ -1,0 +1,11 @@
+{
+  "title": "Store migration: v1 to v4, resumable and idempotent",
+  "kind": "feature",
+  "lang": "js",
+  "prompt": "This tool upgrades a store (a folder of NDJSON records) from one schema version to the next. It only knows the step from schema 1 to 2, and users have reported the problems in ISSUES.md. Make it migrate stores to schema 4 exactly as docs/MIGRATIONS.md says, with the quarantine and the manifest of docs/STORE.md, and make it safe to interrupt and to run twice as docs/RESUME.md requires (the fault hook there is how this is tested). Keep the command line of docs/CLI.md working and make sure the tests pass.",
+  "hidden": [
+    "node",
+    "--test",
+    "__hidden__/*.test.js"
+  ]
+}

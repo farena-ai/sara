@@ -32,11 +32,21 @@ export async function storeVrm(file) {
   const bytes = new Uint8Array(await file.arrayBuffer());
   const check = validateVrm(bytes);
   if (!check.ok) return check;
-  await tx('readwrite', (s) => s.put({ bytes, meta: check.meta, version: check.version, name: file.name, size: bytes.length, at: Date.now() }, 'model'));
+  await tx('readwrite', (s) => s.put({ bytes, meta: check.meta, version: check.version, name: file.name, size: bytes.length, at: Date.now() }, record()));
   return check;
 }
-export const loadStoredVrm = () => tx('readonly', (s) => s.get('model')).catch(() => null);
-export const removeStoredVrm = () => tx('readwrite', (s) => s.delete('model')).catch(() => undefined);
+// T62: each companion keeps her own model ('model@<id>'; the main companion 'model', as before). One
+// without a model of her own shows the device's (her sara.vrm flag, web/companion-keys.js, decides).
+const record = () => globalThis.saraKeys?.suffix('model', globalThis.saraKeys.current()) ?? 'model';
+export const loadStoredVrm = async () => {
+  try {
+    const own = await tx('readonly', (s) => s.get(record()));
+    return own ?? (record() === 'model' ? null : await tx('readonly', (s) => s.get('model')));
+  } catch {
+    return null;
+  }
+};
+export const removeStoredVrm = () => tx('readwrite', (s) => s.delete(record())).catch(() => undefined);
 
 const loadThree = () => import('./vendor/three-vrm/sara-vrm.js');
 

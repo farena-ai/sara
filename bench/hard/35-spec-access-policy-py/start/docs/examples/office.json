@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "roles": {
+    "guest": {},
+    "employee": {"inherits": ["guest"]},
+    "manager": {"inherits": ["employee"]},
+    "hr": {"inherits": ["employee"]}
+  },
+  "principals": {
+    "ana": {"roles": ["Manager"], "attributes": {"dept": "sales", "clearance": 3}},
+    "ben": {"roles": ["employee"], "attributes": {"dept": "eng", "clearance": 1}},
+    "hal": {"roles": ["hr"], "attributes": {"dept": "hr", "clearance": 4}},
+    "ivy": {"roles": ["employee"]}
+  },
+  "statements": [
+    {
+      "id": "guest-lobby",
+      "effect": "allow",
+      "roles": ["guest"],
+      "actions": ["wiki:read"],
+      "resources": ["/wiki/public/**"]
+    },
+    {
+      "id": "staff-wiki",
+      "effect": "allow",
+      "roles": ["employee"],
+      "actions": ["wiki:*"],
+      "resources": ["/wiki/**"],
+      "grants": {"page_size": 50}
+    },
+    {
+      "id": "own-home",
+      "effect": "allow",
+      "roles": ["employee"],
+      "actions": ["*"],
+      "resources": ["/home/{principal}/**"]
+    },
+    {
+      "id": "mgr-reports",
+      "effect": "allow",
+      "roles": ["manager"],
+      "actions": ["wiki:read"],
+      "resources": ["/wiki/reports/q*-*.md"],
+      "grants": {"page_size": 200}
+    },
+    {
+      "id": "hr-files",
+      "effect": "allow",
+      "roles": ["hr"],
+      "actions": ["files:*"],
+      "resources": ["/files/hr/**"],
+      "conditions": {"attributes": {"principal.clearance": {"gte": 3}, "context.network": "office"}}
+    },
+    {
+      "id": "hr-lock",
+      "effect": "deny",
+      "roles": ["employee"],
+      "actions": ["files:*"],
+      "resources": ["/files/hr/**"],
+      "conditions": {"attributes": {"principal.dept": {"in": ["sales", "eng"]}}}
+    },
+    {
+      "id": "night-freeze",
+      "effect": "deny",
+      "roles": ["employee"],
+      "actions": ["wiki:write"],
+      "resources": ["/wiki/**"],
+      "conditions": {"time": [{"days": ["fri"], "start": "20:00", "end": "06:00", "tz_offset": "+01:00"}]}
+    }
+  ]
+}

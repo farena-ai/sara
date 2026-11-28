@@ -1,0 +1,12 @@
+{
+  "group_by": [
+    "region"
+  ],
+  "metrics": [
+    "revenue",
+    "share",
+    "rank",
+    "avg_price"
+  ],
+  "format": "csv"
+}

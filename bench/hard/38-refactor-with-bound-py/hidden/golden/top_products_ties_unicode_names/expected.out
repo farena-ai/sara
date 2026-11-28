@@ -1,0 +1,6 @@
+region  revenue  rank  top_products
+------  -------  ----  --------------------------
+e          1.00     3  only (1.00)
+n         19.00     1  Zebra (5.00), apple (5.00)
+s         16.00     2  bowl (5.00), cup (5.00)
+TOTAL     36.00        Zebra (5.00), apple (5.00)

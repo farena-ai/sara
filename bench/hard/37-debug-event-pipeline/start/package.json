@@ -1,0 +1,9 @@
+{
+  "name": "relay",
+  "version": "1.3.0",
+  "private": true,
+  "type": "module",
+  "description": "An in-process event pipeline: a queue with retries and backoff, dedupe, batching and a journal on disk.",
+  "bin": { "relay": "bin/relay.js" },
+  "scripts": { "test": "node --test" }
+}

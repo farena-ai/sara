@@ -13,7 +13,7 @@ import { checksDb, detectCheckers } from './diagnostics.ts';
 import { GIT_SAFE } from './tools/coding.ts';
 import { repoFromRemote } from './tools/github.ts';
 import { ToolError, type Tool } from './tools/types.ts';
-import { resolveInside, workspaceDir } from './tools/workspace.ts';
+import { resolveInside, workspaceDir, workspacesBase } from './tools/workspace.ts';
 import { ProjectCheckpointStore } from './project-checkpoints.ts';
 
 export interface ProjectFacts {
@@ -223,7 +223,7 @@ CREATE TABLE IF NOT EXISTS project_notes (
   }
 
   #ws(workspace: string): string {
-    return workspaceDir(this.#app.rootDir ?? this.#app.dataDir, workspace);
+    return workspaceDir(workspacesBase(this.#app), workspace);
   }
 
   /** Existing canonical keys only: checkpoint operations must never trigger project scans. */
@@ -327,7 +327,7 @@ export function createProjectNoteTool(app: () => AppContext): Tool {
       if (!conv || !a.projects) throw new ToolError('Project notes need a conversation with a workspace.');
       const list = a.projects.get(conv.workspace);
       const want = typeof args.path === 'string' && args.path.trim() ? args.path.trim().replace(/\/+$/, '') : undefined;
-      if (want) resolveInside(workspaceDir(a.rootDir ?? a.dataDir, conv.workspace), want);
+      if (want) resolveInside(workspaceDir(workspacesBase(a), conv.workspace), want);
       const k = want ? list.find((x) => x.path === want) : list[0];
       const path = k?.path ?? want ?? '.';
       const kind = ['decision', 'convention', 'command', 'note'].includes(String(args.kind)) ? (String(args.kind) as ProjectNote['kind']) : 'note';

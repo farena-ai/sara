@@ -124,3 +124,54 @@ test('T56: in a coding turn the review finds a gap, she gets it once, fixes it, 
   for await (const _ of runTurn(app, conv.id, 'Again')) void _;
   assert.equal(reviews.length, 0);
 });
+
+test('T57: with "the reviewer finishes" on, the Review model takes the turn over and fixes the gaps itself', async (t) => {
+  resetEditGuard();
+  const { dir, cleanup } = tempDir();
+  const app: TestApp = makeApp(dir, { now: new Date('2026-11-27T12:00:00Z') });
+  t.after(() => {
+    app.store.close();
+    cleanup();
+  });
+  app.codeReview = true;
+  app.settings.update({ providers: [{ id: 'p', label: 'P', kind: 'openai-compatible', baseUrl: 'http://127.0.0.1:1/v1' }], defaultProviderId: 'p', defaultModel: 'small', ownerName: 'Alex', disclosureAcceptedAt: '2026-11-01T00:00:00Z', toolPermissions: { shell: 'auto' }, routes: { review: { providerId: 'p', model: 'strong' } }, precise: { checks: { review: true, reviewFinish: true } } } as never);
+  const conv = app.store.createConversation({ title: 'x', mode: 'coding', workspace: 'proj2' });
+  const w = workspaceDir(dir, 'proj2');
+  mkdirSync(w, { recursive: true });
+  writeFileSync(join(w, 'README.md'), 'Totals are rounded half up to the cent.\n');
+  writeFileSync(join(w, 'money.js'), 'export const roundCents = (x) => Math.floor(x);\n');
+  const by: string[] = [];
+  const notes: string[] = [];
+  let small = 0;
+  let strong = 0;
+  const script = (req: ChatRequest): StreamEvent[] => {
+    const sys = req.messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n');
+    if (sys.includes('You review a code change against what was asked')) return text('ISSUE: "rounded half up" | Math.trunc drops the half instead of rounding it up');
+    by.push(req.model);
+    const lastUser = [...req.messages].reverse().find((m) => m.role === 'user');
+    if (lastUser && /\[Note from the app/.test(lastUser.content)) notes.push(lastUser.content);
+    if (req.model === 'small') {
+      small++;
+      if (small === 1) return [call('e1', 'edit_file', { path: 'money.js', old_string: 'Math.floor(x)', new_string: 'Math.trunc(x)' })];
+      return text('I changed the rounding.');
+    }
+    strong++;
+    if (strong === 1) return [call('e2', 'edit_file', { path: 'money.js', old_string: 'Math.trunc(x)', new_string: 'Math.round(x)' })];
+    return text('It now rounds half up; that was the one real gap.');
+  };
+  app.providerFactory = (config: ProviderConfig): Provider => ({
+    config,
+    listModels: async () => ['small', 'strong'],
+    async *stream(req: ChatRequest) {
+      yield* script(req);
+    },
+  });
+  const evs: ChatEvent[] = [];
+  for await (const ev of runTurn(app, conv.id, 'Fix the rounding of totals')) evs.push(ev);
+  assert.deepEqual(by, ['small', 'small', 'strong', 'strong'], 'the small model wrote it, the Review model finished it');
+  assert.match(notes[0]!, /another model wrote the change above and said it was finished/);
+  assert.match(notes[0]!, /You take over from here/);
+  assert.ok(evs.some((e) => e.type === 'notice' && /takes over to fix them/.test(e.text)));
+  const last = app.store.messages(conv.id).filter((m) => m.role === 'assistant').at(-1)!;
+  assert.equal(last.meta?.model, 'strong', 'the reply names the model that wrote it');
+});

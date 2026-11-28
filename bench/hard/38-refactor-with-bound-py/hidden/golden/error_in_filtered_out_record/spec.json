@@ -1,0 +1,8 @@
+{
+  "group_by": [
+    "region"
+  ],
+  "where": {
+    "day_from": "2026-01-01"
+  }
+}

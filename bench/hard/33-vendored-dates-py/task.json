@@ -1,0 +1,7 @@
+{
+  "title": "rota: expand recurring schedules with a vendored date library",
+  "kind": "feature",
+  "lang": "python",
+  "prompt": "rota keeps the team's recurring schedules. Dates and times go through kalends, a small library vendored under vendor/kalends/ (it has its own README.md and docs/API.md). The schedules can be read already, but nothing turns them into a timeline yet: implement expand and expand_all in rota/expand.py and find_conflicts in rota/conflicts.py as specified in docs/SCHEDULES.md (the schedule format is in docs/FORMAT.md, the team calendar in rota/config.py). The library under vendor/ is third-party code and must not be modified. Make sure the test suite passes.",
+  "hidden": ["{python}", "-m", "unittest", "discover", "-s", "__hidden__", "-p", "*_test.py"]
+}

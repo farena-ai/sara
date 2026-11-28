@@ -10,6 +10,9 @@ import { herPictureMode, pictureMotion } from './v4-picture.js';
 import { adoptPresence, avatarConfig, configureAvatar, initAvatar, reloadVrm } from './avatar.js';
 import { currentTap, voiceTap } from './voice-tap.js';
 import { clearFaceFit, initAvatarSettings, readFaceFit } from './avatar-settings.js';
+import './companion-keys.js';
+/** T62: her picture and the appearance set, kept per companion on this device (web/companion-keys.js). */
+const look = globalThis.saraKeys;
 import { Presence, setLookVersion } from './presence.js';
 import { openLightbox } from './lightbox.js';
 import { dialRows as dialRowsOf, refreshDials, soFarText } from './dials.js';
@@ -36,6 +39,7 @@ import { loadIsolation, wireIsolation } from './isolation.js';
 import { loadSignalPage } from './signal.js';
 import { loadEmailPage } from './email.js';
 import { loadMailAccounts } from './mail-accounts.js';
+import { loadCompanionAccess } from './companion-access.js';
 import { loadBusinessDetails, saveBusinessDetails } from './business-details.js';
 import { loadMyDetails, saveMyDetails } from './my-details.js';
 import { loadWritingStyle } from './writing-style.js';
@@ -146,6 +150,7 @@ import { initCostAutopilot } from './cost-autopilot.js';
 import { initModelTests, modelTestsRoutes, modelTestsSettings, onModelTestsEvent } from './model-tests.js';
 import { initTrustReport } from './trust-report.js';
 import { checksCard, checksChip, initRefs, loadPreciseSettings, refChipsSent, savePreciseSettings } from './refs.js';
+import { OWN_PAGES, paintOwnChoices } from './own-choices.js';
 import { askAside, guardLine, initBusy, refreshPending, renderPending, sayingFold, sendBusy, setBusy, setBusyDefault, steerBubble, typedBusy } from './busy.js';
 import { initNav, placeRail, relabelNav, setMore } from './nav.js';
 import { initGetMore, initStore, loadGetMore, loadStorePrivacy } from './store.js';
@@ -228,6 +233,7 @@ import { adoptAccess, currentAccess, initA11y } from './a11y-mode.js';
 import { secondOpinionButton, secondOpinionOffer } from './second-opinion.js';
 import { nudgeLine } from './nudges.js';
 import { herWeekCard, initHerWeek, loadHerWeek } from './her-week.js';
+import { initChatModel } from './chat-model.js';
 import { enterSend, enterSendsOn, setEnterSends } from './enter-send.js';
 import { PAUSE, partBreaks, startPause, TYPING_KEY, typingOn } from './human-typing.js';
 import { Drafts, busy, extraShortcut, menuKeys, msgWhen } from './paper-cuts.js';
@@ -386,7 +392,7 @@ async function boot() {
   void api('/settings').then((s) => {
     applyAdminHelp(s.admin);
     // V1: a device that never chose starts from "Use on all my devices"; otherwise the one-time notice.
-    if (!adoptAppearance(s.appearance)) offerV1Notice(state.conversations.length > 0 || localStorage.getItem('sara.theme') !== null);
+    if (!adoptAppearance(s.appearance)) offerV1Notice(state.conversations.length > 0 || look.get('sara.theme') !== null);
   }, () => {});
   // Phase 116: what a message does while she works (Settings → You → While she's working).
   if (!session.demo) void api('/chats/while-busy').then((v) => setBusyDefault(v.settings.whileBusy), () => {});
@@ -867,7 +873,7 @@ function group(key, label, convs, opts = {}) {
   // Sara Classic keeps the plain label (its row is laid out exactly as before).
   const nameEl = el('span', 'group-name', label);
   nameEl.dataset.raw = '';
-  toggle.append(localStorage.getItem('sara.palette') === 'classic' ? document.createTextNode(label) : nameEl);
+  toggle.append(look.get('sara.palette') === 'classic' ? document.createTextNode(label) : nameEl);
   const unloaded = opts.groupKey ? (state.unloaded?.[opts.groupKey] ?? 0) : 0;
   toggle.append(el('small', 'muted group-n', ` ${convs.length + unloaded}`));
   // 3.0.3: how many chats in this folder need you (a small red count).
@@ -1860,15 +1866,6 @@ initV4({
   messages: () => state.messages,
   conv: () => state.conv,
   streaming: () => Boolean(state.streaming || state.watch),
-  // The model this chat uses (the same as her panel's This conversation → Model).
-  model: () => {
-    const c = state.conv;
-    const s = state.providers;
-    if (!c || !s) return null;
-    const prov = c.providerId ?? s.defaultProviderId;
-    const name = c.model ?? (c.providerId ? null : s.defaultModel) ?? '';
-    return name ? { name, provider: s.providers?.find((p) => p.id === prov)?.label ?? '' } : null;
-  },
   panelOpen: () => panelOpen(),
   openPanel: () => openPanel({ focus: false }),
   openTeam: () => $('#open-team').click(),
@@ -1883,6 +1880,31 @@ initV4({
   openPlanner: () => $('#open-planner').click(),
   openMemory: () => openMemory(),
   openCommandBar: () => openCommandBar(),
+});
+// T63 (owner, 2026-11-28): the one model control, in the message box (web/chat-model.js).
+const chatModel = initChatModel({
+  api,
+  conv: () => state.conv,
+  providers: () => state.providers,
+  isGroup,
+  demo: () => document.body.classList.contains('demo'),
+  streaming: () => Boolean(state.streaming),
+  modelViewFor: (id) => modelViewFor(id),
+  setConv: (patch) => {
+    if (!state.conv) return;
+    state.conv = { ...state.conv, ...patch };
+    state.conversations = state.conversations.map((x) => (x.id === state.conv.id ? { ...x, ...patch } : x));
+    renderConvSummary();
+  },
+  // Her panel's This conversation → Model names the same model as the chip.
+  changed: () => panelConv(),
+  notice: (text) => append(bubble('notice', text, 'command-reply')),
+  error: (message) => append(bubble('error', message)),
+  closeOthers: () => {
+    $('#composer-menu').hidden = true;
+    $('#composer-plus').setAttribute('aria-expanded', 'false');
+    $('#composer-plus').classList.remove('on');
+  },
 });
 // Phase 75 (stage 3): Today's tiles (web/today.js) and the phone's bottom bar (web/bottom-bar.js).
 /** Phase 111: Today's date words, set once loadToday's helpers exist (initToday runs before them). */
@@ -2781,6 +2803,8 @@ async function runChatCommand(text) {
   append(bubble('user', text, 'command-line'));
   try {
     const r = await api(`/conversations/${state.currentId}/command`, { method: 'POST', body: { text } });
+    // T63: /model typed here changes the same thing the message box's model chip shows.
+    if (/^\/model\b/i.test(text)) void chatModel.refresh();
     if (r.opened && r.opened.id !== state.currentId) {
       if (!state.conversations.some((c) => c.id === r.opened.id)) state.conversations.unshift(r.opened);
       state.conversations = state.conversations.map((c) => (c.id === state.currentId ? { ...c, endedAt: c.endedAt ?? new Date().toISOString() } : c));
@@ -4521,6 +4545,7 @@ function renderConvSummary() {
   if (isGroup(c)) {
     const style = { fits: t('Whoever fits'), everyone: t('Everyone answers'), turns: t('Take turns'), mention: t('@mention only') }[c.group?.turnStyle] ?? '';
     setConvSummary(`${groupTag(c)} · ${style}${c.group?.banter ? ` · ${t('Banter: {n}', { n: c.group.banter })}` : ''}`);
+    chatModel.sync();
     panelConv();
     return;
   }
@@ -4528,12 +4553,6 @@ function renderConvSummary() {
   $('#offrecord-bar').hidden = !c.offRecord || demo;
   $('#demo-bar').hidden = !demo;
   $('#main').classList.toggle('offrecord', Boolean(c.offRecord));
-  const s = state.providers;
-  const prov = c.providerId ?? s.defaultProviderId;
-  const model = c.model ?? (c.providerId ? null : s.defaultModel) ?? '';
-  const label = s.providers.find((p) => p.id === prov)?.label ?? prov ?? t('no provider');
-  const kind = s.providers.find((p) => p.id === prov)?.kind;
-  const plan = kind === 'chatgpt' ? ` · ${t('Using ChatGPT plan')}` : kind === 'claude-code' ? ` · ${t('Claude subscription')}` : kind === 'grok-cli' ? ` · ${t('Grok subscription')}` : '';
   // L11: "main" is the main folder of her workspaces.
   // Phase 71: members have no workspace folders (the file tools are the owner's), so no folder part.
   const ws = c.workspace === 'main' ? t('main folder') : c.workspace;
@@ -4545,9 +4564,11 @@ function renderConvSummary() {
   // 3.0.3 (owner): a coding chat (or a chat in a coding project) is about the work: no mood line under
   // the title, and the AI notice as the short "AI" pill (web/style.css), never removed.
   $('#main').classList.toggle('coding-chat', c.mode === 'coding' || Boolean(c.projectId && (state.projects ?? []).find((p) => p.id === c.projectId)?.workspace));
-  const service = String(label).replace(/\s*\((API key|Claude|Grok)\)$/, '');
-  if (plain) setConvSummary(prov ? `${t('Thinks with {service}', { service })}${plan}` : t('No AI service yet'), model ? `${service} · ${model}` : service);
-  else setConvSummary(`${c.mode === 'coding' ? `${t('Coding')} · ` : ''}${folder}${model || label}${plan}`, [model || label, folder ? ws : ''].filter(Boolean).join(' · '));
+  // T63 (owner, 2026-11-28): the model is chosen and shown in the message box (web/chat-model.js), not
+  // here: this button is the chat's settings (mode, folder, privacy, thinking, project) and names only those.
+  const words = [c.mode === 'coding' ? t('Coding') : '', folder ? ws : ''].filter(Boolean).join(' · ') || t('Chat settings');
+  setConvSummary(words, words);
+  chatModel.sync();
   panelConv();
 }
 
@@ -4564,8 +4585,10 @@ function convFacts() {
     ];
   }
   const s = state.providers;
-  const prov = c.providerId ?? s.defaultProviderId;
-  const model = c.model ?? (c.providerId ? null : s.defaultModel) ?? '';
+  // T63: what the next message uses, as the message box's model chip names it (her own model, Auto or the default too).
+  const next = c.providerId ? null : chatModel.view()?.next;
+  const prov = next?.providerId ?? c.providerId ?? s.defaultProviderId;
+  const model = next?.model ?? c.model ?? (c.providerId ? null : s.defaultModel) ?? '';
   const label = s.providers.find((p) => p.id === prov)?.label ?? prov ?? t('no provider');
   const demo = document.body.classList.contains('demo');
   const privacy = c.offRecord ? [t('Off the record: nothing is saved'), 'hp-offrecord'] : c.private ? [t('Private: local models only, nothing leaves your server'), 'hp-private'] : demo ? [t('Demo: not saved, gone after a few hours'), 'hp-offrecord'] : c.channel === 'a2a' ? [t('Another agent: kept here, nothing is learned from it'), 'hp-offrecord'] : c.partner ? [t('Other people: kept here, not in her memory of you'), 'hp-offrecord'] : [t('Saved: she remembers what matters'), ''];
@@ -4576,25 +4599,6 @@ function convFacts() {
     ...(c.mode === 'coding' ? [[t('Mode'), t('Coding')]] : []),
     [t('Privacy'), privacy[0], privacy[1]],
   ];
-}
-
-async function csLoadModels(selected) {
-  const sel = $('#cs-model');
-  const prov = $('#cs-provider').value;
-  sel.replaceChildren(new Option(t('Loading…'), ''));
-  if (!prov) {
-    sel.replaceChildren(new Option(t('Default ({model})', { model: state.providers.defaultModel ?? t('none') }), ''));
-    return;
-  }
-  try {
-    const view = await modelViewFor(prov);
-    fillModelOptions(sel, view, selected);
-    sel.value = selected || view.models[0] || '';
-    $('#cs-status').textContent = '';
-  } catch (err) {
-    sel.replaceChildren(...(selected ? [new Option(selected, selected)] : []));
-    $('#cs-status').textContent = t("Couldn't load models: {message}", { message: err.message });
-  }
 }
 
 $('#conv-settings-btn').addEventListener('click', async () => {
@@ -4610,15 +4614,8 @@ $('#conv-settings-btn').addEventListener('click', async () => {
   $('#cs-archive').textContent = c.archivedAt ? t('Unarchive') : t('Archive');
   const ws = await api('/workspaces').catch(() => []);
   $('#cs-workspaces').replaceChildren(...ws.map((w) => new Option(w, w)));
-  const def = state.providers.providers.find((p) => p.id === state.providers.defaultProviderId);
-  $('#cs-provider').replaceChildren(
-    new Option(t('Default ({model})', { model: `${def?.label ?? t('none')} · ${state.providers.defaultModel ?? ''}` }), ''),
-    ...state.providers.providers.map((p) => new Option(p.label, p.id)),
-  );
-  $('#cs-provider').value = c.providerId ?? '';
   $('#cs-private').checked = Boolean(c.private);
   $('#cs-thinking').value = c.thinking ?? '';
-  await csLoadModels(c.model);
   void loadConvFill(c);
   renderConvTitle(c);
   void loadConvTitle(c);
@@ -4696,19 +4693,15 @@ $('#cs-new').addEventListener('click', async () => {
   }
 });
 
-$('#cs-provider').addEventListener('change', () => csLoadModels(null));
-
+// T63: the model isn't saved here: the message box's picker is its one place (web/chat-model.js).
 onSave($('#conv-settings'), async () => {
   $('#cs-error').textContent = '';
-  const providerId = $('#cs-provider').value || null;
   try {
     const conv = await api(`/conversations/${state.conv.id}`, {
       method: 'PATCH',
       body: {
         mode: $('#cs-mode').value,
         workspace: $('#cs-workspace').value.trim() || 'main',
-        providerId,
-        model: providerId ? $('#cs-model').value || null : null,
         private: $('#cs-private').checked,
         thinking: $('#cs-thinking').value || null,
         projectId: $('#cs-project').value ? Number($('#cs-project').value) : null,
@@ -4779,11 +4772,24 @@ async function refreshSaraStatus() {
 }
 $('#sara-status').addEventListener('click', () => openSara());
 
+// T62: whether the companion this page is has a look of her own (the main companion always does), so
+// her picture starts as her portrait instead of the orb. Not known yet: asked once, then drawn again.
+let ownLookAsked = false;
+function herOwnLook() {
+  if (look.current() === look.MAIN) return true;
+  const me = state.companions?.companions.find((c) => c.current);
+  if (me) return Boolean(me.main || me.ownLook);
+  if (!ownLookAsked) {
+    ownLookAsked = true;
+    void loadCompanions().then(() => state.lastFace && setFace(state.lastFace), () => undefined);
+  }
+  return false;
+}
 // Her picture follows her mood (or the owner's own picture).
 function setFace(st) {
   const own = st.customAvatar;
   // V4d: Her portrait (Appearance) shows her mood pictures even when one of yours is uploaded.
-  const pic = localStorage.getItem('sara.palette') === 'classic' ? (own ? 'own' : 'orb') : herPictureMode(localStorage.getItem('sara.herPicture'), Boolean(own));
+  const pic = look.get('sara.palette') === 'classic' ? (own ? 'own' : 'orb') : herPictureMode(look.get('sara.herPicture'), Boolean(own), herOwnLook());
   const custom = pic === 'portrait' || pic === 'still' || pic === 'vrm' ? null : own;
   const x = st.expression && st.expression !== 'default' ? st.expression : null;
   // The look's version, so a new look is fetched instead of the copy the page already holds.
@@ -4796,11 +4802,11 @@ function setFace(st) {
   document.documentElement.classList.toggle('v4-own-face', pic !== 'orb');
   document.documentElement.style.setProperty('--her-pic', `url("${avatar}")`);
   state.lastFace = st;
-  if (!localStorage.getItem('sara.herPicture') && $('#ap-herpic')) $('#ap-herpic').value = pic;
+  if (!look.get('sara.herPicture') && $('#ap-herpic')) $('#ap-herpic').value = pic;
   panelFace({ avatar, portrait, expression: state.expression });
   // A1: how her picture moves (Classic keeps its own portrait behaviour, the orb has its own life).
   const fit = pic === 'own' ? readFaceFit() : null;
-  const motion = localStorage.getItem('sara.palette') === 'classic' ? null : pictureMotion(pic, { fitted: Boolean(fit), vrm: localStorage.getItem('sara.vrm') === '1' });
+  const motion = look.get('sara.palette') === 'classic' ? null : pictureMotion(pic, { fitted: Boolean(fit), vrm: look.get('sara.vrm') === '1' });
   configureAvatar({ motion, expression: state.expression, custom: pic === 'own' ? avatar : null, version: v, fit });
   for (const pr of [sdPresence, callPresence]) pr.setExpression(state.expression, state.customAvatar);
   if (videoView.open) videoView.backdrop();
@@ -4825,7 +4831,15 @@ $('#avatar-reset').addEventListener('click', async () => {
   await api('/sara/avatar', { method: 'DELETE' });
   await refreshSaraStatus();
 });
-$('#open-sara').addEventListener('click', () => openSara());
+// T61 (owner, 2026-11-28): with more than one companion, her face and name at the bottom left switch between them.
+$('#open-sara').addEventListener('click', (e) => {
+  if ((state.companions?.companions.length ?? 0) < 2) return void openSara();
+  e.stopPropagation();
+  const menu = $('#side-companion-menu');
+  menu.hidden = !menu.hidden;
+  $('#open-sara').setAttribute('aria-expanded', String(!menu.hidden));
+  if (!menu.hidden) menu.querySelector('button')?.focus();
+});
 
 const lines = (s) => s.split('\n').map((x) => x.trim()).filter(Boolean);
 
@@ -5511,7 +5525,7 @@ const callPresence = new Presence($('#call-presence'));
 adoptPresence(callPresence);
 // A1: her voice in chat moves her lips too: the shared Web Audio tap, made inside a click (a gesture).
 const tapVoice = () => {
-  if (localStorage.getItem('sara.palette') !== 'classic') voiceTap(speaker.audio);
+  if (look.get('sara.palette') !== 'classic') voiceTap(speaker.audio);
 };
 // A click (not pointerdown: on touch screens that is no user activation yet, the context would start
 // suspended and silence her voice).
@@ -8000,6 +8014,26 @@ function hideOtherNote(id) {
 }
 $('#other-note-go').addEventListener('click', () => switchCompanion($('#other-note').dataset.companion, $('#other-note').dataset.conv));
 $('#other-note-x').addEventListener('click', () => hideOtherNote());
+/** One button per companion: her face, her name, a tick on the one you are talking to (both companion menus). */
+function companionItems(d) {
+  return d.companions.map((c) => {
+    // UI cleanup (wave 2): each companion with her face; a tick marks the one you're talking to.
+    const b = el('button', c.current ? 'current cm-item' : 'cm-item');
+    const face = el('img', 'cm-face');
+    face.src = faceUrl(c.id);
+    face.alt = '';
+    const who = el('span', 'cm-name', c.name);
+    b.append(face, who);
+    // Phase 67: her model isn't on this computer while nothing may leave it.
+    if (c.pausedLocal) who.append(el('span', 'muted small', ` · ${t('paused in private local mode')}`));
+    if (c.current) b.append(el('span', 'cm-tick', '✓'));
+    b.setAttribute('aria-current', String(Boolean(c.current)));
+    b.type = 'button';
+    b.setAttribute('role', 'menuitem');
+    if (!c.current) b.addEventListener('click', () => switchCompanion(c.id));
+    return b;
+  });
+}
 async function loadCompanions() {
   const d = await api('/companions').catch(() => null);
   if (!d) return null;
@@ -8008,24 +8042,31 @@ async function loadCompanions() {
   $('#companion-switch').hidden = !many;
   showGroupButton(d.companions.length);
   const menu = $('#companion-menu');
+  // T61: the bottom-left face opens the same list (with her page first among the extras).
+  const side = $('#open-sara');
+  side.classList.toggle('many', many);
+  if (many) {
+    side.setAttribute('aria-haspopup', 'menu');
+    side.setAttribute('aria-expanded', 'false');
+    side.title = t('Talk to another companion');
+  } else {
+    side.removeAttribute('aria-haspopup');
+    side.removeAttribute('aria-expanded');
+    side.title = t('Her page: her day, mood, character (Alt+H)');
+  }
+  const sideItem = (label, go) => {
+    const b = el('button', 'ghost', label);
+    b.type = 'button';
+    b.setAttribute('role', 'menuitem');
+    b.addEventListener('click', () => {
+      $('#side-companion-menu').hidden = true;
+      go();
+    });
+    return b;
+  };
+  $('#side-companion-menu').replaceChildren(...companionItems(d), sideItem(t('Her page'), () => void openSara()), sideItem(t('Add or manage companions…'), () => openSettings('her-companions')));
   menu.replaceChildren(
-    ...d.companions.map((c) => {
-      // UI cleanup (wave 2): each companion with her face; a tick marks the one you're talking to.
-      const b = el('button', c.current ? 'current cm-item' : 'cm-item');
-      const face = el('img', 'cm-face');
-      face.src = faceUrl(c.id);
-      face.alt = '';
-      const who = el('span', 'cm-name', c.name);
-      b.append(face, who);
-      // Phase 67: her model isn't on this computer while nothing may leave it.
-      if (c.pausedLocal) who.append(el('span', 'muted small', ` · ${t('paused in private local mode')}`));
-      if (c.current) b.append(el('span', 'cm-tick', '✓'));
-      b.setAttribute('aria-current', String(Boolean(c.current)));
-      b.type = 'button';
-      b.setAttribute('role', 'menuitem');
-      if (!c.current) b.addEventListener('click', () => switchCompanion(c.id));
-      return b;
-    }),
+    ...companionItems(d),
     (() => {
       const b = el('button', 'ghost', t('Add or manage companions…'));
       b.type = 'button';
@@ -8047,6 +8088,19 @@ $('#companion-switch').addEventListener('click', (e) => {
 });
 document.addEventListener('click', (e) => {
   if (!$('#companion-menu').hidden && !e.target.closest('#companion-menu')) $('#companion-menu').hidden = true;
+  if (!$('#side-companion-menu').hidden && !e.target.closest('#side-companion-menu')) closeSideCompanions();
+});
+/** T61: the bottom-left companion list closes on Escape too, and gives the focus back to her face. */
+function closeSideCompanions(focus = false) {
+  $('#side-companion-menu').hidden = true;
+  $('#open-sara').setAttribute('aria-expanded', 'false');
+  if (focus) $('#open-sara').focus();
+}
+$('#side-companion-menu').addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    e.stopPropagation();
+    closeSideCompanions(true);
+  }
 });
 async function renderCompanionsPage() {
   const d = await loadCompanions();
@@ -9491,6 +9545,8 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'ab-google' && typeof loadMailAccounts === 'function') void loadMailAccounts('#g-accounts');
   // R6 (docs/WORK_APPS.md): booking page, accounting export, Docs/Sheets and Word/Excel permissions.
   if (pick === 'you-business' || pick === 'ab-google' || pick === 'ab-mail') void loadWorkApps(pick);
+  // T62: while another companion is open, what she may use of these accounts.
+  if (pick === 'ab-google' || pick === 'ab-mail') void loadCompanionAccess(pick);
   if (pick === 'co-whatsapp') void loadWhatsAppPage();
   if (pick === 'co-matrix') void loadMatrixPage();
   if (pick === 'co-imessage') void loadIMessagePage();
@@ -9503,6 +9559,8 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'models-default') void paintFitness($('#model-fitness'));
   if (pick === 'you-about') void paintGuideCard();
   if (pick === 'ab-precise') void loadPreciseSettings();
+  // T62: a second companion's own models, thinking, edit checks and tool rules, or the main one's (web/own-choices.js).
+  if (OWN_PAGES[pick]) void paintOwnChoices(pick, { api, t, reload: OWN_RELOAD[pick] });
   if (shown.has('ab-when')) void loadWhenSettings();
   if (pick === 'you-automations') void loadAutomations();
   // U4.22: Health log switches (web/health.js).
@@ -9894,6 +9952,9 @@ async function saveCoreSettings() {
   await applyLanguage($('#ui-language').value, $('#ui-language').value === 'auto' ? '' : undefined);
   if (currentLang() !== before) await rerenderAfterLanguage();
 }
+
+// T62: reading a page again after a companion goes back to the main companion's choices.
+const OWN_RELOAD = { 'models-default': () => loadSettingsPages(), 'models-routes': () => renderRoutes(), 'ab-tools': () => loadTools(), 'ab-precise': () => loadPreciseSettings() };
 
 // Each Settings page saves only its own part (H1): a change to the time zone no longer rewrites
 // tool permissions or reconnects the Discord/Telegram bots. Pages not listed save themselves.
@@ -10434,7 +10495,7 @@ $('#td-ask').addEventListener('click', async () => {
 });
 
 // ---------- keyboard shortcuts (Phase 15) ----------
-const SHORTCUTS = { KeyT: openToday, KeyP: () => $('#open-planner').click(), KeyM: () => $('#open-memory').click(), KeyL: () => $('#open-library').click(), KeyB: () => $('#open-scrapbook').click(), KeyY: () => $('#open-story').click(), KeyH: () => $('#open-sara').click(), KeyN: () => $('#new-chat').click() };
+const SHORTCUTS = { KeyT: openToday, KeyP: () => $('#open-planner').click(), KeyM: () => $('#open-memory').click(), KeyL: () => $('#open-library').click(), KeyB: () => $('#open-scrapbook').click(), KeyY: () => $('#open-story').click(), KeyH: () => void openSara(), KeyN: () => $('#new-chat').click() };
 document.addEventListener('keydown', (e) => {
   // Today is a view, not a window: the shortcuts work on it too.
   if (document.querySelector('dialog[open]:not(#today)')) return;
@@ -10464,7 +10525,7 @@ document.addEventListener('keydown', (e) => {
 
 // Links that open a view: /#view=today|planner|memory|scrapbook|her|settings[:page] (Phase 19).
 window.saraCompanionCount = () => state.companions?.companions.length ?? 1;
-const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), errands: () => $('#open-errands').click(), goals: () => $('#open-goals').click(), study: () => void openStudy(), scan: () => void openScan(), journal: () => void openJournal(), apps: () => void openMyApps(), meetings: () => void openMeetingsView(), family: () => $('#open-family').click(), messages: () => $('#open-msgs').click(), msgs: () => $('#open-msgs').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click(), trips: () => $('#open-trips').click(), money: () => $('#open-money').click(), business: () => $('#open-bizpack').click(), bizpack: () => $('#open-bizpack').click(), health: () => $('#open-health').click(), simple: () => void openSimpleHome(), addons: () => $('#open-addons').click(), try: () => void openTryThese(), 'whats-new': () => void openWhatsNew(), shared: () => void openSettings('co-phone'), waiting: () => void openWaiting(), records: () => void openRecords() };
+const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), errands: () => $('#open-errands').click(), goals: () => $('#open-goals').click(), study: () => void openStudy(), scan: () => void openScan(), journal: () => void openJournal(), apps: () => void openMyApps(), meetings: () => void openMeetingsView(), family: () => $('#open-family').click(), messages: () => $('#open-msgs').click(), msgs: () => $('#open-msgs').click(), story: () => $('#open-story').click(), her: () => void openSara(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click(), trips: () => $('#open-trips').click(), money: () => $('#open-money').click(), business: () => $('#open-bizpack').click(), bizpack: () => $('#open-bizpack').click(), health: () => $('#open-health').click(), simple: () => void openSimpleHome(), addons: () => $('#open-addons').click(), try: () => void openTryThese(), 'whats-new': () => void openWhatsNew(), shared: () => void openSettings('co-phone'), waiting: () => void openWaiting(), records: () => void openRecords() };
 function openViewFromHash() {
   const v = /#view=([\w:-]+)/.exec(location.hash)?.[1];
   if (!v || !$('#main') || $('#main').hidden) return false;
@@ -10655,25 +10716,25 @@ let apSegSync = [];
 // V3 (docs/ops/V3_DESIGN.md §5, the owner's defaults): Follow the system unless picked on this device
 // (Sara Classic keeps Night); web/theme-boot.js applies the same rules before the first paint.
 const themePick = (pal = palettePick()) => {
-  const v = localStorage.getItem('sara.theme');
+  const v = look.get('sara.theme');
   return v === 'light' || v === 'system' || v === 'dark' ? v : pal === 'classic' ? 'dark' : 'system';
 };
 // Colour: Violet unless picked (V4e; Sara Classic keeps its own rose: the stored "rose" = the palette's own).
-const accentPick = (pal = palettePick()) => localStorage.getItem('sara.accent') ?? paletteDefaultAccent(pal);
+const accentPick = (pal = palettePick()) => look.get('sara.accent') ?? paletteDefaultAccent(pal);
 // V1 (docs/ops/V1_DESIGN.md → Themes): palette × Night/Day. Graphite unless picked on this device.
 const PALETTES = ['graphite', 'midnight', 'slate', 'nord', 'solarized', 'paper', 'ember', 'contrast', 'classic'];
 const palettePick = () => {
-  const v = localStorage.getItem('sara.palette');
+  const v = look.get('sara.palette');
   return PALETTES.includes(v) ? v : 'graphite';
 };
 // V3: Full decoration unless picked (outside Sara Classic it is the refined glass and light, v3.css).
 const decorPick = () => {
-  const v = localStorage.getItem('sara.decor');
+  const v = look.get('sara.decor');
   return v === 'on' || v === 'off' ? v : 'on';
 };
 // Her portrait in work views: small unless picked (Sara Classic keeps it large, as before).
 const portraitPick = (pal = palettePick()) => {
-  const v = localStorage.getItem('sara.portrait');
+  const v = look.get('sara.portrait');
   return v === 'large' || v === 'small' || v === 'hidden' ? v : pal === 'classic' ? 'large' : 'small';
 };
 // The old colour names show as the presets they map onto (their stored value keeps working).
@@ -10681,7 +10742,7 @@ const ACCENT_NOW = { lavender: 'violet', ocean: 'cyan', forest: 'green', mono: '
 const ACCENT_VARS = [['--accent-solid', 'fill'], ['--accent-text', 'text'], ['--on-accent', 'on'], ['--accent', 'fill'], ['--accent-2', 'text'], ['--btn-fill', 'fill'], ['--on-btn', 'on']];
 function readCustomAccent() {
   try {
-    const c = JSON.parse(localStorage.getItem('sara.accentCustom') ?? 'null');
+    const c = JSON.parse(look.get('sara.accentCustom') ?? 'null');
     return c?.dark && c?.light ? c : null;
   } catch {
     return null;
@@ -10740,20 +10801,20 @@ function applyAppearance() {
   root.classList.toggle('theme-day', light);
   root.classList.toggle('theme-night', !light);
   const pal = palettePick();
-  for (const k of Object.keys(AP_DEFAULTS)) root.dataset[k] = k === 'accent' ? accentPick(pal) : (localStorage.getItem(`sara.${k}`) ?? AP_DEFAULTS[k]);
+  for (const k of Object.keys(AP_DEFAULTS)) root.dataset[k] = k === 'accent' ? accentPick(pal) : (look.get(`sara.${k}`) ?? AP_DEFAULTS[k]);
   // V1: palette, decoration, her portrait and a custom accent (the same rules as web/theme-boot.js).
   root.dataset.palette = pal;
   root.dataset.decor = matchMedia('(prefers-reduced-transparency: reduce)').matches ? 'off' : decorPick(pal);
   root.dataset.portrait = portraitPick();
   // docs/PERFORMANCE.md: Glass blur (Auto is off in Firefox, where the blur made every frame slow).
-  root.dataset.glass = glassPlan(localStorage.getItem('sara.glass'), navigator.userAgent);
+  root.dataset.glass = glassPlan(look.get('sara.glass'), navigator.userAgent);
   const custom = root.dataset.accent === 'custom' ? readCustomAccent()?.[light ? 'light' : 'dark'] : null;
   for (const [v, k] of ACCENT_VARS) {
     if (custom) root.style.setProperty(v, custom[k]);
     else root.style.removeProperty(v);
   }
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', getComputedStyle(root).getPropertyValue('--surface-0').trim() || (light ? '#faf7f5' : '#0f0d17'));
-  root.style.setProperty('--chat-size', `${localStorage.getItem('sara.textSize') ?? '15'}px`);
+  root.style.setProperty('--chat-size', `${look.get('sara.textSize') ?? '15'}px`);
   placeRail(pal !== 'classic');
   // The Windows/Mac app follows: its title bar, backdrop and first paint (web/theme-boot.js), and
   // (wintop) its frame above the page in this palette's top colour.
@@ -10784,28 +10845,28 @@ document.addEventListener('click', (e) => {
   if (go) void openSettings(go.dataset.openPage);
 });
 $('#ap-theme').value = themePick();
-$('#ap-size').value = localStorage.getItem('sara.textSize') ?? '15';
+$('#ap-size').value = look.get('sara.textSize') ?? '15';
 $('#ap-typing').value = localStorage.getItem('sara.typing') ?? 'instant';
 $('#ap-typing').addEventListener('change', () => localStorage.setItem('sara.typing', $('#ap-typing').value));
 $('#ap-enter').value = enterSendsOn() ? 'on' : 'off';
 $('#ap-enter').addEventListener('change', () => setEnterSends($('#ap-enter').value !== 'off'));
 $('#ap-theme').addEventListener('change', () => {
-  localStorage.setItem('sara.theme', $('#ap-theme').value);
+  look.set('sara.theme', $('#ap-theme').value);
   applyAppearance();
 });
 $('#ap-size').addEventListener('change', () => {
-  localStorage.setItem('sara.textSize', $('#ap-size').value);
+  look.set('sara.textSize', $('#ap-size').value);
   applyAppearance();
 });
 for (const k of Object.keys(AP_DEFAULTS)) {
   const sel = $(`#ap-${k}`);
-  const stored = k === 'accent' ? accentPick() : (localStorage.getItem(`sara.${k}`) ?? AP_DEFAULTS[k]);
+  const stored = k === 'accent' ? accentPick() : (look.get(`sara.${k}`) ?? AP_DEFAULTS[k]);
   sel.value = k === 'accent' ? (ACCENT_NOW[stored] ?? stored) : stored;
   sel.addEventListener('change', () => {
     if (k === 'accent' && sel.value === 'custom' && !readCustomAccent()) return void setCustomAccent($('#ap-accent-custom').value);
-    localStorage.setItem(`sara.${k}`, sel.value);
+    look.set(`sara.${k}`, sel.value);
     // V4d: an explicit pick remembers the palette it was made in (leaving Classic keeps it, see below).
-    if (k === 'accent') localStorage.setItem('sara.accentPicked', palettePick());
+    if (k === 'accent') look.set('sara.accentPicked', palettePick());
     applyAppearance();
     showAppearance();
   });
@@ -10831,7 +10892,7 @@ function showAppearance() {
   $('#ap-palette').value = pal;
   for (const b of $('#ap-pals').children) b.setAttribute('aria-checked', String(b.dataset.pal === pal));
   $('#ap-decor').value = decorPick();
-  $('#ap-glass').value = ['on', 'off'].includes(localStorage.getItem('sara.glass')) ? localStorage.getItem('sara.glass') : 'auto';
+  $('#ap-glass').value = ['on', 'off'].includes(look.get('sara.glass')) ? look.get('sara.glass') : 'auto';
   $('#ap-portrait').value = portraitPick(pal);
   $('#ap-theme').value = themePick(pal);
   $('#ap-accent').value = ACCENT_NOW[accentPick(pal)] ?? accentPick(pal);
@@ -10843,9 +10904,9 @@ function showAppearance() {
 // V4d: her picture (orb, her portrait or yours) and how run cards start (folded or open), this device.
 for (const [id, key, def] of [['ap-herpic', 'sara.herPicture', ''], ['ap-runs', 'sara.runDetails', 'folded']]) {
   const sel = $(`#${id}`);
-  sel.value = localStorage.getItem(key) ?? (def || (state.customAvatar ? 'own' : 'orb'));
+  sel.value = look.get(key) ?? (def || (state.customAvatar ? 'own' : herOwnLook() ? 'portrait' : 'orb'));
   sel.addEventListener('change', () => {
-    localStorage.setItem(key, sel.value);
+    look.set(key, sel.value);
     if (id === 'ap-herpic' && state.lastFace) setFace(state.lastFace);
     if (id === 'ap-herpic') syncAvatarRows();
   });
@@ -10868,16 +10929,16 @@ $('#avatar-ap-link').addEventListener('click', () => {
 });
 $('#ap-palette').addEventListener('change', () => {
   const to = $('#ap-palette').value;
-  localStorage.setItem('sara.palette', to);
+  look.set('sara.palette', to);
   // V4e: a palette is a full preset: its default colour (Violet; Sara Classic its rose) replaces any
   // picked or custom colour, which can be changed again after.
-  for (const k of PALETTE_RESETS) localStorage.removeItem(k);
+  for (const k of PALETTE_RESETS) look.del(k);
   applyAppearance();
   showAppearance();
 });
 for (const k of ['decor', 'portrait', 'glass']) {
   $(`#ap-${k}`).addEventListener('change', () => {
-    localStorage.setItem(`sara.${k}`, $(`#ap-${k}`).value);
+    look.set(`sara.${k}`, $(`#ap-${k}`).value);
     applyAppearance();
   });
 }
@@ -10885,9 +10946,9 @@ for (const k of ['decor', 'portrait', 'glass']) {
 function setCustomAccent(hex) {
   const c = customAccent(hex);
   if (!c) return false;
-  localStorage.setItem('sara.accentCustom', JSON.stringify(c));
-  localStorage.setItem('sara.accent', 'custom');
-  localStorage.setItem('sara.accentPicked', palettePick());
+  look.set('sara.accentCustom', JSON.stringify(c));
+  look.set('sara.accent', 'custom');
+  look.set('sara.accentPicked', palettePick());
   $('#ap-accent').value = 'custom';
   applyAppearance();
   showAppearance();
@@ -10901,10 +10962,10 @@ $('#ap-accent-hex').addEventListener('change', () => {
 showAppearance();
 // "Use on all my devices": the owner's settings keep the set; a device that never chose starts from it.
 function currentAppearance() {
-  const decor = localStorage.getItem('sara.decor');
+  const decor = look.get('sara.decor');
   return {
-    palette: palettePick(), theme: themePick(), accent: accentPick(), density: localStorage.getItem('sara.density') ?? 'comfy', portrait: portraitPick(),
-    ...(decor ? { decor } : {}), ...(localStorage.getItem('sara.accent') === 'custom' ? { accentCustom: readCustomAccent() } : {}),
+    palette: palettePick(), theme: themePick(), accent: accentPick(), density: look.get('sara.density') ?? 'comfy', portrait: portraitPick(),
+    ...(decor ? { decor } : {}), ...(look.get('sara.accent') === 'custom' ? { accentCustom: readCustomAccent() } : {}),
     access: currentAccess(),
   };
 }
@@ -10917,10 +10978,10 @@ $('#ap-sync').addEventListener('click', async () => {
   }
 });
 function adoptAppearance(a) {
-  if (!a || localStorage.getItem('sara.palette')) return false;
+  if (!a || look.get('sara.palette')) return false;
   const keys = { palette: 'sara.palette', theme: 'sara.theme', accent: 'sara.accent', density: 'sara.density', portrait: 'sara.portrait', decor: 'sara.decor' };
-  for (const [k, key] of Object.entries(keys)) if (a[k]) localStorage.setItem(key, a[k]);
-  if (a.accentCustom) localStorage.setItem('sara.accentCustom', JSON.stringify(a.accentCustom));
+  for (const [k, key] of Object.entries(keys)) if (a[k]) look.set(key, a[k]);
+  if (a.accentCustom) look.set('sara.accentCustom', JSON.stringify(a.accentCustom));
   adoptAccess(a.access);
   localStorage.setItem('sara.v1Notice', 'seen');
   applyAppearance();
@@ -10932,18 +10993,18 @@ function adoptAppearance(a) {
 }
 // The one-time notice for people who used Sara before the new look (new installs never see it).
 function offerV1Notice(existing) {
-  if (localStorage.getItem('sara.palette') || localStorage.getItem('sara.v1Notice')) return;
+  if (look.get('sara.palette') || localStorage.getItem('sara.v1Notice')) return;
   localStorage.setItem('sara.v1Notice', 'seen');
   if (existing) $('#v1-notice').hidden = false;
 }
 $('#v1-classic').addEventListener('click', () => {
-  localStorage.setItem('sara.palette', 'classic');
+  look.set('sara.palette', 'classic');
   $('#v1-notice').hidden = true;
   applyAppearance();
   showAppearance();
 });
 $('#v1-notice-close').addEventListener('click', () => {
-  localStorage.setItem('sara.palette', palettePick());
+  look.set('sara.palette', palettePick());
   $('#v1-notice').hidden = true;
 });
 // Colour swatches: tap one instead of using the list.
@@ -11017,19 +11078,19 @@ function apSegment(id) {
 }
 apSegSync = ['ap-theme', 'ap-motion', 'ap-decor', 'ap-density', 'ap-size', 'ap-portrait', 'ap-sessions'].map(apSegment);
 // V5.5: the Accessibility group; the switch also sets Text size in chat (redrawn here).
-initA11y({ after: () => { $('#ap-size').value = localStorage.getItem('sara.textSize') ?? '15'; applyAppearance(); for (const f of apSegSync) f(); } });
+initA11y({ after: () => { $('#ap-size').value = look.get('sara.textSize') ?? '15'; applyAppearance(); for (const f of apSegSync) f(); } });
 // Reset to defaults: forgets this device's look (the owner's defaults apply; docs/APPEARANCE.md).
 const AP_KEYS = ['sara.palette', 'sara.theme', 'sara.accent', 'sara.accentPicked', 'sara.herPicture', 'sara.runDetails', 'sara.accentCustom', 'sara.decor', 'sara.glass', 'sara.portrait', 'sara.density', 'sara.chatbg', 'sara.textSize', 'sara.typing', PAGE_KEY];
 $('#ap-reset').addEventListener('click', () => {
   if (!confirm(t('Reset how Sara looks on this device to the defaults?'))) return;
-  for (const k of AP_KEYS) localStorage.removeItem(k);
+  for (const k of AP_KEYS) look.del(k);
   // Leaving the default palette must not bring back the one-time new-look notice.
   localStorage.setItem('sara.v1Notice', 'seen');
   applyAppearance();
   showAppearance();
   $('#ap-density').value = 'comfy';
   $('#ap-chatbg').value = 'none';
-  $('#ap-size').value = localStorage.getItem('sara.textSize') ?? '15';
+  $('#ap-size').value = look.get('sara.textSize') ?? '15';
   $('#ap-typing').value = localStorage.getItem('sara.typing') ?? 'instant';
   $('#ap-sessions').value = String(pageSize(localStorage));
   for (const f of apSegSync) f();

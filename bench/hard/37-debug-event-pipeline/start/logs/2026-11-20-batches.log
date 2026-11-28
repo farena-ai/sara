@@ -1,0 +1,14 @@
+# Batch sizes, 2026-11-20 (issue #34). Lines starting with "> " are what relay printed.
+$ relay run examples/batches-2026-11-20.ndjson --batch 4
+t=0000000 batch: #1 3/4 [evt-0001 evt-0003 evt-0004] held=1 waiting=0 left=9
+t=0000000 batch: #2 3/4 [evt-0002 evt-0005 evt-0007] held=1 waiting=0 left=6
+t=0000000 batch: #3 4/4 [evt-0006 evt-0008 evt-0009 evt-0010] held=0 waiting=0 left=2
+t=0000000 batch: #4 2/4 [evt-0011 evt-0012] held=0 waiting=0 left=0
+> submitted 12, duplicates 0, delivered 12, retried 0, dead 0, pending 0
+>   acct-1             187.32
+>   acct-2             293.24
+>   acct-3             155.62
+>   acct-4             -14.46
+>   acct-5               0.07
+>   acct-6             -41.14
+>   acct-7              17.15

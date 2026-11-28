@@ -1,0 +1,52 @@
+# Locked accounts, 2026-11-21 (issue #36). acct-3 and acct-4 were locked until t=400.
+# Lines starting with "> " are what relay printed.
+$ relay run examples/locks-2026-11-21.ndjson --journal journal --batch 6 --rate 6 --lock acct-3:400 --lock acct-4:400
+t=0000000 journal: new journal in /srv/relay/journal
+t=0000000 recovery: 0 submitted, 0 delivered, 0 dead, 0 pending; next seq 1
+t=0000000 batch: #1 6/6 [evt-0001 evt-0002 evt-0003 evt-0004 evt-0005 evt-0006] held=0 waiting=0 left=0
+t=0000000 dispatch: #1 sink rejected evt-0003 evt-0004 (account locked); accepted 5, to retry 1
+t=0000000 retry: evt-0003 failed (account locked); attempt 2 due at 100
+t=0000050 batch: #2 4/6 [evt-0007 evt-0008 evt-0010 evt-0011] held=1 waiting=1 left=3
+t=0000050 dispatch: #2 sink rejected evt-0010 (account locked); accepted 3, to retry 1
+t=0000050 retry: evt-0010 failed (account locked); attempt 2 due at 150
+t=0000050 batch: #3 1/6 [evt-0012] held=1 waiting=2 left=3
+t=0000100 batch: #4 3/6 [evt-0003(#2) evt-0013 evt-0014] held=2 waiting=1 left=6
+t=0000100 dispatch: #4 sink rejected evt-0003 (account locked); accepted 2, to retry 1
+t=0000100 retry: evt-0003(#2) failed (account locked); attempt 3 due at 300
+t=0000100 batch: #5 1/6 [evt-0017] held=3 waiting=2 left=6
+t=0000100 batch: #6 1/6 [evt-0018] held=3 waiting=2 left=5
+t=0000150 batch: #7 2/6 [evt-0010(#2) evt-0019] held=3 waiting=1 left=9
+t=0000150 dispatch: #7 sink rejected evt-0010 (account locked); accepted 1, to retry 1
+t=0000150 retry: evt-0010(#2) failed (account locked); attempt 3 due at 350
+t=0000150 batch: #8 1/6 [evt-0020] held=3 waiting=2 left=9
+t=0000300 batch: #9 1/6 [evt-0003(#3)] held=4 waiting=1 left=14
+t=0000300 dispatch: #9 sink rejected evt-0003 (account locked); accepted 0, to retry 1
+t=0000300 retry: evt-0003(#3) failed (account locked); attempt 4 due at 700
+t=0000350 batch: #10 1/6 [evt-0010(#3)] held=4 waiting=1 left=14
+t=0000350 dispatch: #10 sink rejected evt-0010 (account locked); accepted 0, to retry 1
+t=0000350 retry: evt-0010(#3) failed (account locked); attempt 4 due at 750
+t=0000700 batch: #11 1/6 [evt-0003(#4)] held=4 waiting=1 left=14
+t=0000700 batch: #12 1/6 [evt-0009] held=4 waiting=1 left=13
+t=0000700 batch: #13 2/6 [evt-0015 evt-0023] held=3 waiting=1 left=11
+t=0000700 batch: #14 3/6 [evt-0021 evt-0024 evt-0025] held=2 waiting=1 left=8
+t=0000700 batch: #15 2/6 [evt-0026 evt-0027] held=3 waiting=1 left=6
+t=0000700 batch: #16 2/6 [evt-0029 evt-0030] held=3 waiting=1 left=4
+t=0000750 batch: #17 1/6 [evt-0010(#4)] held=3 waiting=0 left=3
+t=0000750 batch: #18 1/6 [evt-0016] held=2 waiting=0 left=2
+t=0000750 batch: #19 1/6 [evt-0022] held=1 waiting=0 left=1
+t=0000750 journal: rotated to segment-2.log
+t=0000750 batch: #20 1/6 [evt-0028] held=0 waiting=0 left=0
+> submitted 30, duplicates 0, delivered 30, retried 6, dead 0, pending 0
+>   acct-1             412.54
+>   acct-2             435.95
+>   acct-3              45.33
+>   acct-4             155.26
+>   acct-5              16.19
+>   acct-6             323.07
+$ relay totals --journal journal
+>   acct-1             412.54
+>   acct-2             435.95
+>   acct-3              45.33
+>   acct-4             245.94
+>   acct-5              16.19
+>   acct-6             323.07

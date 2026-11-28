@@ -16,7 +16,7 @@ import { cleanWhy, whyLines, type ActionWhy } from './action-why.ts';
 import { en, trOwner } from './i18n.ts';
 import type { Task } from './planner.ts';
 import { toolChanges } from './tools/effects.ts';
-import { workspaceDir } from './tools/workspace.ts';
+import { workspaceDir, workspacesBase } from './tools/workspace.ts';
 
 export const TIMELINE_KINDS = ['files', 'settings', 'mail', 'calendar', 'planner', 'other'] as const;
 export type TimelineKind = (typeof TIMELINE_KINDS)[number];
@@ -325,7 +325,7 @@ for (const name of ['write_file', 'edit_file', 'shell']) {
 }
 registerRevert('snapshot', (u, app) => {
   const ws = String(u.workspace);
-  const r = app.snapshots.restore(ws, workspaceDir(app.rootDir ?? app.dataDir, ws), String(u.snap));
+  const r = app.snapshots.restore(ws, workspaceDir(workspacesBase(app), ws), String(u.snap));
   return `Restored ${r.restored} files, removed ${r.removed}; the state just before is kept as snapshot ${r.safety.id}.`;
 });
 

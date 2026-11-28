@@ -17,7 +17,7 @@ import { KEY_SHAPED, vaultSecretValues } from '../redact.ts';
 import { minorSexualMatch } from '../safety.ts';
 import { fileQuotaHit, recordShared, SEND_FILE_ASK_BYTES, sha256, sharedDir, TELEGRAM_FILE_OUT } from '../bridges/media.ts';
 import { ToolError, type Prepared, type Tool } from './types.ts';
-import { isSecretPath, resolveInside, workspaceDir } from './workspace.ts';
+import { isSecretPath, resolveInside, workspaceDir, workspacesBase } from './workspace.ts';
 
 const MAX_SEND_BYTES = TELEGRAM_FILE_OUT;
 const SCAN_BYTES = 1024 * 1024;
@@ -58,7 +58,7 @@ function locate(app: AppContext, args: Record<string, unknown>, conversationId: 
   }
   const p = String(args.path ?? '').trim();
   if (!p) throw new ToolError('Give the path of a file in the workspace, or a library document id.');
-  const root = workspaceDir(app.rootDir ?? app.dataDir, conv.workspace);
+  const root = workspaceDir(workspacesBase(app), conv.workspace);
   const abs = resolveInside(root, p);
   if (!existsSync(abs)) throw new ToolError(`There is no file at ${p}.`);
   const real = realpathSync(abs);

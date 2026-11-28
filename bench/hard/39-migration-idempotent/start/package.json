@@ -1,0 +1,9 @@
+{
+  "name": "store-migrate",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "description": "Upgrades a folder of NDJSON records from one schema version to the next.",
+  "bin": { "migrate": "bin/migrate.js" },
+  "scripts": { "test": "node --test" }
+}

@@ -1,0 +1,9 @@
+{"id":"p1","customer":"k3","total_cents":1500,"weight_g":1250,"status":"paid","items":[{"sku":"book","qty":3,"price_cents":500}]}
+{"id":"p2","customer":"k5","total_cents":100,"weight_g":10,"status":"new","items":[{"sku":"x","qty":1,"price_cents":100}]}
+{"id":"p3","customer":"k9","total_cents":100,"weight_g":10,"status":"new","items":"none"}
+{"id":"p4","customer":"k9","total_cents":0,"weight_g":10,"status":"new","items":[{"sku":"ret","qty":-1,"price_cents":100},{"sku":"y","qty":1,"price_cents":"5"}]}
+{"id":"p5","customer":"k4","total_cents":999,"weight_g":"heavy","status":"new","currency":null,"items":[{"sku":"z","qty":1,"price_cents":999}]}
+{"id":"p6","customer":"k2","total_cents":700,"weight_g":3,"status":"new","currency":null,"items":[{"id":"mine","order":"other","sku":"q","qty":7,"price_cents":100}]}
+{"id":"p7","customer":"k8","total_cents":40,"weight_g":1,"status":"new","items":[{"sku":"a","qty":2,"price_cents":20},{"sku":"b","qty":0,"price_cents":5}]}
+{"id":"p1","customer":"k1","total_cents":1,"weight_g":1,"status":"new","items":[]}
+{"id":"p8","customer":"k1","total_cents":0,"weight_g":0,"status":"new","items":[]}

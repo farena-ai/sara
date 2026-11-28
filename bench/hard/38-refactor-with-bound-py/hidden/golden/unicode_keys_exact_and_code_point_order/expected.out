@@ -1,0 +1,15 @@
+Ünïcode
+
+region    count  units  revenue
+--------  -----  -----  -------
+ apple        1      1     1.00
+Apple         1      1     1.00
+Zürich        1      1     2.00
+apple         1      1     1.00
+café         1      2     2.00
+café          1      1     1.00
+zoo           1      1     3.00
+Ångström      1      1     1.00
+東京            1      3     3.30
+🙂 smile       1      1     9.99
+TOTAL        10     13    25.29

@@ -24,7 +24,6 @@ export function cardStarts(kids) {
  */
 export const ADVANCED = {
   'her-character': 'char-export',
-  'her-companions': 'cmp-planner',
   'you-details': 'md-v1-make',
   'models-default': 'history-budget',
   'co-telegram': 'tg-cmd-native',

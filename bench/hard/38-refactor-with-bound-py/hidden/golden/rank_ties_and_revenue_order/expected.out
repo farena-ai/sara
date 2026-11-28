@@ -1,0 +1,9 @@
+region  count  units  revenue  customers  avg_price  median_qty  share  rank
+------  -----  -----  -------  ---------  ---------  ----------  -----  ----
+west        1      1    10.00          1      10.00           1   22.2     1
+north       1      2    10.00          1       5.00           2   22.2     1
+east        2      2    10.00          1       5.00           1   22.2     1
+south       1      1    10.00          1      10.00           1   22.2     1
+centre      1      1     3.00          1       3.00           1    6.7     5
+hub         1      1     2.00          1       2.00           1    4.4     6
+TOTAL       7      8    45.00          1       5.62           1  100.0

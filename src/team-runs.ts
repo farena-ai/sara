@@ -31,7 +31,7 @@ import type { RoutePurpose } from './settings.ts';
 import { assertToolAdmission, captureToolScope, ToolAdmissionError, type ToolScope } from './tool-admission.ts';
 import type { ToolSpec } from './providers/types.ts';
 import type { Tool } from './tools/types.ts';
-import { workspaceDir } from './tools/workspace.ts';
+import { workspaceDir, workspacesBase } from './tools/workspace.ts';
 import { usageScope, type UsageScope } from './usage.ts';
 
 export const TEAM_RUN = { maxRoles: 6, maxSteps: 10, parallel: 3, maxCheckRounds: 2, maxMoves: 12, maxLive: 2 } as const;
@@ -782,7 +782,7 @@ CREATE INDEX IF NOT EXISTS team_runs_conv ON team_runs(conversation_id, id);
     }
     // Reading and writing drafts: the plan's one approval covers the tools listed in it.
     try {
-      const out = await tool.run(args, { workspaceDir: workspaceDir(app.rootDir ?? app.dataDir, conv.workspace), signal: l.ctl.signal, sandbox: { ...app.sandbox, network: !(conv.private || privateLocalOn()) }, conversationId: conv.id, companionName: app.persona.name });
+      const out = await tool.run(args, { workspaceDir: workspaceDir(workspacesBase(app), conv.workspace), signal: l.ctl.signal, sandbox: { ...app.sandbox, network: !(conv.private || privateLocalOn()) }, conversationId: conv.id, companionName: app.persona.name });
       return done('ok', out);
     } catch (err) {
       return done('error', `Error: ${(err as Error).message}`);
@@ -844,7 +844,7 @@ CREATE INDEX IF NOT EXISTS team_runs_conv ON team_runs(conversation_id, id);
       try {
         if (!tool || HARD_LIMIT_TOOL(a.tool, tool)) throw new ToolAdmissionError(`The ${a.tool} tool isn't available.`);
         assertToolAdmission(app, scope, tool, signal, { workspace: conv.workspace, privateLocal: privateLocalOn(), offServer: OFFSERVER_TOOL(a.tool), network: !(conv.private || privateLocalOn()) });
-        a.output = app.redactor.redact(clip(await tool.run(a.args, { workspaceDir: workspaceDir(app.rootDir ?? app.dataDir, conv.workspace), signal, sandbox: { ...app.sandbox, network: !(conv.private || privateLocalOn()) }, conversationId: conv.id, companionName: app.persona.name }), 2000));
+        a.output = app.redactor.redact(clip(await tool.run(a.args, { workspaceDir: workspaceDir(workspacesBase(app), conv.workspace), signal, sandbox: { ...app.sandbox, network: !(conv.private || privateLocalOn()) }, conversationId: conv.id, companionName: app.persona.name }), 2000));
         a.status = 'done';
       } catch (err) {
         a.status = err instanceof ToolAdmissionError ? 'denied' : 'error';

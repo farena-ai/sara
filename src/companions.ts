@@ -1,8 +1,9 @@
 // Phase 31: more than one companion on one server. Each companion is a complete Sara of her own:
 // her own folder (data/companions/<id>/) with her database (conversations, memories, feelings,
 // days, scrapbook), character, look and voice. The server's own things are shared: the owner's
-// sign-in and devices, keys and subscriptions, models, tools, backups and notifications. The
-// planner is shared or separate, as the owner chooses. The safety layer applies to every one.
+// sign-in and devices, keys and subscriptions, tools, backups and notifications. T62: her models,
+// thinking and tool rules follow the main companion's until she is given her own (INHERIT_KEYS).
+// The planner is her own unless the owner chooses one shared planner. The safety layer applies to every one.
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -18,11 +19,28 @@ export const MAIN_ID = 'main';
 /**
  * Settings that belong to each companion; everything else is the server's and shared. The AI
  * notice is per companion (each is a different AI character), and so is adult mode (with its own
- * 18+ confirmation).
+ * 18+ confirmation). T62: so are the companion side (on/off), her work profile and the synced app
+ * look; a companion with no value of her own has the default (companion side on, no work profile).
  */
-export const COMPANION_KEYS = ['persona', 'voice', 'adultMode', 'memory', 'proactive', 'calls', 'briefing', 'weeklyReview', 'leaveBy', 'disclosureAcceptedAt', 'photos', 'wardrobe', 'faceLock', 'companionModel', 'story', 'moments', 'presence', 'skillLearning', 'plugins', 'agenda', 'usePath'] as const satisfies readonly (keyof Settings)[];
+export const COMPANION_KEYS = ['persona', 'voice', 'adultMode', 'memory', 'proactive', 'calls', 'briefing', 'weeklyReview', 'leaveBy', 'disclosureAcceptedAt', 'photos', 'wardrobe', 'faceLock', 'companionModel', 'story', 'moments', 'presence', 'skillLearning', 'plugins', 'agenda', 'usePath', 'companion', 'workProfile', 'appearance'] as const satisfies readonly (keyof Settings)[];
 type CompanionKey = (typeof COMPANION_KEYS)[number];
 const isCompanionKey = (k: string): k is CompanionKey => (COMPANION_KEYS as readonly string[]).includes(k);
+
+/**
+ * T62: settings a companion follows from the main companion until she is given her own (models,
+ * thinking, look-first, the edit checks and the tool rules). A non-main companion with no value of
+ * her own reads the server's (the main companion's); a change made while she is open is hers alone.
+ * Clearing hers (`clearOwn`) makes her follow the main companion again.
+ */
+export const INHERIT_KEYS = ['routes', 'defaultModel', 'defaultProviderId', 'defaultFallbacks', 'autoJobs', 'fallbackAfterSec', 'modelAutoSwitch', 'thinking', 'lookFirst', 'precise', 'toolPermissions', 'mcpPolicy'] as const satisfies readonly (keyof Settings)[];
+export type InheritKey = (typeof INHERIT_KEYS)[number];
+export const isInheritKey = (k: string): k is InheritKey => (INHERIT_KEYS as readonly string[]).includes(k);
+
+/** The same value, whatever the order of an object's keys (arrays keep their order). */
+const canon = (v: unknown): unknown => (Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().filter((k) => (v as Record<string, unknown>)[k] !== undefined).map((k) => [k, canon((v as Record<string, unknown>)[k])])) : v);
+const sameValue = (a: unknown, b: unknown): boolean => JSON.stringify(canon(a)) === JSON.stringify(canon(b));
+/** What a missing value means (as the settings pages show it), so saving the page unchanged is no choice. */
+const INHERIT_DEFAULTS: Partial<Record<InheritKey, unknown>> = { routes: {}, defaultFallbacks: [], autoJobs: [], fallbackAfterSec: 60, modelAutoSwitch: true, thinking: 'balanced', lookFirst: 'auto', toolPermissions: {}, mcpPolicy: {} };
 
 /** A companion's settings: her own keys from her folder, the rest from the server's settings. */
 export class CompanionSettings extends SettingsStore {
@@ -40,18 +58,44 @@ export class CompanionSettings extends SettingsStore {
       if (own[k] === undefined) delete out[k];
       else out[k] = own[k];
     }
+    for (const k of INHERIT_KEYS) if (own[k] !== undefined) out[k] = own[k];
     return out as unknown as Settings;
   }
 
   override update(patch: Partial<Settings>): Settings {
     const mine: Record<string, unknown> = {};
     const shared: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(patch)) (isCompanionKey(k) ? mine : shared)[k] = v;
+    const own = super.get() as unknown as Record<string, unknown>;
+    const base = this.#base.get() as unknown as Record<string, unknown>;
+    for (const [k, v] of Object.entries(patch)) {
+      if (isInheritKey(k)) {
+        // A page saves every field it shows: a value equal to the one she follows is not a choice of her own.
+        if (own[k] === undefined && sameValue(v ?? INHERIT_DEFAULTS[k], base[k] ?? INHERIT_DEFAULTS[k])) continue;
+        mine[k] = v;
+      } else (isCompanionKey(k) ? mine : shared)[k] = v;
+    }
     if (Object.keys(mine).length) super.update(mine as Partial<Settings>);
     if (Object.keys(shared).length) this.#base.update(shared as Partial<Settings>);
     return this.get();
   }
+
+  /** T62: the inheriting settings she has her own value for. */
+  ownKeys(): InheritKey[] {
+    const own = super.get() as unknown as Record<string, unknown>;
+    return INHERIT_KEYS.filter((k) => own[k] !== undefined);
+  }
+
+  /** T62: forgets her own values for these keys, so she follows the main companion's again. */
+  clearOwn(keys: readonly string[]): InheritKey[] {
+    const have = this.ownKeys();
+    const drop = keys.filter((k): k is InheritKey => isInheritKey(k) && have.includes(k));
+    if (drop.length) super.update(Object.fromEntries(drop.map((k) => [k, undefined])) as Partial<Settings>);
+    return drop;
+  }
 }
+
+/** T62: her own inheriting settings, when these are a non-main companion's settings. */
+export const ownKeysOf = (s: SettingsStore): InheritKey[] => (s instanceof CompanionSettings ? s.ownKeys() : []);
 
 /** A tool registry that also offers the main companion's add-on (MCP) tools, which run once. */
 export class LinkedToolRegistry extends ToolRegistry {

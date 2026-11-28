@@ -1,5 +1,6 @@
 // HTTP API + static web UI. No framework; node:http only.
 import { isHomeChat } from './home-chat.ts';
+import { nextModelView } from './conv-model.ts';
 import { compressedFile, compressible, encodedEtag, etagMatches, pickEncoding } from './static-compress.ts';
 import { cacheFor, staticModules, VERSIONED_PATH, versionPage, webBuildId } from './static-version.ts';
 import { assertNotHeld, isLegalHold, LegalHoldError } from './legal-hold.ts';
@@ -39,6 +40,7 @@ import { forgetConversationFiles } from './bridges/media.ts';
 import { MAX_IMAGES_PER_MESSAGE, UploadError } from './uploads.ts';
 import { TogetherStore } from './together.ts';
 import { contextFill, primeBudget, runTurn, type TurnOptions, type AppContext, type ChatEvent } from './chat.ts';
+import { realOf } from './companion-access.ts';
 import { PENDING_LINES, PendingInputs, pendingFor, whileBusySettings } from './pending.ts';
 import { answerAside } from './btw.ts';
 import { nextSession, parseCommand, runCommand, type BridgeAdapter } from './bridges/commands.ts';
@@ -168,6 +170,7 @@ import { cleanEditorLink } from './editor-link.ts';
 import { policy } from './policy-profile.ts';
 import { shares } from './share.ts';
 import { createUsageReportRoutes } from './routes/usage-report.ts';
+import { createCompanionAccessRoutes } from './routes/companion-access.ts';
 import { createTrustReportRoutes } from './routes/trust-report.ts';
 import { createMemberToolsRoutes } from './routes/member-tools.ts';
 import { createPhoneHelperRoutes } from './routes/phone-helper.ts';
@@ -519,7 +522,7 @@ export function createSaraServer(opts: ServerOptions): Server {
    * EC4: route groups whose changes get an audit row. Approvals are recorded by the chat (with the
    * tool name) and policy changes by the policy store, so each action writes exactly one row.
    */
-  const AUDITED = new Set(['support', 'remote-repair', 'repair', 'team-runs', 'messages', 'family', 'booking', 'accounting', 'work', 'inbox', 'login', 'logout', 'sso', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'automations', 'errands', 'goal-plans', 'money', 'bizpack', 'phone-calls', 'my-details', 'writing', 'facts', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces', 'app-updates', 'trips', 'data-sources', 'doc-studio', 'extension', 'market', 'records']);
+  const AUDITED = new Set(['support', 'remote-repair', 'repair', 'team-runs', 'messages', 'family', 'booking', 'accounting', 'work', 'inbox', 'login', 'logout', 'sso', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'companion-access', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'automations', 'errands', 'goal-plans', 'money', 'bizpack', 'phone-calls', 'my-details', 'writing', 'facts', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces', 'app-updates', 'trips', 'data-sources', 'doc-studio', 'extension', 'market', 'records']);
   const VERB: Record<string, string> = { POST: 'do', PUT: 'change', PATCH: 'change', DELETE: 'remove' };
   const auditRequest = (req: IncomingMessage, res: ServerResponse, method: string, parts: string[]) => {
     const dev = deviceTokenOf(req);
@@ -1276,6 +1279,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   const worktreeRoutes = createWorktreeRoutes(ctx);
   // EC15: usage and cost reports and budgets (src/routes/usage-report.ts).
   const usageReportRoutes = createUsageReportRoutes(ctx);
+  const companionAccessRoutes = createCompanionAccessRoutes(ctx);
   // C8: spend limits and Token Saver, the owner's only (src/routes/spend.ts).
   const spendRoutes = createSpendRoutes(ctx);
   // EC25: the trust report (src/routes/trust-report.ts).
@@ -1632,7 +1636,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if (a === 'mail' && b === 'microsoft' && parts[2] === 'callback' && method === 'GET' && app.mailAccounts) {
       const url = new URL(req.url ?? '/', 'http://x');
       // A household member's sign-in ends here too: the one-time `state` says whose mailboxes it joins.
-      const accts = mailAccountsForState(url.searchParams.get('state') ?? '') ?? app.mailAccounts;
+      const accts = mailAccountsForState(url.searchParams.get('state') ?? '') ?? realOf(app.mailAccounts);
       let result = 'connected';
       const error = url.searchParams.get('error');
       if (error) result = error === 'access_denied' ? 'refused' : 'failed';
@@ -1640,7 +1644,7 @@ export function createSaraServer(opts: ServerOptions): Server {
         try {
           const tokens = await accts.ms.finish(url.searchParams.get('code') ?? '', url.searchParams.get('state') ?? '');
           accts.addMicrosoft(tokens);
-          if (accts === app.mailAccounts) for (const cx of opts.companions?.all() ?? [{ app }]) clearTodayCache(cx.app);
+          if (accts === realOf(app.mailAccounts)) for (const cx of opts.companions?.all() ?? [{ app }]) clearTodayCache(cx.app);
         } catch (err) {
           result = 'failed';
           console.warn(`microsoft sign-in: ${(err as Error).message}`);
@@ -1783,6 +1787,7 @@ export function createSaraServer(opts: ServerOptions): Server {
 
     // Models: providers, model jobs, subscriptions, local models, private local mode, usage: src/routes/models.ts.
     if ((await usageReportRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await companionAccessRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await spendRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await trustReportRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await phoneHelperRoutes(req, res, method, parts)) !== NEXT) return;
@@ -2496,6 +2501,8 @@ export function createSaraServer(opts: ServerOptions): Server {
           }
           return send(res, 200, toolsView(cx, conv));
         }
+        // T63: the model this chat's next message uses (the model chip in the message box).
+        if (c === 'model' && !parts[3] && method === 'GET') return send(res, 200, nextModelView(cx, conv));
         // Phase 107: every session of this chat ("Earlier sessions of this chat").
         if (c === 'sessions' && !parts[3] && method === 'GET') return send(res, 200, { sessions: offRecord ? [] : cx.store.sessionsOf(conv).map((x) => ({ id: x.id, title: x.title, createdAt: x.createdAt, endedAt: x.endedAt ?? null, current: x.id === b })) });
         // Phase 109 (CH3): "Name it now": she names it from what it covered (budget-checked; his own titles stay).

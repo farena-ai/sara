@@ -26,7 +26,7 @@ import { en, trOwner } from './i18n.ts';
 import { quietNow } from './life.ts';
 import { privateLocalOn } from './net-guard.ts';
 import { normalizeMessage } from './triggers.ts';
-import { inside, isSecretPath, WORKSPACE_NAME_RE } from './tools/workspace.ts';
+import { inside, isSecretPath, WORKSPACE_NAME_RE, workspacesBase } from './tools/workspace.ts';
 
 export const WATCH = {
   maxActive: 5,
@@ -336,7 +336,7 @@ export class Watches {
 
   /** What the picker offers: the owner's workspaces, whether Sara's own log is set, the linked bridges. */
   roots(): { workspaces: string[]; log: boolean; bridges: Record<WatchBridge, boolean> } {
-    const dir = join(this.#app.dataDir, 'workspaces');
+    const dir = join(workspacesBase(this.#app), 'workspaces');
     let names: string[] = [];
     try {
       names = existsSync(dir) ? readdirSync(dir).filter((n) => WORKSPACE_NAME_RE.test(n) && !isSecretPath(n) && lstatSync(join(dir, n)).isDirectory()).sort() : [];
@@ -370,7 +370,7 @@ export class Watches {
       const name = typeof body.workspace === 'string' ? body.workspace : '';
       const rel = typeof body.path === 'string' ? body.path.trim() : '';
       if (!WORKSPACE_NAME_RE.test(name) || !rel || isAbsolute(rel) || /^[\\/]/.test(rel)) throw new WatchError(400, REFUSED.outside);
-      const ws = join(this.#app.dataDir, 'workspaces', name);
+      const ws = join(workspacesBase(this.#app), 'workspaces', name);
       try {
         const st = lstatSync(ws);
         if (!st.isDirectory() || st.isSymbolicLink()) throw new Error('no');

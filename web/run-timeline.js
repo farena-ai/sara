@@ -28,7 +28,8 @@ export function setRunUser(key) {
 /** V4d: Settings → Appearance → Show run details on this device: folded (the default) or open. */
 function foldPref() {
   try {
-    return localStorage.getItem('sara.runDetails') === 'open' ? 'open' : 'folded';
+    // T62: kept per companion (web/companion-keys.js, loaded in <head>).
+    return (globalThis.saraKeys ? globalThis.saraKeys.get('sara.runDetails') : localStorage.getItem('sara.runDetails')) === 'open' ? 'open' : 'folded';
   } catch {
     return 'folded';
   }

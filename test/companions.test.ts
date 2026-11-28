@@ -71,7 +71,7 @@ const call = (path: string, opts: { method?: string; body?: unknown; companion?:
 test('companions: add, switch, their own characters and conversations, shared server settings, remove', async () => {
   let list = (await (await call('/api/companions')).json()) as { companions: { id: string; name: string; current: boolean }[]; planner: string };
   assert.deepEqual(list.companions.map((c) => c.name), ['Sara']);
-  assert.equal(list.planner, 'shared');
+  assert.equal(list.planner, 'separate');
 
   // Bad input is refused plainly.
   assert.equal((await call('/api/companions', { method: 'POST', body: { name: '' } })).status, 400);
@@ -150,8 +150,8 @@ test('companions: add, switch, their own characters and conversations, shared se
   mainApp.settings.update({ memorySharing: 'own' });
 
   // Planner choice.
-  const pl = await (await call('/api/companions/planner', { method: 'PUT', body: { planner: 'separate' } })).json();
-  assert.equal(pl.planner, 'separate');
+  const pl = await (await call('/api/companions/planner', { method: 'PUT', body: { planner: 'shared' } })).json();
+  assert.equal(pl.planner, 'shared');
   assert.equal(pl.restart, true);
 
   // Remove: the first can't be; others are put aside (kept in a folder).

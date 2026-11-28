@@ -2,6 +2,38 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.50.0",
+   "date": "2026-11-28",
+   "title": "Separate companions, one model switch, a stronger code review",
+   "items": [
+    {
+     "id": "3-50-0-companions-are-separate-identities-each",
+     "kind": "new",
+     "text": "Companions are separate identities. Each keeps her own planner by default (the choice now sits right under the list of companions), her own companion side on or off."
+    },
+    {
+     "id": "3-50-0-you-choose-which-mailboxes-google",
+     "kind": "new",
+     "text": "You choose which mailboxes, Google and Spotify each companion may use (Settings → Connections, while she is open).",
+     "link": "#view=settings:ab-mail",
+     "owner": true
+    },
+    {
+     "id": "3-50-0-one-model-switch-in-the",
+     "kind": "new",
+     "text": "One model switch, in the message box. On a computer a small chip next to + shows the model this chat will use next and opens the list.",
+     "try": [
+      "model-switch"
+     ]
+    },
+    {
+     "id": "3-50-0-with-more-than-one-companion",
+     "kind": "new",
+     "text": "With more than one companion, her face and name at the bottom left open the list of companions to switch between them."
+    }
+   ]
+  },
+  {
    "version": "3.49.2",
    "date": "2026-11-27",
    "title": "Moving in from another agent no longer stops on a long relationship section",
@@ -146,45 +178,6 @@
      "id": "3-46-0-test-my-models-says-why",
      "kind": "new",
      "text": "Test my models says why a model got its score."
-    }
-   ]
-  },
-  {
-   "version": "3.45.0",
-   "date": "2026-11-24",
-   "title": "Test my models: a score for every model on every job",
-   "items": [
-    {
-     "id": "3-45-0-test-my-models-settings-models",
-     "kind": "new",
-     "text": "Test my models (Settings → Models & usage → Which model does what)."
-    },
-    {
-     "id": "3-45-0-test-new-models-when-they",
-     "kind": "new",
-     "text": "\"Test new models when they appear\" on the same page, off by default."
-    },
-    {
-     "id": "3-45-0-her-weekly-check-in-has-how",
-     "kind": "new",
-     "text": "Her weekly check-in has \"How I did this week\": replies that failed and why, the tools that failed most, how often a backup model took over and for which model."
-    },
-    {
-     "id": "3-45-0-auto-picks-the-best-model",
-     "kind": "new",
-     "text": "Auto picks the best model from your model tests for a job when there are scores, and says so; with no scores it picks as before."
-    },
-    {
-     "id": "3-45-0-chat-titles-side-questions-btw",
-     "kind": "fixed",
-     "text": "Chat titles, side questions (/btw) and second opinions no longer send messages you had her forget to a model.",
-     "link": "#view=msgs",
-     "owner": true
-    },
-    {
-     "id": "3-45-0-a-title-or-summary-that",
-     "kind": "fixed",
-     "text": "A title or summary that was being written while you deleted or edited a message it read is no longer saved."
     }
    ]
   }

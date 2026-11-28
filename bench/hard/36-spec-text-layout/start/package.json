@@ -1,0 +1,10 @@
+{
+  "name": "boxtext",
+  "version": "2.0.0-dev",
+  "private": true,
+  "type": "module",
+  "description": "Plain-text tables and reports for terminals, logs and e-mail.",
+  "main": "src/index.js",
+  "bin": { "boxtext": "bin/boxtext.js" },
+  "scripts": { "test": "node --test" }
+}

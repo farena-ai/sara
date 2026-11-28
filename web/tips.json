@@ -1381,14 +1381,6 @@
       "Only models on your own hardware, no web or outside tools: nothing leaves your server.",
       "memory"
     ],
-    "cs-provider": [
-      "Use a different model service (one you added in Settings → Models & usage) just for this conversation. Empty: the usual one.",
-      "brain"
-    ],
-    "cs-model": [
-      "Use a different model just for this conversation. Empty: the usual one.",
-      "brain"
-    ],
     "report-dev": [
       "Also send this one reply, the reason and your note to the app's developer, to help fix it. Nothing else is sent.",
       "safety"

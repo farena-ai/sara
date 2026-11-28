@@ -33,6 +33,7 @@ import { healthFor, HealthLog } from './health-log.ts';
 import { healthMessage } from './health-terms.ts';
 import { turnSpaceSql, type SpaceSql } from './recall.ts';
 import { ToolError, type Tool } from './tools/types.ts';
+import { workspacesBase } from './tools/workspace.ts';
 
 export const ASK_SOURCES = ['mail', 'files', 'chats', 'calendar', 'notes', 'lists', 'contacts', 'meetings', 'trips', 'documents', 'research', 'goals', 'money', 'health'] as const;
 export type AskSource = (typeof ASK_SOURCES)[number];
@@ -389,7 +390,7 @@ async function files(c: Ctx): Promise<AskHit[]> {
   if (!app.member) {
     for (const w of [words, words.length > 1 ? [longest(words)] : []]) {
       if (!w.length || out.some((h) => h.open.kind === 'file')) continue;
-      for (const f of findFiles(app.rootDir ?? app.dataDir, w, c.limit)) out.push({ source: 'files', title: f.title, quote: f.snippet.replace(/^.*?line \d+: /, ''), where: /line \d+/.exec(f.snippet)?.[0], when: f.when, open: { kind: 'file', workspace: f.workspace ?? 'main', path: f.path ?? f.title }, score: scoreOf(`${f.title} ${f.snippet}`, words) });
+      for (const f of findFiles(workspacesBase(app), w, c.limit)) out.push({ source: 'files', title: f.title, quote: f.snippet.replace(/^.*?line \d+: /, ''), where: /line \d+/.exec(f.snippet)?.[0], when: f.when, open: { kind: 'file', workspace: f.workspace ?? 'main', path: f.path ?? f.title }, score: scoreOf(`${f.title} ${f.snippet}`, words) });
     }
   }
   return out.sort(rank).slice(0, c.limit);

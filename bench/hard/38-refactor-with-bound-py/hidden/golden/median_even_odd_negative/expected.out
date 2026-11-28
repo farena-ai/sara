@@ -1,0 +1,35 @@
+{
+  "title": "",
+  "columns": [
+    "region",
+    "count",
+    "median_qty"
+  ],
+  "rows": [
+    {
+      "region": "a",
+      "count": "4",
+      "median_qty": "3"
+    },
+    {
+      "region": "b",
+      "count": "2",
+      "median_qty": "-0.5"
+    },
+    {
+      "region": "c",
+      "count": "3",
+      "median_qty": "-2"
+    },
+    {
+      "region": "d",
+      "count": "1",
+      "median_qty": "5"
+    }
+  ],
+  "total": {
+    "region": "TOTAL",
+    "count": "10",
+    "median_qty": "1.5"
+  }
+}

@@ -41,7 +41,7 @@ import { inputsHash, RunRecorder, type RunStatus, type RunView, type StepView, t
 import { makeCopy, SANDBOX_HEAVY, sandboxGateSettings } from './sandbox-run.ts';
 import { en, fill } from './i18n.ts';
 import { Store, type Conversation, type StoredMessage } from './store.ts';
-import { workspaceDir } from './tools/workspace.ts';
+import { workspaceDir, workspacesBase } from './tools/workspace.ts';
 import { OWNER_CUES_MARK } from './attunement.ts';
 import { SESSION_CONTINUITY_MARK } from './session-continuity.ts';
 import { SHARED_SCENE_MARK } from './shared-scenes-policy.ts';
@@ -698,7 +698,7 @@ export async function* branchRun(app: AppContext, runId: number, opts: ReplayOpt
     // The workspace: a copy restored to the step (never the real folder).
     const real = (() => {
       try {
-        return workspaceDir(app.rootDir ?? app.dataDir, r.conversation.workspace);
+        return workspaceDir(workspacesBase(app), r.conversation.workspace);
       } catch {
         return undefined;
       }
@@ -907,7 +907,7 @@ export function applyBranch(app: AppContext, branchId: number): { written: strin
   if (!existsSync(copy)) throw new ReplayError(409, en("The branch's copy is gone (discarded or cleaned up)."));
   const files = (run.branch?.files ?? []) as BranchFile[];
   if (!files.length) throw new ReplayError(409, en('The branch changed no files.'));
-  const real = workspaceDir(app.rootDir ?? app.dataDir, conv.workspace);
+  const real = workspaceDir(workspacesBase(app), conv.workspace);
   const written: string[] = [];
   const removed: string[] = [];
   const conflicts: string[] = [];

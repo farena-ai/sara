@@ -15,7 +15,7 @@ import { detectCheckers, fullCheck, latestProblems, mergePrecise, preciseSetting
 import { HttpError, readJson, send } from '../http.ts';
 import { wsOf } from '../persist.ts';
 import { completeRefs, previewRefs, refsPlace, refStore } from '../refs.ts';
-import { workspaceDir, WORKSPACE_NAME_RE } from '../tools/workspace.ts';
+import { workspaceDir, WORKSPACE_NAME_RE, workspacesBase } from '../tools/workspace.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
 const running = new Set<string>();
@@ -38,7 +38,7 @@ export function createPreciseRoutes(ctx: RouteCtx): RouteHandler {
     }
     if (wsPath) {
       if (!WORKSPACE_NAME_RE.test(b)) throw new HttpError(400, 'Invalid workspace name');
-      const ws = workspaceDir(ctx.rootDir, b);
+      const ws = workspaceDir(workspacesBase(ctx.app), b);
       if (c === 'checks' && !d && method === 'GET') return send(res, 200, { projects: await checksWithBasis(app, b, ws, workspaceChecks(app, b, ws)), settings: preciseSettings(app).checks });
       if (c === 'checks' && !d && method === 'PUT') {
         const r = setProjectChecks(app, b, ws, await readJson(req));

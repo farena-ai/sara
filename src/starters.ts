@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path';
 import type { AppContext } from './chat.ts';
 import { shq } from './tools/coding.ts';
 import { str, ToolError, type Tool } from './tools/types.ts';
-import { resolveInside, workspaceDir } from './tools/workspace.ts';
+import { resolveInside, workspaceDir, workspacesBase } from './tools/workspace.ts';
 
 export const STARTERS_DIR = resolve(import.meta.dirname, '..', 'templates', 'starters');
 
@@ -91,7 +91,7 @@ export function createFromStarter(app: AppContext, opts: { conversationId: strin
   const ws = opts.workspace || conv.workspace;
   let wsDir: string;
   try {
-    wsDir = workspaceDir(app.rootDir ?? app.dataDir, ws);
+    wsDir = workspaceDir(workspacesBase(app), ws);
   } catch {
     throw new ToolError(`"${ws}" isn't a workspace name.`);
   }

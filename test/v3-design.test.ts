@@ -189,12 +189,12 @@ test('V3 defaults (owner image): Graphite, Follow the system, Blue, Full, small 
   // The system can still force decoration off; the Windows/Mac app's own theme still counts when nothing was picked.
   assert.equal(boot({}, { 'reduced-transparency': true })['data-decor'], 'off');
   const app = web('app.js');
-  assert.match(app, /const themePick = \(pal = palettePick\(\)\) => \{\s*const v = localStorage\.getItem\('sara\.theme'\);\s*return v === 'light' \|\| v === 'system' \|\| v === 'dark' \? v : pal === 'classic' \? 'dark' : 'system';/);
-  assert.match(app, /const accentPick = \(pal = palettePick\(\)\) => localStorage\.getItem\('sara\.accent'\) \?\? paletteDefaultAccent\(pal\);/);
+  assert.match(app, /const themePick = \(pal = palettePick\(\)\) => \{\s*const v = look\.get\('sara\.theme'\);\s*return v === 'light' \|\| v === 'system' \|\| v === 'dark' \? v : pal === 'classic' \? 'dark' : 'system';/);
+  assert.match(app, /const accentPick = \(pal = palettePick\(\)\) => look\.get\('sara\.accent'\) \?\? paletteDefaultAccent\(pal\);/);
   assert.match(web('accent.js'), /export const paletteDefaultAccent = \(pal\) => \(pal === 'classic' \? 'rose' : 'violet'\);/);
   assert.match(app, /return v === 'on' \|\| v === 'off' \? v : 'on';/, 'Full by default');
   // Text size Normal (15), replies as they arrive, 5 sessions shown.
-  assert.match(app, /localStorage\.getItem\('sara\.textSize'\) \?\? '15'/);
+  assert.match(app, /look\.get\('sara\.textSize'\) \?\? '15'/);
   assert.match(app, /localStorage\.getItem\('sara\.typing'\) \?\? 'instant'/);
   assert.match(web('session-list.js'), /return PAGE_SIZES\.includes\(n\) \? n : 5;/);
   // The list says which choice is the default.
@@ -206,7 +206,7 @@ test('V3 defaults (owner image): Graphite, Follow the system, Blue, Full, small 
   assert.deepEqual(cleanAppearance({}), { palette: 'graphite', theme: 'system', accent: 'violet', density: 'comfy', portrait: 'small' });
   assert.equal(cleanAppearance({ palette: 'classic' })?.accent, 'rose', 'Sara Classic falls back to its own colour');
   // The one-time Switch back to Sara Classic notice is unchanged.
-  assert.match(app, /if \(localStorage\.getItem\('sara\.palette'\) \|\| localStorage\.getItem\('sara\.v1Notice'\)\) return;/);
+  assert.match(app, /if \(look\.get\('sara\.palette'\) \|\| localStorage\.getItem\('sara\.v1Notice'\)\) return;/);
 });
 
 test('V3 slice 5: Appearance in three groups with a live preview, swatches in the Colour row, segments, Reset to defaults; same ids', () => {

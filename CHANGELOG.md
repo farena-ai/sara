@@ -5,6 +5,16 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.50.0 (2026-11-28): Separate companions, one model switch, a stronger code review
+
+- New, on by default: a stronger review of coding work. When a Review model is set (Which model does what → Reviewing) and it is not the model writing the code, it reads the project and her change before a coding reply ends (it can open and search files and run her tests again in a throwaway copy, a few steps at most), and when it finds real gaps it takes the turn over and fixes them. Measured on the repository benchmark with a mid-size model coding: 6 of 24 alone, 14 of 24 with this review. With no Review model set, nothing changes. Switch: Settings → Skills & tools → Check her edits → Stronger review of coding work.
+- Better: the repository benchmark can give the review its tools (`--tools`), and `--trace` shows the reviewer's own steps.
+- New: companions are separate identities. Each keeps her own planner by default (the choice now sits right under the list of companions), her own companion side on or off (one can be a plain work assistant while the other stays a companion), her own My details (a second one starts empty, with a button to copy yours once), her own coding projects folder, and her own picture and look on each device. Models per job, the thinking level, "Look it up first", code checks and tool permissions follow your main companion until you change one while she is open; each of those pages says which applies, with a button to go back. With only one companion nothing changes.
+- New: you choose which mailboxes, Google and Spotify each companion may use (Settings → Connections, while she is open). Your main companion keeps all of them; another one starts with none.
+- New: one model switch, in the message box. On a computer a small chip next to + shows the model this chat will use next and opens the list (Default at the top, then recent ones and every connected service); on a phone it is the first item of the + menu, so the message box loses no room. A switch applies from the next message, and the chat says so. The two model chips at the top are gone: they showed the last reply's model and opened a page for the whole server.
+- New: with more than one companion, her face and name at the bottom left open the list of companions to switch between them.
+- Better: her picture defaults to her portrait when she has a look of her own, instead of the orb.
+
 ## 3.49.2 (2026-11-27): Moving in from another agent no longer stops on a long relationship section
 
 - Fixed: a move-in no longer stops when her old personality files say a lot about your relationship. The draft kept up to 600 characters for "Relationship, in your words" while her character sheet takes 400, so the whole import stopped; now what fits goes on the sheet and the rest becomes her notes. A summary handed in from elsewhere is cut to what the sheet takes too.

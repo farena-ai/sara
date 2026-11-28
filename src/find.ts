@@ -4,6 +4,7 @@
 import { existsSync, openSync, readSync, closeSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import type { AppContext } from './chat.ts';
+import { workspacesBase } from './tools/workspace.ts';
 
 export interface FoundItem {
   kind: 'conversation' | 'message' | 'memory' | 'note' | 'task' | 'reminder' | 'scrapbook' | 'file';
@@ -137,5 +138,5 @@ export function findEverything(app: AppContext, q: string, opts: { files?: boole
     .filter((e) => allIn(`${e.text}\n${e.note ?? ''}`, words))
     .slice(0, 8)
     .map((e): FoundItem => ({ kind: 'scrapbook', title: e.note || 'Saved moment', snippet: snippetOf(e.text, words), id: e.id, conversationId: e.conversationId ?? undefined, messageId: e.messageId ?? undefined, when: e.createdAt }));
-  return { conversations: [...tagHits, ...convs].slice(0, 30), memories, notes, tasks, scrapbook, files: opts.files === false ? [] : findFiles(app.rootDir ?? app.dataDir, words) };
+  return { conversations: [...tagHits, ...convs].slice(0, 30), memories, notes, tasks, scrapbook, files: opts.files === false ? [] : findFiles(workspacesBase(app), words) };
 }

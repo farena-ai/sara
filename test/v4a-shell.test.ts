@@ -177,7 +177,7 @@ test('V4a name: her chosen name everywhere she is named (header, sidebar, compos
   assert.match(html, /<div id="v4-mem-slot" class="v4-mem-slot"><\/div>/);
 });
 
-test('V4a status strip: chips come from the real routes (workers, triggers, spend, model), hidden when empty, each opens its page', async (t) => {
+test('V4a status strip: chips come from the real routes (workers, triggers, spend), hidden when empty, each opens its page', async (t) => {
   const { stripChips, glanceToday, sparkPath } = await v4();
   assert.deepEqual(stripChips({}), [], 'nothing to show: no chips');
   assert.deepEqual(stripChips({ workers: { workers: [{ name: 'A', running: null, queued: 3 }] }, triggers: { triggers: [{ name: 'x', state: 'paused' }] }, spend: { spent: { day: 0 }, spend: { dayUsd: 0 } } }), [], 'queued, paused and zero spend are not chips');
@@ -211,16 +211,17 @@ test('V4a status strip: chips come from the real routes (workers, triggers, spen
     return r.ok ? r.json() : null;
   };
   // The same five calls web/v4.js makes.
-  const d = { workers: await get('/workers'), runs: await get('/runs?limit=20'), research: await get('/research'), triggers: await get('/triggers'), spend: await get('/spend'), model: { name: 'claude-opus-4', provider: 'P', live: true } };
+  const d = { workers: await get('/workers'), runs: await get('/runs?limit=20'), research: await get('/research'), triggers: await get('/triggers'), spend: await get('/spend') };
   const chips = stripChips(d);
-  assert.deepEqual(chips.map((c: { key: string }) => c.key), ['workers', 'triggers', 'model', 'spend']);
+  // T63: no model chip (a chat's model is chosen and shown in the message box), even if one is passed.
+  assert.deepEqual(chips.map((c: { key: string }) => c.key), ['workers', 'triggers', 'spend']);
+  assert.deepEqual(stripChips({ ...d, model: { name: 'claude-opus-4', provider: 'P', live: true } }).map((c: { key: string }) => c.key), ['workers', 'triggers', 'spend']);
   const by = Object.fromEntries(chips.map((c: { key: string }) => [c.key, c]));
   assert.equal(by.workers.text, 'One worker running');
   assert.equal(by.workers.live, true);
   assert.equal(by.triggers.text, 'One trigger armed');
-  assert.equal(by.model.text, 'claude-opus-4 · answering');
   assert.equal(by.spend.text, '$0.42 of $5.00 today');
-  assert.deepEqual(Object.fromEntries(chips.map((c: { key: string; go: string }) => [c.key, c.go])), { workers: 'team', triggers: 'triggers', model: 'model', spend: 'spend' });
+  assert.deepEqual(Object.fromEntries(chips.map((c: { key: string; go: string }) => [c.key, c.go])), { workers: 'team', triggers: 'triggers', spend: 'spend' });
   // Spend's line: one point per hour of today, rising to what was spent so far.
   assert.equal(d.spend.hours.length, 19);
   assert.equal(d.spend.hours[0], 0);
@@ -237,7 +238,7 @@ test('V4a status strip: chips come from the real routes (workers, triggers, spen
   for (const p of ["'/workers'", "'/runs?limit=20'", "'/research'", "'/triggers'", "'/spend'", "'/today?parts=day,board,needs'"]) assert.ok(js.includes(p), p);
   assert.match(js, /if \(!ui\.ctx \|\| document\.hidden\) return;/);
   assert.match(js, /c\.openSettings\('co-hooks'\)/);
-  assert.match(js, /c\.openSettings\('models-routes'\)/);
+  assert.doesNotMatch(js, /c\.openSettings\('models-routes'\)/, 'T63: the strip opens no server-wide model page');
   assert.match(js, /c\.openSettings\('dh-usage'\)/);
   const appJs = web('app.js');
   assert.match(appJs, /initV4\(\{/);

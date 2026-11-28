@@ -259,7 +259,7 @@ test('111.6 mail refresh: an organize run says SSE today {part:mail} during a lo
   assert.ok(seen.includes('mail'), 'Undo tells the page too');
   // The tools (gmail_organize, gmail_undo) run through the same organizer, so they push the same way.
   const src = readFileSync(join(ROOT, 'src', 'main.ts'), 'utf8');
-  assert.match(src, /app\.gmail = new GmailOrganizer\(google, store\.db, \{[^\n]*onChange: gmailTodayHook\(app\) \}\);/);
+  assert.match(src, /app\.gmail = new GmailOrganizer\(cGoogle, store\.db, \{[^\n]*onChange: gmailTodayHook\(app\) \}\);/);
 });
 
 // ------------------------------------------------------------------ 7 · Mail 2.0

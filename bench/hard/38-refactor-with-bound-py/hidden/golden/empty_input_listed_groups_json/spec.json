@@ -1,0 +1,16 @@
+{
+  "group_by": [
+    "region"
+  ],
+  "groups": [
+    [
+      "b"
+    ],
+    [
+      "a"
+    ]
+  ],
+  "order": "revenue",
+  "format": "json",
+  "top_products": 1
+}

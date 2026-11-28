@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "roles": {"oncall": {}},
+  "principals": {"sam": {"roles": ["oncall"]}},
+  "statements": [
+    {
+      "id": "night-shift",
+      "effect": "allow",
+      "roles": ["oncall"],
+      "actions": ["ops:*"],
+      "resources": ["/prod/**"],
+      "conditions": {
+        "time": [
+          {"days": ["mon", "tue", "wed", "thu", "fri"], "start": "18:00", "end": "08:00", "tz_offset": "-05:00"},
+          {"days": ["sat", "sun"], "start": "00:00", "end": "00:00", "tz_offset": "-05:00"}
+        ]
+      }
+    }
+  ]
+}

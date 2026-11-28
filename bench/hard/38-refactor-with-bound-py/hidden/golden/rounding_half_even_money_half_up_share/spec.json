@@ -1,0 +1,11 @@
+{
+  "group_by": [
+    "region"
+  ],
+  "metrics": [
+    "units",
+    "revenue",
+    "avg_price",
+    "share"
+  ]
+}

@@ -19,7 +19,7 @@ import { appLanguage, languageLine, speechLanguage, talkLanguage } from './i18n.
 import { bondContext, classify, daysKnown, innerEnabled, OFFSERVER_TOOL, turnScope } from './chat.ts';
 import { privateLocalOn } from './net-guard.ts';
 import { clip, type Tool } from './tools/types.ts';
-import { workspaceDir } from './tools/workspace.ts';
+import { workspaceDir, workspacesBase } from './tools/workspace.ts';
 import { isSshTool } from './tools/ssh.ts';
 import { identityOf, buildSystemPrompt } from './persona.ts';
 import { elsewhereNote } from './elsewhere.ts';
@@ -847,7 +847,7 @@ export class LiveCall {
     let output: string;
     let status: 'ok' | 'error' = 'ok';
     try {
-      output = await tool.run(args, { workspaceDir: workspaceDir(app.rootDir ?? app.dataDir, conv.workspace), signal: this.#abort.signal, sandbox: { ...app.sandbox, network: privateLocalOn() ? false : (app.settings.get().shellNetwork ?? true) }, conversationId: conv.id, companionName: app.persona.name });
+      output = await tool.run(args, { workspaceDir: workspaceDir(workspacesBase(app), conv.workspace), signal: this.#abort.signal, sandbox: { ...app.sandbox, network: privateLocalOn() ? false : (app.settings.get().shellNetwork ?? true) }, conversationId: conv.id, companionName: app.persona.name });
     } catch (err) {
       status = 'error';
       output = `Error: ${(err as Error).message}`;

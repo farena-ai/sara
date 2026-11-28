@@ -1,0 +1,13 @@
+{
+  "title": "Stock",
+  "columns": [
+    { "header": "Code", "width": 5 },
+    { "header": "Item" },
+    { "header": "Shelf", "align": "right" }
+  ],
+  "rows": [
+    ["A-100", "Apples", "3"],
+    ["A-101", "Kiwis", "12"],
+    ["B-200", "Watermelons", "7"]
+  ]
+}

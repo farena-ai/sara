@@ -80,9 +80,10 @@ test('cost labels: Ollama Cloud at ollama.com is paid (api), never "$0 (local)"'
   assert.equal(billingOf({ id: 'ollama-cloud', label: 'Ollama Cloud (API key)', kind: 'openai-compatible', baseUrl: 'http://127.0.0.1:8042/v1' } as never), 'local');
 });
 
-test('Company mode: the chat line names her AI service in plain words, no folders; "full" is explained', () => {
+test('Company mode: the chat line names no folders; "full" is explained', () => {
   const a = web('app.js');
-  assert.match(a, /t\('Thinks with \{service\}', \{ service \}\)/);
+  // T63: the chat line no longer names her AI service either (the message box's model chip does).
+  assert.doesNotMatch(a, /t\('Thinks with \{service\}', \{ service \}\)/);
   assert.match(a, /state\.usePath === 'company' && c\.mode !== 'coding'/);
   assert.match(web('look.js'), /Nothing is lost, keep talking/);
 });

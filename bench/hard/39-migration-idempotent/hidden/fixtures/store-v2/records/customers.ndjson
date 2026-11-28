@@ -1,0 +1,10 @@
+{"id":"k1","full_name":"  Mary   Ann  Evans ","email":"mae@lit.uk","created":"2024-05-01","tier":"basic"}
+{"id":"k2","full_name":"George Eliot","email":"mae@lit.uk","created":"2024-05-02","tier":"gold","phone":"212.555.0123"}
+{"id":"k3","full_name":"G. E.","email":"mae@lit.uk","created":"2024-05-03","tier":"basic","phone":"+1 212-555-0100","note":"pen name"}
+{"id":"k4","email":"noname@x.io","created":"2024-05-04","tier":"basic","phone":null,"marketing_opt_in":null}
+{"id":"k5","full_name":"Nine Digits","email":"n9@x.io","created":"2024-05-05","tier":"basic","phone":"555 123 456"}
+{"id":"k6","full_name":"Starts With Two","email":"s2@x.io","created":"2024-05-06","tier":"basic","phone":"2-555-123-4567"}
+{"id":"k7","full_name":"Number Phone","email":"np@x.io","created":"2024-05-07","tier":"basic","phone":5551234567}
+{"id":"k1","full_name":"Second K1","email":"k1b@x.io","created":"2024-05-08","tier":"basic"}
+{"id":"k8","full_name":"Loose Date","email":"ld@x.io","created":"2024-5-8","tier":"basic","phone":"(312) 555-0199"}
+{"id":"k9","full_name":"Émile Zola","email":"ez@x.fr","created":"2024-05-09","tier":"","marketing_opt_in":true}

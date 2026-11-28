@@ -22,7 +22,7 @@ import { inside, resolveInside } from './tools/workspace.ts';
 // ------------------------------------------------------------------ settings (§3.3)
 
 export interface PreciseSettings {
-  checks: { on: boolean; waitS: number; timeoutS: number; shown: number; warnings: boolean; nudges: number; doneGate: boolean; review: boolean };
+  checks: { on: boolean; waitS: number; timeoutS: number; shown: number; warnings: boolean; nudges: number; doneGate: boolean; review: boolean; reviewFinish: boolean; reviewTools: boolean; strongReview: boolean };
   refs: { on: boolean; perRefChars: number; softPct: number; hardPct: number; folderEntries: number; urls: boolean; olderAs: 'stub' | 'full' };
 }
 export const PRECISE_CHOICES = {
@@ -33,7 +33,7 @@ export const PRECISE_CHOICES = {
   perRefChars: [20_000, 40_000, 80_000],
 } as const;
 export const DEFAULT_PRECISE: PreciseSettings = {
-  checks: { on: true, waitS: 20, timeoutS: 60, shown: 20, warnings: false, nudges: 2, doneGate: true, review: false },
+  checks: { on: true, waitS: 20, timeoutS: 60, shown: 20, warnings: false, nudges: 2, doneGate: true, review: false, reviewFinish: false, reviewTools: false, strongReview: true },
   refs: { on: true, perRefChars: 40_000, softPct: 25, hardPct: 50, folderEntries: 200, urls: true, olderAs: 'stub' },
 };
 const pick = (v: unknown, list: readonly number[], dflt: number, testAny = false): number => {
@@ -62,6 +62,13 @@ export function preciseSettings(app: AppContext): PreciseSettings {
       // T56: the Review model reads her change against the request once a turn (src/spec-review.ts).
       // Off unless switched on: measured with the repository benchmark, it has not raised the pass rate yet.
       review: (c as { review?: unknown }).review === true,
+      // T57: with the review on, the Review model also takes the turn over to fix what it found.
+      reviewFinish: (c as { reviewFinish?: unknown }).reviewFinish === true,
+      // T59: the review gets read-only tools and may run the tests again in a copy (src/review-tools.ts).
+      reviewTools: (c as { reviewTools?: unknown }).reviewTools === true,
+      // T60 (owner, 2026-11-27, after the benchmark: 14 of 24 against 6): on unless switched off. Acts only when
+      // a Review model is set (Which model does what → Reviewing code) and is another model than the coder.
+      strongReview: (c as { strongReview?: unknown }).strongReview !== false,
     },
     refs: {
       on: r.on !== false,
@@ -91,6 +98,9 @@ export function mergePrecise(app: AppContext, body: Record<string, unknown>): Pr
       nudges: pick(c.nudges, PRECISE_CHOICES.nudges, cur.checks.nudges),
       doneGate: b(c.doneGate, cur.checks.doneGate),
       review: b(c.review, cur.checks.review),
+      reviewFinish: b(c.reviewFinish, cur.checks.reviewFinish),
+      reviewTools: b(c.reviewTools, cur.checks.reviewTools),
+      strongReview: b(c.strongReview, cur.checks.strongReview),
     },
     refs: {
       ...cur.refs,

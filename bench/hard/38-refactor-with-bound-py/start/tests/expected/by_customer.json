@@ -1,0 +1,75 @@
+{
+  "title": "Customers",
+  "columns": [
+    "customer",
+    "count",
+    "revenue",
+    "share",
+    "rank"
+  ],
+  "rows": [
+    {
+      "customer": "",
+      "count": "3",
+      "revenue": "83.97",
+      "share": "11.5",
+      "rank": "6"
+    },
+    {
+      "customer": "c1",
+      "count": "3",
+      "revenue": "95.46",
+      "share": "13.1",
+      "rank": "5"
+    },
+    {
+      "customer": "c2",
+      "count": "4",
+      "revenue": "97.96",
+      "share": "13.4",
+      "rank": "3"
+    },
+    {
+      "customer": "c3",
+      "count": "3",
+      "revenue": "50.45",
+      "share": "6.9",
+      "rank": "7"
+    },
+    {
+      "customer": "c4",
+      "count": "2",
+      "revenue": "27.47",
+      "share": "3.8",
+      "rank": "8"
+    },
+    {
+      "customer": "c5",
+      "count": "3",
+      "revenue": "126.01",
+      "share": "17.2",
+      "rank": "2"
+    },
+    {
+      "customer": "c6",
+      "count": "5",
+      "revenue": "153.48",
+      "share": "21.0",
+      "rank": "1"
+    },
+    {
+      "customer": "c7",
+      "count": "3",
+      "revenue": "95.97",
+      "share": "13.1",
+      "rank": "4"
+    }
+  ],
+  "total": {
+    "customer": "TOTAL",
+    "count": "26",
+    "revenue": "730.77",
+    "share": "100.0",
+    "rank": ""
+  }
+}

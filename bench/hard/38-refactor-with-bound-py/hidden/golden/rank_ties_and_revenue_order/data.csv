@@ -1,0 +1,8 @@
+order,day,region,store,product,category,customer,qty,price
+o,2026-03-01,west,s1,a,k,c1,1,10
+o,2026-03-01,north,s1,a,k,c1,2,5
+o,2026-03-01,east,s1,a,k,c1,1,7
+o,2026-03-01,south,s1,a,k,c1,1,10
+o,2026-03-01,centre,s1,a,k,c1,1,3
+o,2026-03-01,east,s1,b,k,c1,1,3
+o,2026-03-01,hub,s1,a,k,c1,1,2

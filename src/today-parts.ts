@@ -20,7 +20,7 @@ import { dayBounds, todayChanged, todayState, type PartCtx, type TodayPartName }
 import { HOME_VAULT, type HaState } from './tools/home.ts';
 import { GITHUB_VAULT } from './tools/coding.ts';
 import { repoFromRemote } from './tools/github.ts';
-import { workspaceDir } from './tools/workspace.ts';
+import { workspaceDir, workspacesBase } from './tools/workspace.ts';
 import { adultModeOn } from './settings.ts';
 import { gatherTrouble, troubleOf } from './trouble.ts';
 import { mergeSummaries, type UsageTotals } from './usage.ts';
@@ -221,7 +221,7 @@ function projects(deps: PartDeps): Loader {
     for (const [ws, info] of list) {
       let dir: string | undefined;
       try {
-        dir = workspaceDir(app.rootDir ?? app.dataDir, ws);
+        dir = workspaceDir(workspacesBase(app), ws);
       } catch {
         dir = undefined;
       }

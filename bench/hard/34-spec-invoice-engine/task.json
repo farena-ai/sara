@@ -1,0 +1,7 @@
+{
+  "title": "Invoice engine: implement the version 2 specification",
+  "kind": "feature",
+  "lang": "js",
+  "prompt": "This is Tally, an invoicing engine (about 40 files). Version 2 is specified in docs/SPEC.md (rules R1 to R42), with worked examples in docs/EXAMPLES.md, but so far only the basics are built (see CHANGELOG.md): most of the calculation is missing or stubbed, and some of what exists does not yet follow the specification. Implement the whole specification across the modules in src/, keeping the public API (calculateInvoice, createCreditNote, InvoiceError and the result shape in README.md), and make sure the test suite passes.",
+  "hidden": ["node", "--test", "__hidden__/*.test.js"]
+}

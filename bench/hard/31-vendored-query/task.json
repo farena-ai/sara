@@ -1,0 +1,7 @@
+{
+  "title": "Shopfloor: sales figures and month-end closing over a vendored table library",
+  "kind": "feature",
+  "lang": "js",
+  "prompt": "This back office keeps its data in tabula, a small table library vendored under vendor/tabula/ (it has its own README.md and docs/API.md). The sales list, the per-customer revenue figures and the month-end closing are not written yet: implement salesReport and customerSummary in src/reports.js as specified in docs/SALES.md, and closeMonth in src/closing.js as specified in docs/CLOSING.md. Use the library for the data access. The library under vendor/ is third-party code and must not be modified. Make sure the test suite passes.",
+  "hidden": ["node", "--test", "__hidden__/*.test.js"]
+}

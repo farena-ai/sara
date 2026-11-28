@@ -1,0 +1,15 @@
+{"id": "o1", "customer": "c1", "total": "0.29", "weight_lb": 1.5, "status": "paid", "items": [{"sku": "pen", "qty": 1, "price": "0.29"}]}
+{"id": "o2", "customer": "c4", "total": "1,234.50", "weight_lb": 2, "status": "new", "currency": "EUR", "items": [{"sku": "desk", "qty": 1, "price": "1,200.00"}, {"sku": "lamp", "qty": 2, "price": "17.25"}]}
+{"id": "o3", "customer": "c2", "total": "4.35", "weight_lb": 0, "status": "shipped", "items": [{"sku": "tea", "qty": 3, "price": "1.45"}]}
+{"id": "o4", "customer": "c6", "total": "5", "weight_lb": 1, "status": "new", "items": [{"sku": "box", "qty": 1, "price": "5"}]}
+{"id": "o5", "customer": "c9", "total": "2.00", "weight_lb": 1, "status": "new", "items": [{"sku": "box", "qty": 1, "price": "2"}]}
+{"id": "o6", "customer": "c2", "total": "10.00", "weight_lb": 0.25, "status": "paid", "items": [{"sku": "cup", "qty": 2, "price": "4.00"}]}
+{"id": "o1", "customer": "c2", "total": "1.00", "weight_lb": 1, "status": "new", "items": []}
+{"id": "o8", "customer": "c1", "total": "12.345", "weight_lb": 1, "status": "new", "items": []}
+{"id": "o9", "customer": "c1", "total": "1.00", "weight_lb": 1, "status": "new", "items": [{"sku": "x", "qty": 1, "price": "abc"}]}
+{"id": "o10", "customer": "c7", "total": "0.70", "weight_lb": 0.1, "status": "new", "items": [{"sku": "gum", "qty": 7, "price": "0.10"}]}
+{"id": "o11", "customer": "c8", "total": "1.15", "weight_lb": 0.3, "status": "paid", "items": [{"sku": "x", "qty": 1, "price": "1.15"}]}
+{"id": "o12", "customer": "c3", "total": "0", "weight_lb": 0, "status": "new", "items": []}
+[1, 2]
+{"id": "o14", "customer": "c1", "total": "3.00", "weight_lb": 1, "status": "new", "items": [{"sku": "a", "qty": 1.5, "price": "1.00"}, {"sku": "b", "qty": 1, "price": "1.50"}]}
+{"id": "", "customer": "c1", "total": "1.00", "weight_lb": 1, "status": "new", "items": []}

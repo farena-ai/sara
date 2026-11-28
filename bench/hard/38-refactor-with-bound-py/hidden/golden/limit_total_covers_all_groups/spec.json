@@ -1,0 +1,8 @@
+{
+  "group_by": [
+    "region"
+  ],
+  "order": "revenue",
+  "limit": 2,
+  "top_products": 2
+}

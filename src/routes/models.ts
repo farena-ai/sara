@@ -5,6 +5,7 @@ import { forgetModelTestResults } from '../model-tests.ts';
 import { policy } from '../policy-profile.ts';
 import { APNS_VAULT } from '../apns.ts';
 import { resolveChain, vaultKeyFor, type AppContext } from '../chat.ts';
+import { type CompanionSettings, ownKeysOf } from '../companions.ts';
 import { modelSees } from '../picture-reader.ts';
 import type { Conversation } from '../store.ts';
 import { as400, HttpError, readJson, send } from '../http.ts';
@@ -570,10 +571,13 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
       }
       if (b && !c && method === 'DELETE') {
         const s = app.settings.get();
-        app.settings.update({
-          providers: s.providers.filter((p) => p.id !== b),
-          ...(s.defaultProviderId === b ? { defaultProviderId: undefined, defaultModel: undefined } : {}),
-        });
+        app.settings.update({ providers: s.providers.filter((p) => p.id !== b) });
+        // T62: every companion that had it as her default (the server's, then any of her own) lets it go.
+        for (const st of (opts.companions?.all() ?? [{ app }]).map((x) => x.app.settings)) {
+          if (st.get().defaultProviderId !== b) continue;
+          if (ownKeysOf(st).includes('defaultProviderId')) (st as CompanionSettings).clearOwn(['defaultProviderId', 'defaultModel']);
+          else st.update({ defaultProviderId: undefined, defaultModel: undefined });
+        }
         app.vault.delete(vaultKeyFor(b));
         app.modelCatalog?.forget(b);
         // Model tests: its results go with it.

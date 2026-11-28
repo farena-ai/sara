@@ -1,0 +1,10 @@
+{
+  "group_by": [
+    "region"
+  ],
+  "top_products": 2,
+  "metrics": [
+    "revenue",
+    "rank"
+  ]
+}

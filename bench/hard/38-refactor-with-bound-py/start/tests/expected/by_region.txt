@@ -1,0 +1,9 @@
+Sales by region, March 2026
+
+region  count  units  revenue  customers  avg_price  median_qty  share  rank  top_products
+------  -----  -----  -------  ---------  ---------  ----------  -----  ----  -------------------------------
+east        8     15   301.98          4      20.13         1.5   35.1     1  mug (180.50), tray (100.99)
+south      13     27   284.92          6      10.55           2   33.2     2  toaster (146.00), mug (53.50)
+north      12     18   180.93          6      10.05         1.5   21.1     3  toaster (76.46), teapot (69.98)
+west        7     10    91.44          3       9.14           1   10.6     4  tray (43.99), teapot (19.99)
+TOTAL      40     70   859.27          7      12.28           2  100.0        mug (289.46), toaster (232.96)

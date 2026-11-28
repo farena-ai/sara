@@ -1,0 +1,9 @@
+{
+  "name": "shopfloor",
+  "version": "0.9.0",
+  "private": true,
+  "type": "module",
+  "description": "Back office for a small wholesale shop.",
+  "bin": { "shop": "bin/shop.js" },
+  "scripts": { "test": "node --test" }
+}

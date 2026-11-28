@@ -1,0 +1,8 @@
+{
+  "group_by": [
+    "region",
+    "category"
+  ],
+  "top_products": 2,
+  "order": "key"
+}

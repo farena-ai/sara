@@ -1,9 +1,9 @@
 // V4a (docs/ops/V4_DESIGN.md): the "living system" shell. Three parts, all from data the app already
 // has (nothing invented, nothing shown when there is nothing):
 //   - the live status strip at the top: workers running (C10, GET /api/workers), runs and research
-//     that are going (GET /api/runs, GET /api/research), triggers armed (C4, GET /api/triggers), the
-//     model answering this chat (its last reply's meta, live while she streams) and spend today
-//     against the daily limit (C8, GET /api/spend). Each chip opens its page.
+//     that are going (GET /api/runs, GET /api/research), triggers armed (C4, GET /api/triggers) and
+//     spend today against the daily limit (C8, GET /api/spend). Each chip opens its page. T63: no
+//     model chip: the model of this chat is chosen and shown in the message box (web/chat-model.js).
 //   - At a glance in her panel (1180 px and wider): spend today with its line, workers, V4b's memory
 //     slot, and today (tasks done, waiting on you, what a trigger is watching for).
 //   - the ambient field behind the app: a few faint blobs of her accent's hue that drift faster while
@@ -29,11 +29,11 @@ const RESEARCH_WORD = { planning: () => t('planning'), running: () => t('reading
 
 /**
  * The chips to show for what the routes returned (null = not available here). Order: workers, runs,
- * research, triggers, model, spend. Each: { key, live, warn, text, title, go }.
+ * research, triggers, spend. Each: { key, live, warn, text, title, go }.
  */
-/** Z2: whether the strip has something worth a row on a phone: any chip except an idle model name. */
+/** Z2: whether the strip has something worth a row on a phone (T63: every chip is news now). */
 export function stripHasNews(chips) {
-  return chips.some((c) => c.key !== 'model' || c.live);
+  return chips.length > 0;
 }
 
 export function stripChips(d) {
@@ -50,7 +50,9 @@ export function stripChips(d) {
   else if (research.length > 1) out.push({ key: 'research', live: true, n: research.length, text: t('{n} research runs', { n: research.length }), title: research.map((r) => r.question).join(' · '), go: 'research' });
   const armed = (d.triggers?.triggers ?? []).filter((x) => x.state === 'on');
   if (armed.length) out.push({ key: 'triggers', live: false, n: armed.length, text: armed.length === 1 ? t('One trigger armed') : t('{n} triggers armed', { n: armed.length }), title: armed.map((x) => x.name).join(' · '), go: 'triggers' });
-  if (d.model?.name) out.push({ key: 'model', live: Boolean(d.model.live), second: true, text: d.model.live ? t('{model} · answering', { model: d.model.name }) : d.model.name, title: d.model.provider ? `${d.model.name} · ${d.model.provider}` : d.model.name, go: 'model', raw: true });
+  // T63 (owner, 2026-11-28): no model chip here. It named her last reply's model and opened the
+  // server-wide "Which model does what", so switching this chat's model never showed up in it. The
+  // model this chat uses is chosen and shown in the message box; each reply still names its model.
   const sp = d.spend;
   if (sp) {
     const day = Number(sp.spent?.day) || 0;
@@ -115,30 +117,19 @@ async function fetchAll() {
   return { workers, runs, research, triggers, spend };
 }
 
-function modelNow() {
-  const c = ui.ctx;
-  const msgs = c.messages?.() ?? [];
-  const last = [...msgs].reverse().find((m) => m.role === 'assistant' && m.meta?.model);
-  const live = Boolean(c.streaming?.());
-  if (last) return { name: last.meta.model, provider: last.meta.provider ?? '', live };
-  const m = c.model?.();
-  return m ? { ...m, live } : null;
-}
-
 function go(chip) {
   const c = ui.ctx;
   if (chip.go === 'team') return c.openTeam();
   if (chip.go === 'run') return chip.conversationId ? c.openConversation(chip.conversationId) : c.openRun?.(chip.id);
   if (chip.go === 'research') return c.openResearch(chip.id);
   if (chip.go === 'triggers') return c.openSettings('co-hooks');
-  if (chip.go === 'model') return c.openSettings('models-routes');
   if (chip.go === 'spend') return c.openSettings('dh-usage');
 }
 
 function renderStrip() {
   const host = $('#v4-chips');
   if (!host) return;
-  const chips = stripChips({ ...ui.data, model: modelNow() });
+  const chips = stripChips(ui.data);
   host.replaceChildren(
     ...chips.map((ch) => {
       const b = el('button', `v4-chip${ch.live ? ' live' : ''}${ch.ok ? ' ok' : ''}${ch.warn ? ' warn' : ''}${ch.second ? ' second' : ''}`);
@@ -155,11 +146,9 @@ function renderStrip() {
       return b;
     }),
   );
-  // Z2 (polish): a model that is only named, not answering, is not news: on a phone the strip took a
-  // whole row to repeat the name the chat's own header already shows. The strip counts as having chips
-  // when something is going on (or the model is answering).
+  // Z2 (polish): on a phone the strip takes a row only when something is going on.
   document.documentElement.classList.toggle('v4-has-chips', stripHasNews(chips));
-  const live = chips.filter((c) => c.live && c.key !== 'model').length;
+  const live = chips.filter((c) => c.live).length;
   ui.busy = ui.ctx.streaming?.() ? 1 : live ? 0.6 : 0.15;
   document.documentElement.dataset.busy = ui.busy >= 1 ? 'answering' : live ? 'working' : 'idle';
 }

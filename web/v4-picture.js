@@ -1,12 +1,16 @@
 // V4d (docs/ops/V4_DESIGN.md → V4d): her picture in the new look. Settings → Appearance → Her picture
-// (this device, sara.herPicture): the presence orb (default), her portrait, or the picture you
+// (this device, sara.herPicture): the presence orb, her portrait (T62: the default when she has her own look), or the picture you
 // uploaded (Settings → Sara). A picture shows round with the orb's live state as a thin ring
 // (web/v4-pages.css). Sara Classic always shows her picture, as before.
 // A1 (docs/ops/A1_AVATAR_DESIGN.md): her portrait is now animated (web/avatar.js); 'portrait-still'
 // keeps the still picture, 'vrm' shows a 3D model brought by the owner (web/avatar-vrm.js).
 
-/** The mode to show: 'orb', 'portrait', 'still', 'own' or 'vrm'. Nothing picked: your picture if you uploaded one (as in 3.0.0), else the orb. */
-export function herPictureMode(stored, custom) {
+/**
+ * The mode to show: 'orb', 'portrait', 'still', 'own' or 'vrm'. Nothing picked: your picture if you
+ * uploaded one (as in 3.0.0); else (T62) her portrait when she has a look of her own (`ownLook`: the
+ * main companion always does), else the orb. An explicit pick is always kept.
+ */
+export function herPictureMode(stored, custom, ownLook = false) {
   // W1.4: nothing picked on this device: the person's persona style (web/comes-across.js) decides.
   stored ||= globalThis.document?.documentElement?.dataset.herFace ?? null;
   if (stored === 'orb') return 'orb';
@@ -14,7 +18,7 @@ export function herPictureMode(stored, custom) {
   if (stored === 'portrait-still') return 'still';
   if (stored === 'vrm') return 'vrm';
   if (stored === 'own') return custom ? 'own' : 'portrait';
-  return custom ? 'own' : 'orb';
+  return custom ? 'own' : ownLook ? 'portrait' : 'orb';
 }
 
 /**

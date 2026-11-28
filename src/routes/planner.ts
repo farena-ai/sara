@@ -19,7 +19,7 @@ import { gatherStory, lookbacks, STORY_FILTERS, type StoryFilter } from '../stor
 import { buildToday, todayChanged } from '../today.ts';
 import { addNotToday, getLayout, LayoutError, putLayout, resetLayout, setSeen } from '../today-layout.ts';
 import { todayLoaders } from '../today-parts.ts';
-import { workspaceDir } from '../tools/workspace.ts';
+import { workspaceDir, workspacesBase } from '../tools/workspace.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 import { memoryLaneRoute } from './memory-lane.ts';
 
@@ -100,7 +100,8 @@ async function todayWeather(place: { name: string; lat: number; lon: number }, u
 }
 
 export function createPlannerRoutes(ctx: RouteCtx): RouteHandler {
-  const { app, opts, rootDir } = ctx;
+  const { app, opts } = ctx;
+  const wsBase = workspacesBase(app);
   // Phase 108 (CH2): a channel project says which channel it holds, whether that channel is on (then
   // it can't be deleted) and how many chats the one-time filing moved in (its Undo).
   const projectView = (p: Project) => {
@@ -297,7 +298,7 @@ export function createPlannerRoutes(ctx: RouteCtx): RouteHandler {
         let truncated = false;
         if (p.workspace) {
           try {
-            ({ files, truncated } = listFiles(workspaceDir(rootDir, p.workspace), 300));
+            ({ files, truncated } = listFiles(workspaceDir(wsBase, p.workspace), 300));
           } catch {
             files = [];
           }

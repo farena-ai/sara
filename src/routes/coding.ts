@@ -22,7 +22,7 @@ import { cleanHelpers, cleanLimits, ROLES, teamHelpers, type TeamLimits, type Te
 import { GIT_SAFE, GITHUB_VAULT, shq } from '../tools/coding.ts';
 import { APPROVAL_HOWS, type ApprovalHow } from '../tools/registry.ts';
 import { runCommand } from '../tools/sandbox.ts';
-import { resolveInside, workspaceDir } from '../tools/workspace.ts';
+import { resolveInside, workspaceDir, workspacesBase } from '../tools/workspace.ts';
 import { cleanBudget, usageLine } from '../usage.ts';
 import { FINDING_SEVERITIES, FINDING_SOURCES, FINDING_STATUSES, type FindingSeverity, type FindingSource, type FindingStatus } from '../security/findings.ts';
 import { DEFAULT_SECURITY, mergeSecurity, REVIEW_BUDGET_CHOICES, SECURITY_MODES, securitySettings } from '../security/pass.ts';
@@ -34,7 +34,8 @@ import { CheckpointError, checkpointKeys, projectRef } from '../project-checkpoi
 import { otherWork, projectNowPath } from '../project-now.ts';
 
 export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
-  const { active, app, me, opts, projectOrThrow, rootDir } = ctx;
+  const { active, app, me, opts, projectOrThrow } = ctx;
+  const wsBase = workspacesBase(app);
   return async (req, res, method, parts) => {
     const [a, b, c] = parts;
     // Phase 78: run snapshots (read only; time-travel is M8). The owner's own space; a household
@@ -76,7 +77,7 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
         sec.osv.clearCache();
       } else if (method !== 'GET') throw new HttpError(405, 'Method not allowed');
       const q = new URL(req.url ?? '/', 'http://x').searchParams;
-      const wsRoot = join(rootDir, 'workspaces');
+      const wsRoot = join(wsBase, 'workspaces');
       const preview = q.get('preview') === '1' ? sec.previewPackages((existsSync(wsRoot) ? readdirSync(wsRoot, { withFileTypes: true }) : []).filter((e) => e.isDirectory()).map((e) => ({ name: e.name, dir: join(wsRoot, e.name) }))) : undefined;
       return send(res, 200, { ...securitySettings(app.settings.get()), choices: { mode: SECURITY_MODES, budgetTokens: REVIEW_BUDGET_CHOICES }, defaults: DEFAULT_SECURITY, privateLocal: privateLocalOn(), cached: sec.osv.cacheSize(), reviewModel: Boolean(app.settings.get().routes?.review), ...(preview ? { preview } : {}) });
     }
@@ -105,7 +106,7 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
         if (body.conversationId && !conv) throw new HttpError(404, 'Conversation not found');
         if (conv && conv.mode !== 'coding') throw new HttpError(400, 'The threat model is for coding conversations.');
         const workspace = conv ? conv.workspace : validWorkspace(body.workspace);
-        const wsDir = workspaceDir(rootDir, workspace);
+        const wsDir = workspaceDir(wsBase, workspace);
         const summary = await thr.run({ conversationId: conv?.id ?? null, workspace, wsDir, changed: [], reason: 'ask', private: Boolean(conv?.private) });
         return send(res, 200, { summary });
       }
@@ -144,7 +145,7 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
         if (body.conversationId && !conv) throw new HttpError(404, 'Conversation not found');
         if (conv && conv.mode !== 'coding') throw new HttpError(400, 'Red-team mode is for coding projects.');
         const workspace = conv ? conv.workspace : validWorkspace(body.workspace);
-        return { conv, workspace, wsDir: workspaceDir(rootDir, workspace) };
+        return { conv, workspace, wsDir: workspaceDir(wsBase, workspace) };
       };
       if (!b) {
         if (method === 'PUT') {
@@ -236,7 +237,7 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
         if (body.conversationId && !conv) throw new HttpError(404, 'Conversation not found');
         if (conv && conv.mode !== 'coding') throw new HttpError(400, 'The security pass is for coding conversations.');
         const workspace = conv ? conv.workspace : validWorkspace(body.workspace);
-        const wsDir = workspaceDir(rootDir, workspace);
+        const wsDir = workspaceDir(wsBase, workspace);
         const files = sec.filesToCheck(wsDir);
         const summary = await sec.run({ conversationId: conv?.id ?? null, workspace, wsDir, files, reason: 'ask', private: Boolean(conv?.private) });
         return send(res, 200, { summary });
@@ -487,7 +488,7 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
         const body = await readJson(req);
         let result;
         try {
-          result = app.snapshots.restore(ws, workspaceDir(rootDir, ws), id);
+          result = app.snapshots.restore(ws, workspaceDir(wsBase, ws), id);
         } catch (err) {
           throw as400(err);
         }
@@ -507,7 +508,7 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
     // Phase 13: what changed in a workspace repository (project page). Read only.
     if (a === 'workspaces' && b && c === 'git' && method === 'GET') {
       const ws = validWorkspace(b);
-      const dir = workspaceDir(rootDir, ws);
+      const dir = workspaceDir(wsBase, ws);
       const run = (cmd: string) => runCommand(cmd, dir, { ...app.sandbox, network: false }, { timeoutMs: 20_000, signal: AbortSignal.timeout(25_000), maxBytes: 300_000 });
       // No owner OK for these, so the repository's own settings may not make git run programs.
       const g = `git ${GIT_SAFE.map(shq).join(' ')}`;
@@ -523,7 +524,7 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
       const rel = new URL(req.url ?? '/', 'http://x').searchParams.get('path') ?? '';
       let full: string;
       try {
-        full = resolveInside(workspaceDir(rootDir, ws), rel);
+        full = resolveInside(workspaceDir(wsBase, ws), rel);
       } catch (err) {
         throw as400(err);
       }
@@ -542,7 +543,7 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
       return send(res, 200, { path: rel, size: st.size, binary, text: binary ? '' : buf.toString('utf8'), truncated: st.size > 200_000, ...(st.size <= 200_000 ? { hash: hashOf(buf) } : {}) });
     }
     if (a === 'workspaces' && !b && method === 'GET') {
-      const dir = join(rootDir, 'workspaces');
+      const dir = join(wsBase, 'workspaces');
       const names = existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name) : [];
       if (!names.includes('main')) names.unshift('main');
       return send(res, 200, names.sort());
@@ -717,7 +718,7 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
       const maps = app.codemap;
       if (!maps) throw new HttpError(404, 'The code map is not available');
       const ws = validWorkspace(b);
-      const dir = workspaceDir(rootDir, ws);
+      const dir = workspaceDir(wsBase, ws);
       const q = new URL(req.url ?? '/', 'http://x').searchParams;
       if (!c && method === 'GET') {
         const r = await maps.until(dir, 3000);

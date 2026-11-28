@@ -46,7 +46,7 @@ import { analyze } from './security/threat-graph.ts';
 import { insecureDefaults } from './redteam-probes.ts';
 import type { Conversation } from './store.ts';
 import { ApprovalBroker } from './tools/registry.ts';
-import { workspaceDir } from './tools/workspace.ts';
+import { workspaceDir, workspacesBase } from './tools/workspace.ts';
 
 // ------------------------------------------------------------------------------------------------
 // Choices and defaults
@@ -554,7 +554,7 @@ function taskOfRun(app: AppContext, run: RunView, o: { allLocalVariants: boolean
   let tests: string | null = null;
   if (coding) {
     try {
-      tests = detectTests(workspaceDir(app.rootDir ?? app.dataDir, conv.workspace)) ?? null;
+      tests = detectTests(workspaceDir(workspacesBase(app), conv.workspace)) ?? null;
     } catch {
       tests = null;
     }

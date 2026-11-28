@@ -1,0 +1,39 @@
+{
+  "number": "KW-310",
+  "issueDate": "2026-07-01",
+  "currency": "KWD",
+  "rounding": "document",
+  "taxRates": {
+    "standard": "5"
+  },
+  "discounts": [
+    {
+      "type": "amount",
+      "value": "1.000",
+      "code": "LOYAL"
+    }
+  ],
+  "lines": [
+    {
+      "id": "L1",
+      "description": "Printing, per sheet",
+      "quantity": "1250",
+      "unitPrice": "0.0125",
+      "taxClass": "standard"
+    },
+    {
+      "id": "L2",
+      "description": "Binding",
+      "quantity": "7",
+      "unitPrice": "0.3333",
+      "taxClass": "standard"
+    },
+    {
+      "id": "L3",
+      "description": "Books",
+      "quantity": "2",
+      "unitPrice": "4.1255",
+      "taxClass": "zero"
+    }
+  ]
+}

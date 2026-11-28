@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "max_delegation_depth": 2,
+  "roles": {
+    "owner": {"inherits": ["editor"]},
+    "editor": {"inherits": ["viewer"]},
+    "viewer": {}
+  },
+  "principals": {
+    "olga": {"roles": ["owner"]},
+    "pete": {"roles": ["viewer"]},
+    "quinn": {},
+    "rosa": {}
+  },
+  "statements": [
+    {"id": "view", "effect": "allow", "roles": ["viewer"], "actions": ["doc:read"], "resources": ["/projects/**"]},
+    {"id": "edit", "effect": "allow", "roles": ["editor"], "actions": ["doc:*"], "resources": ["/projects/**"]},
+    {"id": "no-archive", "effect": "deny", "roles": ["editor"], "actions": ["doc:delete"], "resources": ["/projects/archive/**"]}
+  ],
+  "delegations": [
+    {"id": "d-olga-pete", "from": "olga", "to": "pete", "roles": ["editor"], "expires": "2026-12-01T00:00:00Z", "actions": ["doc:read", "doc:write"]},
+    {"id": "d-pete-quinn", "from": "pete", "to": "quinn", "roles": ["editor"], "expires": "2026-12-15T00:00:00Z"},
+    {"id": "d-quinn-rosa", "from": "quinn", "to": "rosa", "roles": ["editor"], "expires": "2026-12-15T00:00:00Z"}
+  ]
+}

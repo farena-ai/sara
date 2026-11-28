@@ -154,6 +154,24 @@ Ordered by how much they would change a day with her, not by size.
 8. **Monitoring that stays in bounds** (M, E4): file scope, bounded reads, rotation, stop controls, then watching a folder or a log for him.
 9. **Mobile wrapper for iPhone and Android from one code base** (L, an old idea), if the App Store route needs it.
 10. **Scale-out, measured** (L, on the public roadmap): only if a business install asks for it.
+11. **Get back in without the server** (M; owner, 2026-11-27, after he and the Shelton owner were both locked out and only a
+    shell on the server could make a new token): "a way that someone that does not have shell access [can] reset their token in a
+    known way ... easy, but ensure it is the person that it is supposed to be (maybe an email, or a MFA or something)". A
+    "Lost your token?" link on the sign-in page, with these ways to prove it is the owner, strongest and simplest first:
+    - **Recovery codes** (no outside service): ten one-time codes made when the server is set up and again from Devices and
+      sign-in, shown once, only their hashes kept (like `tokenHash`). One code on the sign-in page gives a new owner token.
+      Works when everything else is broken, so it is the default; Setup and Today nudge until the codes are saved.
+    - **A passkey** (exists since Phase 24): it already signs in without the token, so a nudge to add one on each phone and
+      computer covers most cases; signing in with it then lets the owner make a new token in Settings.
+    - **A link by email** to a recovery address the owner confirmed once (a code sent to it), sent through the owner's own mail
+      account or SMTP that Sara already has (src/mail/), never a paid service. Valid 15 minutes, used once. With two-step
+      sign-in on, the authenticator code is asked too (email alone is not enough then).
+    - **A code in the linked Telegram or Discord chat** (her bot is already linked to the owner there): the same one-time code.
+    Rules for every way: a few tries per hour from one address (src/auth.ts LoginLimiter), the new token shown once, every
+    signed-in device and her chat told at once "the owner token was reset from the sign-in page, at <time>, from <address>"
+    with a "This wasn't me" that signs everything out; passkeys and two-step stay as they were unless the owner turns them off;
+    a household member resets only their own space; never on the demo. Measure: a locked-out test owner gets back in by each
+    way in under two minutes, and each way refuses a wrong code, an old link and a reused code.
 
 ## A suggested order
 

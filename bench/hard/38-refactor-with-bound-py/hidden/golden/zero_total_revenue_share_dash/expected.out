@@ -1,0 +1,5 @@
+region,revenue,share,rank,avg_price
+a,2.00,-,1,2.00
+b,-2.00,-,3,2.00
+c,0.00,-,2,0.00
+TOTAL,0.00,-,,0.00

@@ -27,9 +27,11 @@ export interface OwnerCheck {
 }
 
 /** Newest first in the app; every release here has at least one item (test/u1check-owner-checks). */
-export const CHECK_RELEASES = ['3.15.0', '3.16.0', '3.17.0', '3.18.0', '3.18.1', '3.18.2', '3.19.0', '3.20.0', '3.21.0', '3.22.0', '3.22.1', '3.23.0', '3.24.0', '3.31.0', '3.32.0', '3.33.0', '3.34.0', '3.35.0', '3.36.0', '3.43.0', '3.47.0', '3.48.0'];
+export const CHECK_RELEASES = ['3.15.0', '3.16.0', '3.17.0', '3.18.0', '3.18.1', '3.18.2', '3.19.0', '3.20.0', '3.21.0', '3.22.0', '3.22.1', '3.23.0', '3.24.0', '3.31.0', '3.32.0', '3.33.0', '3.34.0', '3.35.0', '3.36.0', '3.43.0', '3.47.0', '3.48.0', '3.50.0'];
 
 export const CHECKS: OwnerCheck[] = [
+  // 3.50.0
+  { id: 'model-switch', release: '3.50.0', title: en('Switch the model for one chat'), steps: [en('In a chat, press the model chip next to + (on a phone: + → Model), pick another model, then send a message.')], ask: en('Hi! Which model is answering me right now?'), expect: en('On a computer or a phone, the chat says it now uses that model, and her next reply was written by it.') },
   // 3.48.0
   { id: 'companion-off', release: '3.48.0', title: en('Switch the companion side off and on again'), steps: [en('Turn off Companion side, send a message, then turn it on again.')], view: '#view=settings:you-about', expect: en('Off: a plain, short answer with no personality, and her mood and picture gone from the screen. On again: she is as she was.') },
   // 3.47.0

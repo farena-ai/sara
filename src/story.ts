@@ -23,6 +23,7 @@ import { detectMinorSexualContent, disclosureDue, disclosureText } from './safet
 import type { Conversation } from './store.ts';
 import { importedName } from './store.ts';
 import { usageScope } from './usage.ts';
+import { workspacesBase } from './tools/workspace.ts';
 
 export type StoryKind = 'milestone' | 'decision' | 'promise' | 'date' | 'project' | 'moment';
 export type StoryFilter = 'all' | 'milestones' | 'promises' | 'projects' | 'moments';
@@ -137,7 +138,7 @@ export function gatherStory(app: AppContext, opts: { from?: string; to?: string;
     if (p.status === 'archived') items.push({ id: `project:${p.id}:done`, kind: 'project', event: 'finished', date: day(p.updatedAt), title: p.name, open: { type: 'project', projectId: p.id } });
   }
   // Workspaces with a git repository: the first commit.
-  const wsRoot = join(app.rootDir ?? app.dataDir, 'workspaces');
+  const wsRoot = join(workspacesBase(app), 'workspaces');
   if (existsSync(wsRoot)) {
     for (const d of readdirSync(wsRoot, { withFileTypes: true })) {
       if (!d.isDirectory()) continue;

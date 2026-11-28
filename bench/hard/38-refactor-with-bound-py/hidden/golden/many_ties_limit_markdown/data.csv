@@ -1,0 +1,8 @@
+order,day,region,store,product,category,customer,qty,price
+o,2026-03-01,a|b,s1,x|y,k,c1,1,0
+o,2026-03-01,c,s1,x,k,c1,1,1
+o,2026-03-01,d,s1,x,k,c1,0,5
+o,2026-03-01,e,s1,x,k,c1,1,1
+o,2026-03-01,f,s1,x,k,c1,1,0
+o,2026-03-01,g,s1,x,k,c1,2,0.50
+o,2026-03-01,h,s1,x,k,c1,1,0

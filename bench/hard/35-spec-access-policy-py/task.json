@@ -1,0 +1,7 @@
+{
+  "title": "Access policy evaluator: implement the version 1 specification",
+  "kind": "feature",
+  "lang": "python",
+  "prompt": "This is Gatekeeper, an access-policy evaluator (package accesspolicy/). docs/POLICY.md is the specification, with numbered rules R1 to R40, and docs/EXAMPLES.md has worked examples. The current code implements only part of it (see CHANGELOG.md), and some of what it does implement contradicts the specification. Make the library follow docs/POLICY.md completely: implement what is missing, fix what is wrong, keep the public API (load_policy, Evaluator.evaluate, Decision, the audit sinks) as it is, and make sure the test suite passes.",
+  "hidden": ["{python}", "__hidden__/test_hidden.py"]
+}

@@ -1,0 +1,42 @@
+{
+  "number": "R-88",
+  "issueDate": "2026-05-15",
+  "currency": "GBP",
+  "priceMode": "inclusive",
+  "taxRates": {
+    "standard": "20"
+  },
+  "discounts": [
+    {
+      "type": "percent",
+      "value": "15",
+      "code": "STAFF"
+    }
+  ],
+  "minimumCharge": {
+    "amount": "30.00"
+  },
+  "lines": [
+    {
+      "id": "A",
+      "description": "Repair labour",
+      "quantity": "0.5",
+      "unitPrice": "45.00",
+      "taxClass": "standard"
+    },
+    {
+      "id": "B",
+      "description": "Spare part",
+      "quantity": "1",
+      "unitPrice": "8.99",
+      "taxClass": "standard"
+    },
+    {
+      "id": "C",
+      "description": "Postage refund",
+      "quantity": "1",
+      "unitPrice": "-3.20",
+      "taxClass": "standard"
+    }
+  ]
+}

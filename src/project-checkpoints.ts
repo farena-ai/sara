@@ -7,7 +7,7 @@ import { en } from './i18n.ts';
 import { workspaceRef, type WorkspaceRef } from './runs.ts';
 import type { Conversation } from './store.ts';
 import { ToolError, type Tool } from './tools/types.ts';
-import { resolveInside, WORKSPACE_NAME_RE } from './tools/workspace.ts';
+import { resolveInside, WORKSPACE_NAME_RE, workspacesBase } from './tools/workspace.ts';
 
 export interface CheckpointInput { logic: string; blockers: string[]; nextSteps: string[] }
 export interface ProjectCheckpoint extends CheckpointInput {
@@ -89,7 +89,7 @@ export class ProjectCheckpointStore {
     if (typeof workspace !== 'string' || typeof path !== 'string' || !path || path.includes('\\')) bad(en('Use a known project workspace and canonical path.'));
     if (!WORKSPACE_NAME_RE.test(workspace)) bad(en('Invalid checkpoint workspace or path.'));
     try {
-      const dir = resolve(this.#app.rootDir ?? this.#app.dataDir, 'workspaces', workspace);
+      const dir = resolve(workspacesBase(this.#app), 'workspaces', workspace);
       // Resolve existing workspace aliases without creating a root for an unknown scope.
       const root = lstatSync(dir, { throwIfNoEntry: false }) ? realpathSync(dir) : dir;
       resolveInside(root, path);
@@ -187,7 +187,7 @@ export function createProjectCheckpointTool(getApp: () => AppContext): Tool {
 /** R1C: the read-only manifest of a known project (HEAD and dirty-file hashes). */
 export async function projectRef(app: AppContext, workspace: string, path: string): Promise<WorkspaceRef> {
   try {
-    return await workspaceRef(join(resolve(app.rootDir ?? app.dataDir, 'workspaces', workspace), path));
+    return await workspaceRef(join(resolve(workspacesBase(app), 'workspaces', workspace), path));
   } catch (err) {
     return { error: String((err as Error).message ?? err).slice(0, 200) };
   }

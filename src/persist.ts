@@ -19,7 +19,7 @@ import { detectTests } from './security/fix.ts';
 import type { Conversation } from './store.ts';
 import { ROLES } from './team.ts';
 import { runCommand } from './tools/sandbox.ts';
-import { workspaceDir } from './tools/workspace.ts';
+import { workspaceDir, workspacesBase } from './tools/workspace.ts';
 import { isGroupChannel } from './group.ts';
 import { detectCheckers, projectsOf } from './diagnostics.ts';
 
@@ -230,7 +230,7 @@ export const checkWords = (c: Pick<GoalCheck, 'kind' | 'command'>): string => (c
 
 /** The conversation's workspace folder (checks run there). */
 export function wsOf(app: AppContext, conv: Conversation): string {
-  return workspaceDir(app.rootDir ?? app.dataDir, conv.workspace || 'main');
+  return workspaceDir(workspacesBase(app), conv.workspace || 'main');
 }
 
 /** The checks this workspace actually has (tests, build, lint) plus the three that always exist. */

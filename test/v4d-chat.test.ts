@@ -16,31 +16,34 @@ async function webModule<T>(file: string): Promise<T> {
   return (await import(`data:text/javascript;base64,${Buffer.from(src).toString('base64')}`)) as T;
 }
 
-test('V4d her picture: Presence orb (default), Her portrait or Your picture, per device, with a living ring', async () => {
+test('V4d her picture: Presence orb, Her portrait or Your picture, per device, with a living ring', async () => {
   const html = web('index.html');
-  assert.match(html, /<select id="ap-herpic"><option value="orb">Presence orb \(default\)<\/option><option value="portrait">Her portrait, animated<\/option><option value="portrait-still">Her portrait, still<\/option><option value="own">Your picture<\/option><option value="vrm">A 3D model \(\.vrm\)<\/option><\/select>/, 'A1 added the animated, still and 3D choices');
+  assert.match(html, /<select id="ap-herpic"><option value="orb">Presence orb<\/option><option value="portrait">Her portrait, animated<\/option><option value="portrait-still">Her portrait, still<\/option><option value="own">Your picture<\/option><option value="vrm">A 3D model \(\.vrm\)<\/option><\/select>/, 'A1 added the animated, still and 3D choices');
   assert.match(html, /id="ap-herpic-upload"/, 'a link to the upload');
   assert.match(html, /id="avatar-ap-link"/, 'her page points at the setting');
   const tips = JSON.parse(web('tips.json')) as Record<string, Record<string, unknown>>;
   assert.ok(JSON.stringify(tips).includes('"ap-herpic"'));
   const app = web('app.js');
   assert.match(app, /const AP_KEYS = \[[^\]]*'sara\.herPicture'/);
-  // Default: the orb, unless a picture was uploaded before (then it stays, as in 3.0.0).
-  const { herPictureMode } = await webModule<{ herPictureMode: (stored: string | null, custom: boolean) => string }>('v4-picture.js');
+  // Default: a picture uploaded before stays (as in 3.0.0); else (T62) her portrait when she has a look
+  // of her own, else the orb.
+  const { herPictureMode } = await webModule<{ herPictureMode: (stored: string | null, custom: boolean, ownLook?: boolean) => string }>('v4-picture.js');
   assert.equal(herPictureMode(null, false), 'orb');
+  assert.equal(herPictureMode(null, false, true), 'portrait');
   assert.equal(herPictureMode(null, true), 'own');
   assert.equal(herPictureMode('portrait', true), 'portrait');
   assert.equal(herPictureMode('own', false), 'portrait', 'no upload yet: her portrait');
   assert.equal(herPictureMode('orb', true), 'orb');
+  assert.equal(herPictureMode('orb', false, true), 'orb', 'an explicit orb is kept');
   assert.equal(herPictureMode('nonsense', false), 'orb');
-  assert.match(app, /const pic = localStorage\.getItem\('sara\.palette'\) === 'classic' \? \(own \? 'own' : 'orb'\) : herPictureMode\(localStorage\.getItem\('sara\.herPicture'\), Boolean\(own\)\);/);
+  assert.match(app, /const pic = look\.get\('sara\.palette'\) === 'classic' \? \(own \? 'own' : 'orb'\) : herPictureMode\(look\.get\('sara\.herPicture'\), Boolean\(own\), herOwnLook\(\)\);/);
   assert.match(app, /document\.documentElement\.classList\.toggle\('v4-own-face', pic !== 'orb'\);/);
   const css = web('v4-pages.css');
   // The ring follows her state (idle, listening, thinking, speaking) and stops with Motion off.
   for (const s of ['listening', 'thinking', 'speaking']) assert.ok(css.includes(`[data-her-state="${s}"]`), s);
   assert.match(css, /\.v4-own-face/);
   assert.match(css, /v4-own-face[^{]*\[data-motion="off"\][^{]*\{[^}]*animation: none/);
-  for (const l of LANGS) for (const k of ['Presence orb (default)', 'Her portrait, animated', 'Your picture']) assert.ok(i18n(l)[k], `${l}: ${k}`);
+  for (const l of LANGS) for (const k of ['Presence orb', 'Her portrait, animated', 'Your picture']) assert.ok(i18n(l)[k], `${l}: ${k}`);
 });
 
 test('V4d memory step: "Used n memories" with what it means, opening those notes', () => {

@@ -51,11 +51,11 @@ test('V4e (replaces the V4d migration): a palette is a full preset; picking one 
 
   const app = read('web', 'app.js');
   // The default comes from the same function, before the first paint too (theme-boot.js mirrors it).
-  assert.match(app, /const accentPick = \(pal = palettePick\(\)\) => localStorage\.getItem\('sara\.accent'\) \?\? paletteDefaultAccent\(pal\);/);
+  assert.match(app, /const accentPick = \(pal = palettePick\(\)\) => look\.get\('sara\.accent'\) \?\? paletteDefaultAccent\(pal\);/);
   // Wired into the palette change, before the look is applied; the person can then change the colour.
-  assert.match(app, /localStorage\.setItem\('sara\.palette', to\);\s*(?:\/\/[^\n]*\s*)*for \(const k of PALETTE_RESETS\) localStorage\.removeItem\(k\);\s*applyAppearance\(\);\s*showAppearance\(\);/);
+  assert.match(app, /look\.set\('sara\.palette', to\);\s*(?:\/\/[^\n]*\s*)*for \(const k of PALETTE_RESETS\) look\.del\(k\);\s*applyAppearance\(\);\s*showAppearance\(\);/);
   // An explicit pick still remembers the palette it was made in; Reset to defaults clears it too.
-  assert.match(app, /if \(k === 'accent'\) localStorage\.setItem\('sara\.accentPicked', palettePick\(\)\);/);
+  assert.match(app, /if \(k === 'accent'\) look\.set\('sara\.accentPicked', palettePick\(\)\);/);
   assert.match(app, /const AP_KEYS = \[[^\]]*'sara\.accentPicked'/);
 });
 

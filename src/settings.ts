@@ -118,8 +118,12 @@ export interface Settings {
    * a subscription, ChatGPT, Ollama). 'balanced' (the default) sends nothing: the model decides.
    */
   thinking?: 'quick' | 'balanced' | 'thorough';
-  /** T54: the companion side (src/companion-switch.ts). Missing or on: the companion; { on: false }: a plain work assistant. */
+  /** T54: the companion side (src/companion-switch.ts). Missing or on: the companion; { on: false }: a plain work assistant. T62: per companion. */
   companion?: { on: boolean };
+  /** EC26: her work profile (src/work-profile.ts; read and checked there). T62: per companion. */
+  workProfile?: Partial<import('./work-profile.ts').WorkProfile>;
+  /** T59 and before: Check her edits (src/diagnostics.ts preciseSettings; read and checked there). */
+  precise?: { checks?: Partial<import('./diagnostics.ts').PreciseSettings['checks']>; refs?: Partial<import('./diagnostics.ts').PreciseSettings['refs']> };
   /** T53: look in her memory and on the web before she answers a factual question (default 'auto'). */
   lookFirst?: 'auto' | 'offer' | 'off';
   /** Model tests (src/model-tests.ts): `autoNew` tests new models on the owner's own hardware after a list refresh (off by default). */
@@ -255,7 +259,7 @@ export interface Settings {
   calls?: Partial<import('./calls.ts').CallRules>;
   /** Phase 29: the owner's Home Assistant address (the access token is in the vault). */
   home?: { url: string; voice?: { id: string; say: string }[] };
-  /** Phase 31: companions share the first one's planner (default) or each keeps her own. */
+  /** Phase 31: each companion keeps her own planner (T62: the default) or all share the first one's. */
   companionPlanner?: 'shared' | 'separate';
   /** Phase 44: one library per companion (default) or one shared by all. */
   companionLibrary?: 'shared' | 'separate';
@@ -271,7 +275,7 @@ export interface Settings {
   talkLanguage?: string;
   /** Phase 53, per companion: the yearly look back on the anniversary of the first message (off by default). */
   story?: { yearly?: boolean; lastYear?: number };
-  /** V1: the look a new device starts from ("Use on all my devices"; src/appearance.ts). */
+  /** V1: the look a new device starts from ("Use on all my devices"; src/appearance.ts). T62: per companion. */
   appearance?: import('./appearance.ts').Appearance;
   /** Phase 70: "Our moments": which photos enter the album by themselves (per companion). */
   moments?: Partial<import('./moments.ts').MomentsSettings>;

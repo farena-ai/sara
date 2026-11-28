@@ -537,7 +537,7 @@ Conversations can pin a provider and model; otherwise the owner's default is use
 Everything lives in `SARA_DATA` (`/var/lib/sara` native, the `sara-data` volume in Docker,
 `C:\ProgramData\Sara` or `%LOCALAPPDATA%\Sara\data` on Windows, `~/Library/Application
 Support/Sara` on a Mac): `sara.db` (SQLite), `settings.json`, `persona.json`, `secrets.enc`,
-`master.key`, `owner.json`, `library/`, `uploads/`, `workspaces/`, `companions/`, `cache/codemap`,
+`master.key`, `owner.json`, `library/`, `uploads/`, `workspaces/` (the first companion's projects), `companions/` (each other companion's own folder, with her own `workspaces/` and `snapshots/`), `cache/codemap`,
 `logs/` and `backups/`.
 
 **Sessions of a chat (Phase 107, CH1).** A bridge chat (one Telegram chat, one Discord channel, one

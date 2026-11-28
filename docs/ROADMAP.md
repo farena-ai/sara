@@ -108,6 +108,12 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Separate companions and one model switch, in 3.50
+
+Each companion is her own identity now: her own planner, projects, details, look and accounts, so one
+can be a companion and another a work assistant. The model for a chat is switched from the message
+box, and a stronger review of coding work is on when you pick a separate Review model.
+
 ## A move-in that does not stop half way, in 3.49.2
 
 Moving in from another agent no longer stops when her old personality files say a lot about your

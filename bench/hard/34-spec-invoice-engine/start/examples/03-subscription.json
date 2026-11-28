@@ -1,0 +1,64 @@
+{
+  "number": "SUB-2028-02",
+  "issueDate": "2028-03-01",
+  "currency": "USD",
+  "taxRates": {
+    "standard": "8.875"
+  },
+  "billingPeriod": {
+    "start": "2028-02-01",
+    "end": "2028-02-29"
+  },
+  "lines": [
+    {
+      "id": "seats",
+      "description": "Seats",
+      "quantity": "25",
+      "tierMode": "graduated",
+      "tiers": [
+        {
+          "from": "1",
+          "unitPrice": "12.00"
+        },
+        {
+          "from": "11",
+          "unitPrice": "10.00"
+        },
+        {
+          "from": "21",
+          "unitPrice": "8.00"
+        }
+      ],
+      "taxClass": "standard"
+    },
+    {
+      "id": "addon",
+      "description": "Archive add-on (from 10 Feb)",
+      "quantity": "1",
+      "unitPrice": "29.00",
+      "taxClass": "standard",
+      "period": {
+        "start": "2028-02-10",
+        "end": "2028-02-29"
+      },
+      "discounts": [
+        {
+          "type": "amount",
+          "value": "5.00"
+        }
+      ]
+    },
+    {
+      "id": "support",
+      "description": "Support plan",
+      "quantity": "1",
+      "tiers": [
+        {
+          "from": "1",
+          "unitPrice": "99.00"
+        }
+      ],
+      "taxClass": "exempt"
+    }
+  ]
+}

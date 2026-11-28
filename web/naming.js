@@ -16,7 +16,7 @@ const RAW = [
   '.sb-list', '.sb-photos', '#pp-title', '#pp-ws', '#pp-convs', '#pp-tasks', '#pp-notes', '#pp-files', '#pp-file-view',
   '#sd-day', '#sd-status', '.search-hit', '#bk-list', '#provider-list', '#mcp-list', 'pre', 'code', '[data-raw]',
   // Phase 31: other companions' names.
-  '#companion-menu', '#cmp-list', '#cmp-from', '#other-note-text', '#cmp-status',
+  '#companion-menu', '#side-companion-menu', '#cmp-list', '#cmp-from', '#other-note-text', '#cmp-status',
   // Phase 53: the story timeline holds her and your words (its labels use t()).
   '#story-list', '.lookback-text',
   // Logged problems quote program text; gallery cards describe other characters (H4, M7).

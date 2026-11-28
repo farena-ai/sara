@@ -15,7 +15,7 @@ import { NoServer } from '../lsp.ts';
 import { privateLocalOn } from '../net-guard.ts';
 import { shq } from '../tools/coding.ts';
 import { runCommand } from '../tools/sandbox.ts';
-import { assertWritable, isSecretPath, resolveInside, workspaceDir } from '../tools/workspace.ts';
+import { assertWritable, isSecretPath, resolveInside, workspaceDir, workspacesBase } from '../tools/workspace.ts';
 import { worktreeDraft, worktreePr } from '../tools/worktrees.ts';
 import { WorktreeError, worktreeRel, type WorktreeRecord } from '../worktrees.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
@@ -59,7 +59,8 @@ export function listTree(root: string, dir: string): { entries: { path: string; 
 }
 
 export function createWorktreeRoutes(ctx: RouteCtx): RouteHandler {
-  const { app, opts, rootDir } = ctx;
+  const { app, opts } = ctx;
+  const wsBase = workspacesBase(app);
   return async (req, res, method, parts) => {
     const [a, b, c, d] = parts;
     const ws = a === 'workspaces' && b && !d && (c === 'tree' || c === 'run' || c === 'diagnostics' || (c === 'file' && method === 'PUT'));
@@ -77,7 +78,7 @@ export function createWorktreeRoutes(ctx: RouteCtx): RouteHandler {
 
     if (ws) {
       const name = validWorkspace(b);
-      const root = workspaceDir(rootDir, name);
+      const root = workspaceDir(wsBase, name);
       const inside = (rel: string) => {
         try {
           return resolveInside(root, rel);
@@ -144,7 +145,7 @@ export function createWorktreeRoutes(ctx: RouteCtx): RouteHandler {
       throw as400(err);
     };
     const view = async (r: WorktreeRecord) => {
-      const root = workspaceDir(rootDir, r.workspace);
+      const root = workspaceDir(wsBase, r.workspace);
       return { ...r, folder: worktreeRel(r), ...(r.state === 'active' ? { status: await wt.status(r, root).catch(() => ({ dirty: [], ahead: 0, commits: [] })) } : {}) };
     };
     if (!b) {
@@ -160,7 +161,7 @@ export function createWorktreeRoutes(ctx: RouteCtx): RouteHandler {
         if (!conv) throw new HttpError(404, 'Conversation not found');
         if (conv.mode !== 'coding') throw new HttpError(400, 'Task worktrees are for coding conversations.');
         try {
-          const r = await wt.start({ conversationId: conv.id, workspace: conv.workspace, wsDir: workspaceDir(rootDir, conv.workspace), task: String(body.task ?? ''), repo: typeof body.repo === 'string' ? body.repo : '.' });
+          const r = await wt.start({ conversationId: conv.id, workspace: conv.workspace, wsDir: workspaceDir(wsBase, conv.workspace), task: String(body.task ?? ''), repo: typeof body.repo === 'string' ? body.repo : '.' });
           return send(res, 201, { worktree: await view(r) });
         } catch (err) {
           return fail(err);
@@ -170,7 +171,7 @@ export function createWorktreeRoutes(ctx: RouteCtx): RouteHandler {
     }
     const rec = wt.get(Number(b));
     if (!rec) throw new HttpError(404, 'No such worktree.');
-    const root = workspaceDir(rootDir, rec.workspace);
+    const root = workspaceDir(wsBase, rec.workspace);
     if (!c && method === 'GET') return send(res, 200, { worktree: await view(rec) });
     if (method !== 'POST' || d) throw new HttpError(405, 'Method not allowed');
     const body = await readJson(req);

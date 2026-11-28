@@ -262,7 +262,8 @@ import { readyAt, SelfCode, selfCodeOf, selfCodeSettings, setSelfCode } from './
 import { codingModel, createSelfCodeTools } from './tools/self-code.ts';
 import { HookManager } from './webhooks.ts';
 import { createSkillTools } from './skill-tools.ts';
-import { workspaceDir } from './tools/workspace.ts';
+import { workspaceDir, workspacesBase } from './tools/workspace.ts';
+import { accessFor, gateGoogle, gateGoogles, gateMail, gateSpotify } from './companion-access.ts';
 import { createTuneTool } from './studio.ts';
 import { DriftStore } from './drift.ts';
 import { TitleKeeper } from './titles.ts';
@@ -1002,8 +1003,9 @@ const codemaps = new CodeMaps({ cacheDir: join(dataDir, 'cache', 'codemap'), tar
 // in the background, and shared by every companion.
 const sandboxRunsDir = join(dataDir, 'cache', 'sandbox-runs');
 try {
-  const wsRoot = join(dataDir, 'workspaces');
-  sweepSandboxRuns(sandboxRunsDir, existsSync(wsRoot) ? readdirSync(wsRoot).map((n) => join(wsRoot, n)) : []);
+  // T62: the other companions' own workspaces (data/companions/<id>/workspaces) too.
+  const wsRoots = [join(dataDir, 'workspaces'), ...companionDirs(dataDir).map((c) => join(c.dir, 'workspaces'))];
+  sweepSandboxRuns(sandboxRunsDir, wsRoots.flatMap((wsRoot) => (existsSync(wsRoot) ? readdirSync(wsRoot).map((n) => join(wsRoot, n)) : [])));
 } catch (err) {
   console.warn(`sandbox: could not clear old tries: ${(err as Error).message}`);
 }
@@ -1176,6 +1178,16 @@ if (!isDemo) void detectHardware().then((hw) => { if (hw.gpu) modelContext.vramG
 
 function buildCompanion(space: Space, id: string, dir: string): Companion {
   const main = id === MAIN_ID;
+  // T62: her own coding projects (and their snapshots, project-skill trust): the server's folder for
+  // the first companion (unchanged), her own folder for any other (src/tools/workspace.ts workspacesBase).
+  const wsBase = workspacesBase({ dataDir: dir, rootDir: space.dir, companionId: id });
+  // T62: another companion uses only the mailboxes, Google and Spotify the owner allowed her (none
+  // until then): she gets gated views of the server's accounts (src/companion-access.ts).
+  const accessOf = main ? undefined : () => accessFor(dir).get();
+  const cGoogle = accessOf ? gateGoogle(google, accessOf) : google;
+  const cGoogles = accessOf ? gateGoogles(googles, accessOf) : googles;
+  const cSpotify = accessOf ? gateSpotify(spotify, accessOf) : spotify;
+  const cMail = accessOf && space.mail ? gateMail(space.mail, accessOf) : space.mail;
   // Phase 71: in a household member's space only the safe tools are added (docs/HOUSEHOLD.md).
   const isMember = Boolean(space.member);
   const spaceVault = space.vault;
@@ -1192,8 +1204,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   const stale = pending.markStale();
   if (stale.length) console.log(`While she worked: ${stale.length} waiting message(s) from before the restart are kept for you to send again.`);
   const memory = new MemoryStore(store.db);
-  // The planner: the first companion's, shared, unless the owner chose separate planners.
-  const sharedPlanner = !main && space.settings.get().companionPlanner !== 'separate';
+  // The planner: each companion's own (T62, the default), or the first companion's when the owner chose shared.
+  const sharedPlanner = !main && space.settings.get().companionPlanner === 'shared';
   const planner = sharedPlanner ? space.companions.main.app.planner! : new PlannerStore(store.db);
   for (const t of createPlannerTools({ planner, now: () => new Date(), timeZone: () => settingsC.get().timeZone, callsOn: () => settingsC.get().calls?.enabled === true, mentions: () => mentionToolDeps(app) })) tools.add(t);
   const uploads = new UploadStore(dir);
@@ -1316,7 +1328,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     sandboxGate: new SandboxGate(sandboxRunsDir, sandbox, () => sandboxGateSettings(settingsC.get()), sharedIsolation),
     ...(isMember ? {} : { mcp }),
     redactor,
-    snapshots: new SnapshotStore(space.dir),
+    snapshots: new SnapshotStore(wsBase),
     memory,
     ...(isMember ? {} : { codemap: codemaps }),
     recipes: new RecipeStore(store.db),
@@ -1325,7 +1337,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       companionDir: join(dir, 'skills'),
       sharedDir: join(space.dir, 'skills-shared'),
       builtinDir: join(root, 'skills'),
-      ...(isMember ? {} : { workspacesRoot: join(space.dir, 'workspaces'), trustFile: join(space.dir, 'skills-trust.json') }),
+      ...(isMember ? {} : { workspacesRoot: join(wsBase, 'workspaces'), trustFile: join(wsBase, 'skills-trust.json') }),
       scratchDir: join(dir, 'cache', 'skill-imports'),
       builtinOnly: isDemo,
     }),
@@ -1360,15 +1372,16 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     }),
     voice,
     subscriptions,
-    ...(isMember ? {} : { google, googleAccounts: googles }),
+    ...(isMember ? {} : { google: cGoogle, googleAccounts: cGoogles }),
     // M1: this person's own mailboxes (the owner's, or the member's own; never someone else's).
-    ...(space.mail ? { mailAccounts: space.mail } : {}),
-    ...(isMember || isDemo ? {} : { spotify }),
+    ...(space.mail ? { mailAccounts: cMail } : {}),
+    ...(isMember || isDemo ? {} : { spotify: cSpotify }),
     ...(isMember || !sshManager ? {} : { ssh: sshManager }),
   };
   if (space.member) app.member = space.member;
-  // N4: My details are the person's, not one companion's: every companion in a space reads the first one's.
-  app.myDetails = main ? myDetailsFor(store.db) : (space.companions.main.app.myDetails ?? myDetailsFor(store.db));
+  // N4: My details. T62: each companion keeps her own (her own database; the first one keeps the existing
+  // ones); Settings → You → My details offers to copy the first companion's once (src/routes/my-details.ts).
+  app.myDetails = myDetailsFor(store.db);
   // Phase 101 (ST6): people cards from her memory (this companion's database; each person's own space; never the demo).
   if (!isDemo) {
     app.people = new PeopleStore(store.db, { photoDir: join(dir, 'people'), ownWords: () => [settingsC.get().ownerName ?? '', app.persona.name] });
@@ -1560,7 +1573,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     space.hands?.tunnels.jobEnded(job.id, app.jobs);
     // Phase 50: a finished job may have changed files: the code map looks again.
     try {
-      codemaps.touch(workspaceDir(dataDir, job.workspace));
+      codemaps.touch(workspaceDir(workspacesBase(app), job.workspace));
     } catch {
       /* not a workspace name */
     }
@@ -1579,7 +1592,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     for (const t of createHomeTools(app)) tools.add(t);
     // Phase 14: Gmail and Google Calendar (the owner's own Google app; off until they sign in).
     // M1: the calendar tools take `account` (Google as before, Outlook through Graph).
-    const googleTools = createGoogleTools(google, () => settingsC.get().timeZone, (ids) => resolveAttachments(app, ids, 'google'));
+    const googleTools = createGoogleTools(cGoogle, () => settingsC.get().timeZone, (ids) => resolveAttachments(app, ids, 'google'));
     const calendarNames = new Set(['calendar_events', 'calendar_add', 'calendar_remove']);
     for (const t of googleTools) if (isDemo || !calendarNames.has(t.spec.name)) tools.add(t);
     // MULTIMAIL: the same Google tools for each later Google account (made when first used), with
@@ -1587,7 +1600,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     const extraGoogle = new Map<string, Map<string, import('./tools/types.ts').Tool>>();
     const googleFor = (id: string): Map<string, import('./tools/types.ts').Tool> | undefined => {
       const n = /^google:(\d{1,2})$/.exec(id)?.[1];
-      const g = n && !isDemo ? googles.get(id) : undefined;
+      const g = n && !isDemo ? cGoogles.get(id) : undefined;
       if (!g || !n) return undefined;
       let m = extraGoogle.get(id);
       if (!m) {
@@ -1599,23 +1612,23 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       }
       return m;
     };
-    if (!isDemo) for (const t of routeCalendarTools(googleTools.filter((x) => calendarNames.has(x.spec.name)), mailAccounts, () => settingsC.get().timeZone, googleFor)) tools.add(t);
+    if (!isDemo) for (const t of routeCalendarTools(googleTools.filter((x) => calendarNames.has(x.spec.name)), cMail!, () => settingsC.get().timeZone, googleFor)) tools.add(t);
     // R6 (docs/WORK_APPS.md): Google Docs/Sheets (once allowed), Word/Excel online (once allowed), Slack/Teams actions.
     if (!isDemo) {
-      for (const t of createGoogleWorkTools(google)) tools.add(t);
-      for (const t of createM365Tools(() => mailAccounts)) tools.add(t);
+      for (const t of createGoogleWorkTools(cGoogle)) tools.add(t);
+      for (const t of createM365Tools(() => cMail)) tools.add(t);
       for (const t of createChatAppTools(() => app.pluginManager, () => app.companionId ?? 'main')) tools.add(t);
     }
     // C14: Spotify (search, what's playing, playlists; playback only when the owner allowed it). Never the demo.
-    if (!isDemo) for (const t of createSpotifyTools(spotify)) tools.add(t);
+    if (!isDemo) for (const t of createSpotifyTools(cSpotify)) tools.add(t);
     // Gmail organizing (archive, labels, trash…, with Undo): the owner's own Gmail only; never the demo.
     if (!isDemo) {
-      app.gmail = new GmailOrganizer(google, store.db, { timeZone: () => settingsC.get().timeZone, now: () => app.now(), jobs: () => app.jobs, workspaceOf: (id) => store.getConversation(id)?.workspace, onChange: gmailTodayHook(app) });
-      const gmailOrganize = createGmailOrganizeTools({ google, organizer: app.gmail });
+      app.gmail = new GmailOrganizer(cGoogle, store.db, { timeZone: () => settingsC.get().timeZone, now: () => app.now(), jobs: () => app.jobs, workspaceOf: (id) => store.getConversation(id)?.workspace, onChange: gmailTodayHook(app) });
+      const gmailOrganize = createGmailOrganizeTools({ google: cGoogle, organizer: app.gmail });
       for (const t of gmailOrganize) tools.add(t);
       // M1: mail_* for every mailbox (a Gmail account is handed to the gmail_* tools above).
       app.mailOrganizer = new MailOrganizer(store.db, { timeZone: () => settingsC.get().timeZone, now: () => app.now(), jobs: () => app.jobs, workspaceOf: (id) => store.getConversation(id)?.workspace, onChange: gmailTodayHook(app) });
-      for (const t of createMailTools({ files: (ids, kind) => resolveAttachments(app, ids, kind), accounts: mailAccounts, organizer: app.mailOrganizer, google: new Map([...googleTools, ...gmailOrganize].map((t) => [t.spec.name, t])), googleFor, timeZone: () => settingsC.get().timeZone })) tools.add(t);
+      for (const t of createMailTools({ files: (ids, kind) => resolveAttachments(app, ids, kind), accounts: cMail!, organizer: app.mailOrganizer, google: new Map([...googleTools, ...gmailOrganize].map((t) => [t.spec.name, t])), googleFor, timeZone: () => settingsC.get().timeZone })) tools.add(t);
     }
   } else if (space.mail && space.mailVault && !isDemo) {
     // M1: a member's own mailboxes (Outlook / Microsoft 365 and IMAP; Gmail through an app password).
@@ -1623,12 +1636,12 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     // shape (a Google account read from the member's own vault is never signed in).
     const calendarNames = new Set(['calendar_events', 'calendar_add', 'calendar_remove']);
     const shapes = createGoogleTools(new GoogleAccount(space.mailVault), () => settingsC.get().timeZone).filter((x) => calendarNames.has(x.spec.name));
-    for (const t of routeCalendarTools(shapes, space.mail, () => settingsC.get().timeZone)) tools.add(t);
+    for (const t of routeCalendarTools(shapes, cMail!, () => settingsC.get().timeZone)) tools.add(t);
     // R6: a member's own Word/Excel online (their own Microsoft sign-in, once they allowed files).
-    const memberMail = space.mail;
+    const memberMail = cMail!;
     for (const t of createM365Tools(() => memberMail)) tools.add(t);
     app.mailOrganizer = new MailOrganizer(store.db, { timeZone: () => settingsC.get().timeZone, now: () => app.now(), jobs: () => app.jobs, workspaceOf: (id) => store.getConversation(id)?.workspace, onChange: gmailTodayHook(app) });
-    for (const t of createMailTools({ files: (ids, kind) => resolveAttachments(app, ids, kind), accounts: space.mail, organizer: app.mailOrganizer, google: new Map(), timeZone: () => settingsC.get().timeZone })) tools.add(t);
+    for (const t of createMailTools({ files: (ids, kind) => resolveAttachments(app, ids, kind), accounts: cMail!, organizer: app.mailOrganizer, google: new Map(), timeZone: () => settingsC.get().timeZone })) tools.add(t);
   }
 
   // Phase 38: meaning search (vectors made a few at a time while the embeddings job is set).
@@ -1641,7 +1654,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   const startupTimers: NodeJS.Timeout[] = [];
   // S1: Meaning search sets itself once when an embedding model is already on this computer (never the demo).
   const adoptMeaning = async () => {
-    if (isDemo || !modelCatalog || app.settings.get().meaningAuto === 'done') return;
+    // T62: the main companion's (the server's) routes; another companion's own models stay her choice.
+    if (isDemo || !main || !modelCatalog || app.settings.get().meaningAuto === 'done') return;
     // A provider on this computer whose list was never read is read now (the daily check comes later).
     for (const p of app.settings.get().providers) if (p.local === true && p.kind === 'openai-compatible' && !modelCatalog.known(p.id)) await modelCatalog.list(p.id).catch(() => undefined);
     // T48: only a model that answers a short sentence in a few seconds here.

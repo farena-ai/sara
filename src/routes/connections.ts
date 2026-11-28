@@ -35,6 +35,7 @@ import { cleanHomeUrl, HOME_VAULT, type HaState } from '../tools/home.ts';
 import { discoverHome } from '../home-discover.ts';
 import { cleanVoice, testHome, voiceItems, voiceList } from '../home-voice.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
+import { realOf } from '../companion-access.ts';
 
 /** Hardening M4: the channel of the conversations the Home Assistant integration makes. */
 export const HA_CHANNEL = 'home-assistant';
@@ -420,7 +421,7 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
     // the vault and never come back out. A member can't set up the Microsoft app (the owner's), and
     // the admin's `memberMail: false` pin stops members adding or using mailboxes (removing still works).
     if (a === 'mail' && app.mailAccounts) {
-      const accts = app.mailAccounts;
+      const accts = realOf(app.mailAccounts);
       const member = accts.member || Boolean(opts.member || app.member);
       const memberOff = member && !policy().memberMailOn;
       const guardOn = () => {
@@ -438,8 +439,8 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
       // MULTIMAIL: what each account brings (mail, calendar; CalDAV where the provider has it), the
       // combined-view choices, and whether another Google account can be added (owner, Google app saved).
       const caldavOf = (x: { id: string; kind: string; calendar: boolean; provider: string }) => (x.kind !== 'imap' ? undefined : x.calendar ? 'on' : accts.calDavUrl(x.id) ? 'can' : x.provider === 'gmail' ? 'google' : 'none');
-      const gst = member ? undefined : app.google?.status();
-      const view = () => ({ accounts: accts.list().map((x) => ({ ...x, ...(caldavOf(x) ? { caldav: caldavOf(x) } : {}) })), view: accts.view(), ...(member ? {} : { googleApp: { configured: Boolean(gst?.configured), connected: Boolean(gst?.connected), multi: Boolean(app.googleAccounts), accounts: (app.googleAccounts?.list() ?? (gst?.connected ? [{ ...gst, id: 'google' }] : [])).map((x) => ({ id: x.id, email: x.email ?? null, gmail: x.gmail, calendar: x.calendar, docs: x.docs, canOrganize: x.canOrganize })) } }), default: accts.default()?.id ?? null, ...(member ? { member: true, google: false, ...(memberOff ? { off: true } : {}) } : {}), microsoft: { configured: Boolean(accts.ms.clientId()), clientId: member ? null : (accts.ms.clientId() ?? null), redirect: msRedirect, ...(member ? { ownerApp: true } : {}) }, presets: IMAP_PRESETS.map((p) => ({ id: p.id, name: p.name, imap: p.imap, smtp: p.smtp, passwordUrl: p.passwordUrl ?? null, passwordHow: p.passwordHow, enableImap: p.enableImap ?? null, loopback: Boolean(p.loopback) })) });
+      const gst = member ? undefined : realOf(app.google)?.status();
+      const view = () => ({ accounts: accts.list().map((x) => ({ ...x, ...(caldavOf(x) ? { caldav: caldavOf(x) } : {}) })), view: accts.view(), ...(member ? {} : { googleApp: { configured: Boolean(gst?.configured), connected: Boolean(gst?.connected), multi: Boolean(app.googleAccounts), accounts: (realOf(app.googleAccounts)?.list() ?? (gst?.connected ? [{ ...gst, id: 'google' }] : [])).map((x) => ({ id: x.id, email: x.email ?? null, gmail: x.gmail, calendar: x.calendar, docs: x.docs, canOrganize: x.canOrganize })) } }), default: accts.default()?.id ?? null, ...(member ? { member: true, google: false, ...(memberOff ? { off: true } : {}) } : {}), microsoft: { configured: Boolean(accts.ms.clientId()), clientId: member ? null : (accts.ms.clientId() ?? null), redirect: msRedirect, ...(member ? { ownerApp: true } : {}) }, presets: IMAP_PRESETS.map((p) => ({ id: p.id, name: p.name, imap: p.imap, smtp: p.smtp, passwordUrl: p.passwordUrl ?? null, passwordHow: p.passwordHow, enableImap: p.enableImap ?? null, loopback: Boolean(p.loopback) })) });
       if (b === 'accounts' && !c && method === 'GET') return send(res, 200, view());
       // HANDSFREE 3a: calendars added by link (read only; the address is a secret and never comes back out).
       if (b === 'calendar-links' && accts.calendarLinks) {
@@ -599,12 +600,12 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
     }
     // Phase 14: Google (Gmail + Calendar) on the owner's own Google app.
     if (a === 'google') {
-      const g = app.google;
+      const g = realOf(app.google);
       if (!g) throw new HttpError(404, 'Not available');
       const origin = typeof req.headers.origin === 'string' && req.headers.origin !== 'null' ? req.headers.origin : `${opts.trustProxy && req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http'}://${req.headers.host}`;
       const redirect = `${origin}/api/google/callback`;
       // MULTIMAIL: every Google sign-in (the first one is `google`, as before).
-      const gl = app.googleAccounts;
+      const gl = realOf(app.googleAccounts);
       if (!b && method === 'GET') return send(res, 200, { ...g.status(), redirect, ...(gl ? { accounts: gl.list().map((x) => ({ id: x.id, email: x.email ?? null, gmail: x.gmail, calendar: x.calendar, docs: x.docs })) } : {}) });
       if (b === 'accounts' && c && method === 'DELETE' && gl) {
         try {
@@ -675,7 +676,7 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
     }
     // C14: Spotify on the owner's own Spotify app (PKCE: a Client ID only).
     if (a === 'spotify') {
-      const sp = app.spotify;
+      const sp = realOf(app.spotify);
       if (!sp) throw new HttpError(404, 'Not available');
       const origin = typeof req.headers.origin === 'string' && req.headers.origin !== 'null' ? req.headers.origin : `${opts.trustProxy && req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http'}://${req.headers.host}`;
       const redirect = `${origin}/api/spotify/callback`;

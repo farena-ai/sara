@@ -42,6 +42,11 @@ const SOLUTIONS = join(ROOT, 'bench', 'solutions');
 export const TIERS = {
   tasks: { tasks: TASKS, solutions: SOLUTIONS, name: 'Sara repository tasks (bench/tasks, original)', file: 'tasks', timeout: 480 },
   projects: { tasks: join(ROOT, 'bench', 'projects'), solutions: join(ROOT, 'bench', 'project-solutions'), name: 'Sara real-size projects (bench/projects, original)', file: 'projects', timeout: 900 },
+  // T58: the hard tier. The first two tiers are passed almost whole by a strong model, so they cannot show
+  // whether a change to the harness helps one. These are made to be failed: an unfamiliar in-repo library
+  // whose API must be read (not guessed), long specifications with many edge rules, bugs whose cause is far
+  // from the symptom, and refactors with a measured bound.
+  hard: { tasks: join(ROOT, 'bench', 'hard'), solutions: join(ROOT, 'bench', 'hard-solutions'), name: 'Sara hard tasks (bench/hard, original)', file: 'hard', timeout: 1500 },
 } as const;
 const SKIP = new Set(['node_modules', '__pycache__', '.git', '.pytest_cache', '__hidden__']);
 
@@ -183,11 +188,19 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       // T56: who reviews the change against the request ('' or 'off' = no review, the default; 'self' = the model itself; a model name = that model; 'gate-off' also no done gate).
       review: { type: 'string', default: '' },
       guards: { type: 'string', default: 'on' },
+      // T57: the review model also takes the turn over and fixes what it found.
+      finish: { type: 'boolean', default: false },
+      // T59: the review gets read-only tools and may run her tests again in a throwaway copy.
+      tools: { type: 'boolean', default: false },
+      // T58: the coding budget of a turn. '' = the app's default (40 steps, 200k tokens); 'off' = none; a number = that many steps.
+      budget: { type: 'string', default: '' },
+      // Prints every tool call and the start of its result (to see where a run goes wrong).
+      trace: { type: 'boolean', default: false },
       python: { type: 'string', default: process.platform === 'win32' ? 'python' : 'python3' },
     },
   });
   const mode = opt.mode === 'raw' ? 'raw' : opt.mode === 'verify' ? 'verify' : 'agent';
-  const tier = opt.tier === 'projects' ? TIERS.projects : TIERS.tasks;
+  const tier = opt.tier === 'projects' ? TIERS.projects : opt.tier === 'hard' ? TIERS.hard : TIERS.tasks;
   if (!opt.timeout) opt.timeout = String(tier.timeout);
   const only = opt.only ? new Set(opt.only.split(',')) : undefined;
   const tasks = loadTasks(tier.tasks).filter((t) => !only || only.has(t.id));
@@ -222,7 +235,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 
   console.log(`Repository tasks: running ${tasks.length} in ${mode} mode on ${opt.model} (${pythonVersion}).`);
   type Run = { task: string; title: string; kind: string; lang: string; pass: boolean; seconds: number; toolCalls: number; filesChanged: number; /** T55: her last words said it works (done, fixed, tests pass). With pass false this is a false "done". */ saidDone?: boolean; /** T56: the review found points and sent her back (0 or 1 a turn). */ reviewed?: number; /** T55: test-like shell commands she ran, and whether one ran after her last file change. */ testRuns?: number; testedAfterLastEdit?: boolean; files?: number; lines?: number; detail?: string; error?: string };
-  const sizeOf = (t: Task) => (tier === TIERS.projects ? projectSize(join(tier.tasks, t.id, 'start')) : {});
+  const sizeOf = (t: Task) => (tier !== TIERS.tasks ? projectSize(join(tier.tasks, t.id, 'start')) : {});
   const runs: Run[] = [];
   const started = new Date();
   const scratch = mkdtempSync(join(tmpdir(), 'sara-bench-tasks-'));
@@ -267,7 +280,11 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
         console.log(`${run.pass ? 'PASS' : 'FAIL'} ${t.id} ${run.seconds}s, ${run.filesChanged} files changed${error ? ` [${error}]` : ''}  (${runs.filter((r) => r.pass).length}/${runs.length})`);
       }
     } else {
-      const { runTurn } = await import('../src/chat.ts');
+      const { runTurn, historyBudgetFor } = await import('../src/chat.ts');
+      const { noteOllamaDaemon } = await import('../src/model-context.ts');
+      // An Ollama reached on another port (a tunnel) is still an Ollama: without this the model's context size is
+      // unknown and every model gets the small default history.
+      noteOllamaDaemon(opt.ollama!);
       const { EventHub } = await import('../src/events.ts');
       const { loadPersona } = await import('../src/persona.ts');
       const { Redactor } = await import('../src/redact.ts');
@@ -283,6 +300,10 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       const store = new Store(join(scratch, 'sara.db'));
       const app: AppContext = { store, settings: new SettingsStore(scratch), vault, persona: loadPersona(join(ROOT, 'persona', 'sara.json')), now: () => new Date(), dataDir: scratch, tools: new ToolRegistry(), approvals: new ApprovalBroker(), sandbox: { mode: 'none', network: false, detail: 'benchmark' }, redactor: new Redactor(() => vault.values()), snapshots: new SnapshotStore(scratch), events: new EventHub() };
       app.codeReview = true;
+      if (opt.trace) process.env.SARA_REVIEW_TRACE = '1';
+      // T59: the review's test runs go through the sandbox gate's copy (the same isolation the app uses).
+      const { SandboxGate, sandboxGateSettings } = await import('../src/sandbox-run.ts');
+      app.sandboxGate = new SandboxGate(join(scratch, 'cache', 'sandbox-runs'), app.sandbox, () => ({ ...sandboxGateSettings(undefined), mode: 'off' }));
       app.settings.update({
         providers: [{ id: 'ol', label: 'Ollama', kind: 'openai-compatible', baseUrl: opt.ollama!, local: true }],
         defaultProviderId: 'ol',
@@ -293,8 +314,15 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
         // Nobody is there to approve: the shell runs without asking; no web access (no peeking).
         toolPermissions: { shell: 'auto', web_fetch: 'never' },
         ...(opt.review && opt.review !== 'off' && opt.review !== 'self' ? { routes: { review: { providerId: 'ol', model: opt.review } } } : {}),
-        precise: { checks: { review: opt.review !== 'off' && opt.review !== '', doneGate: opt.guards !== 'off' } },
+        ...(opt.budget ? { turnBudgets: { coding: opt.budget === 'off' ? { on: false, tokens: 2_000_000, steps: 120, usd: 0, minutes: 0 } : { on: true, tokens: 2_000_000, steps: Number(opt.budget), usd: 0, minutes: 0 } } } : {}),
+        precise: { checks: { review: opt.review !== 'off' && opt.review !== '', reviewFinish: Boolean(opt.finish), reviewTools: Boolean(opt.tools), doneGate: opt.guards !== 'off' } },
       } as never);
+      {
+        const probe = store.createConversation({ mode: 'coding', workspace: 'probe', title: 'probe' });
+        const hb = historyBudgetFor(app, probe);
+        console.log(`History each turn may keep: about ${hb.tokens.toLocaleString('en-US')} tokens (${hb.source}).`);
+        store.deleteConversation(probe.id);
+      }
       try {
         for (const t of tasks) {
           if (Date.now() > deadline) break;
@@ -316,8 +344,10 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
             for await (const ev of runTurn(app, conv.id, taskText(t), ctl.signal)) {
               if (ev.type === 'token') reply += ev.text;
               if (ev.type === 'notice' && /reviewed the change/.test(ev.text)) reviewed++;
+              if (opt.trace && ev.type === 'tool_result') console.log(`    = ${String((ev as { output?: unknown; result?: unknown }).output ?? (ev as { result?: unknown }).result ?? '').replace(/\s+/g, ' ').slice(0, 150)}`);
               if (ev.type === 'tool_call') {
                 toolCalls++;
+                if (opt.trace) console.log(`  ${toolCalls}. ${ev.name} ${JSON.stringify(ev.args).slice(0, 130)}`);
                 reply = '';
                 if (ev.name === 'write_file' || ev.name === 'edit_file') testedAfterLastEdit = false;
                 if (ev.name === 'shell' && TEST_CMD.test(String((ev.args as { command?: unknown })?.command ?? ''))) {

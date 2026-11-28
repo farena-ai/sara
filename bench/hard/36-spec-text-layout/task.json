@@ -1,0 +1,7 @@
+{
+  "title": "Text layout library: finish version 2.0 to its specification",
+  "kind": "feature",
+  "lang": "js",
+  "prompt": "This is boxtext, a library that lays out plain-text tables and reports (about 35 files). Version 2.0 is being rewritten around one specification, docs/LAYOUT.md (rules R1 to R39); only part of it is written so far, and CHANGELOG.md lists what is still missing. Implement the whole specification across the modules in src/, keeping the public API in docs/API.md. docs/EXAMPLES.md has worked examples with their exact output. Keep the existing tests passing and add tests for what you implement.",
+  "hidden": ["node", "--test", "__hidden__/*.test.js"]
+}

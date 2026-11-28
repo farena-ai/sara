@@ -76,16 +76,25 @@ export function accessKeys(a) {
 
 const doc = globalThis.document;
 const ls = () => globalThis.localStorage;
+// T62: Text size in chat is kept per companion (web/companion-keys.js); the other keys pass through.
+const keys = () => (ls() ? globalThis.saraKeys : null);
 const get = (k) => {
   try {
-    return ls()?.getItem(k) ?? null;
+    return (keys() ? keys().get(k) : ls()?.getItem(k)) ?? null;
   } catch {
     return null;
   }
 };
 const store = ({ set, remove }) => {
-  for (const [k, v] of Object.entries(set)) ls()?.setItem(k, v);
-  for (const k of remove) ls()?.removeItem(k);
+  const s = keys();
+  for (const [k, v] of Object.entries(set)) {
+    if (s) s.set(k, v);
+    else ls()?.setItem(k, v);
+  }
+  for (const k of remove) {
+    if (s) s.del(k);
+    else ls()?.removeItem(k);
+  }
 };
 
 /** The reading band for line focus: follows the pointer, a tap or the keyboard focus. */

@@ -1,0 +1,6 @@
+{"order": "o", "day": "2026-03-01", "region": "north", "store": "s1", "product": "kettle", "category": "kitchen", "customer": "c1", "qty": 2, "price": 12.5}
+{"order": "o", "day": "2026-03-01", "region": "north", "store": "s1", "product": "mug", "category": "Table", "customer": "c1", "qty": 1, "price": 3}
+{"order": "o", "day": "2026-03-01", "region": "north", "store": "s1", "product": "mug", "category": "table", "customer": "c1", "qty": 4, "price": 3}
+{"order": "o", "day": "2026-03-01", "region": "North", "store": "s1", "product": "mug", "category": "table", "customer": "c1", "qty": 1, "price": 3}
+{"order": "o", "day": "2026-03-01", "region": "east", "store": "s1", "product": "tray", "category": "table", "customer": "", "qty": 3, "price": 7.25}
+

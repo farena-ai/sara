@@ -119,7 +119,7 @@ test('glassPlan: blur behind panels is on, except in Firefox on Auto (each frame
   assert.match(html, /<select id="ap-glass"><option value="auto">/);
   const tips = JSON.parse(web('tips.json'));
   assert.ok((tips.tips ?? tips)['ap-glass']?.[0], 'a ? tip');
-  assert.match(web('app.js'), /root\.dataset\.glass = glassPlan\(localStorage\.getItem\('sara\.glass'\), navigator\.userAgent\);/);
+  assert.match(web('app.js'), /root\.dataset\.glass = glassPlan\(look\.get\('sara\.glass'\), navigator\.userAgent\);/);
 });
 
 test('watchModal: html.modal-open follows open windows (no :has() needed)', async () => {

@@ -206,7 +206,7 @@ test('V1 "Use on all my devices": the owner settings keep one clean look; a new 
   assert.deepEqual((await j('GET')).appearance, { palette: 'nord', theme: 'system', accent: 'green', density: 'comfy', portrait: 'large' });
   // The page side: adopted only on a device that never chose a palette (localStorage wins).
   const app2 = web('app.js');
-  assert.match(app2, /function adoptAppearance\(a\) \{\s*if \(!a \|\| localStorage\.getItem\('sara\.palette'\)\) return false;/);
+  assert.match(app2, /function adoptAppearance\(a\) \{\s*if \(!a \|\| look\.get\('sara\.palette'\)\) return false;/);
   assert.match(app2, /api\('\/settings', \{ method: 'PUT', body: \{ appearance: currentAppearance\(\) \} \}\)/);
 });
 
@@ -230,7 +230,7 @@ test('V1 Appearance page: its own Settings page under You with the same ids, the
   assert.match(html, /<button id="v1-classic" type="button" class="ghost small">Switch back to Sara Classic<\/button>/);
   const app = web('app.js');
   assert.match(app, /localStorage\.setItem\('sara\.v1Notice', 'seen'\)/);
-  assert.match(app, /\$\('#v1-classic'\)\.addEventListener\('click', \(\) => \{\s*localStorage\.setItem\('sara\.palette', 'classic'\);/);
+  assert.match(app, /\$\('#v1-classic'\)\.addEventListener\('click', \(\) => \{\s*look\.set\('sara\.palette', 'classic'\);/);
   // The theme-color meta still follows --surface-0 (native title bars follow the palette).
   assert.match(app, /meta\[name="theme-color"\]'\)\?\.setAttribute\('content', getComputedStyle\(root\)\.getPropertyValue\('--surface-0'\)/);
 });

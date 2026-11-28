@@ -1,0 +1,7 @@
+{
+  "title": "Customers",
+  "group_by": ["customer"],
+  "metrics": ["count", "revenue", "share", "rank"],
+  "where": {"day_from": "2026-03-10"},
+  "order": "key"
+}

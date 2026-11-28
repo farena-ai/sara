@@ -1,0 +1,26 @@
+{
+  "group_by": [
+    "region"
+  ],
+  "order": "revenue",
+  "groups": [
+    [
+      "west"
+    ],
+    [
+      "south"
+    ],
+    [
+      "west"
+    ],
+    [
+      "nowhere"
+    ]
+  ],
+  "where": {
+    "day_from": "2026-03-01",
+    "day_to": "2026-03-31"
+  },
+  "format": "csv",
+  "top_products": 1
+}

@@ -19,9 +19,11 @@
   };
   var root = document.documentElement;
   var pick = null;
+  // T62: her look follows the companion this page is (web/companion-keys.js, loaded just before).
+  var keys = window.saraKeys;
   var get = function (k) {
     try {
-      return localStorage.getItem(k);
+      return keys ? keys.get(k) : localStorage.getItem(k);
     } catch (e) {
       return null;
     }

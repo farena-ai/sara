@@ -99,7 +99,7 @@ test('theme: loaded first, no flash: the boot script sets the theme before any s
   assert.match(html, /<select id="ap-theme"><option value="dark">Night<\/option><option value="light">Day<\/option><option value="system">Follow the system \(default\)<\/option><\/select>/);
   const tips = JSON.parse(web('tips.json'));
   assert.match(JSON.stringify(tips), /"ap-theme":\["Follow the system is the default/);
-  assert.match(app, /const themePick = \(pal = palettePick\(\)\) => \{\s*const v = localStorage\.getItem\('sara\.theme'\);\s*return v === 'light' \|\| v === 'system' \|\| v === 'dark' \? v : pal === 'classic' \? 'dark' : 'system';/);
+  assert.match(app, /const themePick = \(pal = palettePick\(\)\) => \{\s*const v = look\.get\('sara\.theme'\);\s*return v === 'light' \|\| v === 'system' \|\| v === 'dark' \? v : pal === 'classic' \? 'dark' : 'system';/);
 });
 
 /** Runs web/theme-boot.js against a fake page. */

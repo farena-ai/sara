@@ -10,7 +10,7 @@ import { type WorktreeRecord, WorktreeError, worktreeRel } from '../worktrees.ts
 import { git, pushBranch } from './coding.ts';
 import { type FetchLike, openPullRequest, repoFromRemote } from './github.ts';
 import { str, ToolError, type Tool, type ToolContext } from './types.ts';
-import { workspaceDir } from './workspace.ts';
+import { workspaceDir, workspacesBase } from './workspace.ts';
 
 const obj = (properties: Record<string, unknown>, required: string[] = []) => ({ type: 'object', properties, required, additionalProperties: false });
 
@@ -18,7 +18,7 @@ const obj = (properties: Record<string, unknown>, required: string[] = []) => ({
 export function convRoot(app: AppContext, conversationId: string | undefined): { conv: NonNullable<ReturnType<AppContext['store']['getConversation']>>; wsDir: string } {
   const conv = conversationId ? app.store.getConversation(conversationId) : undefined;
   if (!conv) throw new ToolError('No conversation for this.');
-  return { conv, wsDir: workspaceDir(app.rootDir ?? app.dataDir, conv.workspace) };
+  return { conv, wsDir: workspaceDir(workspacesBase(app), conv.workspace) };
 }
 
 /** A pull request's draft for a worktree (commit subjects + diff stat). */

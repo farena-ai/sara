@@ -112,7 +112,8 @@ import { OWNER_CUES_MARK } from './attunement.ts';
 import { autoRecall, lastTimeNote, sharedOwnerFacts, sharedWithApps } from './recall.ts';
 import { lookFirst, lookFirstMode } from './look-first.ts';
 import { DoneGate } from './done-gate.ts';
-import { SpecReview } from './spec-review.ts';
+import { SpecReview, takeOverNote } from './spec-review.ts';
+import { strongReviewSet, testsInCopy } from './review-tools.ts';
 import { preciseSettings } from './diagnostics.ts';
 import { scanProject } from './projectknow.ts';
 import { COMPANION_TOOLS, companionOffIn } from './companion-switch.ts';
@@ -136,7 +137,7 @@ import type { Subscriptions } from './subscriptions/index.ts';
 import type { DiscordBridge } from './bridges/discord.ts';
 import type { SandboxInfo } from './tools/sandbox.ts';
 import { clip, ToolError, type ApprovalDetail, type Prepared, type Tool, type ToolContext } from './tools/types.ts';
-import { resolveInside, workspaceDir } from './tools/workspace.ts';
+import { resolveInside, workspaceDir, workspacesBase } from './tools/workspace.ts';
 import type { Vault } from './vault.ts';
 import { personalize } from './identity.ts';
 import { ownerFocused } from './traits.ts';
@@ -355,7 +356,7 @@ export interface AppContext {
   log?: import('./log.ts').Log;
   /** Phase 32: ask the memory worker to summarize recently-ended conversations soon. */
   memoryNudge?: () => void;
-  /** Phase 31: the server's data folder (shared: workspaces, backups, logs). Unset = dataDir. */
+  /** Phase 31: the server's data folder (shared: backups, logs; the first companion's workspaces; T62: another companion's workspaces are in her own dataDir, see workspacesBase). Unset = dataDir. */
   rootDir?: string;
   /** Phase 31: which companion this is ('main' for the first) and all of them. */
   companionId?: string;
@@ -2327,6 +2328,8 @@ async function lookBefore(app: AppContext, conv: Conversation, o: { text: string
   return { recalled, note: look.note, urls: look.urls, notice: { type: 'notice', kind: 'lookup', text: fill(key, params), key, params } };
 }
 
+const isLocalChoice = (c: ModelChoice): boolean => c.provider.config.local === true && !isCloudModelName(c.model);
+
 /**
  * T55/T56: what may still stand between a coding reply and the end of the turn. First the done gate
  * (files changed after the last test run), then, once a turn, the Review model's reading of her change
@@ -2335,8 +2338,8 @@ async function lookBefore(app: AppContext, conv: Conversation, o: { text: string
 async function codingEndChecks(
   app: AppContext,
   conv: Conversation,
-  o: { doneGate?: DoneGate; specReview?: SpecReview; receipts: Receipt[]; reply: string; text: string; ownerWord: string; wsDir: string; canStep: boolean; goalOrLoop: boolean; hasShell: boolean },
-): Promise<{ note: string; notice?: ChatEvent } | undefined> {
+  o: { doneGate?: DoneGate; specReview?: SpecReview; receipts: Receipt[]; reply: string; text: string; ownerWord: string; wsDir: string; canStep: boolean; goalOrLoop: boolean; hasShell: boolean; current: { providerId: string; model: string }; sandbox: SandboxInfo; signal: AbortSignal },
+): Promise<{ note: string; notice?: ChatEvent; takeOver?: ModelChoice } | undefined> {
   if (o.doneGate) {
     let testCommand: string | undefined;
     try {
@@ -2361,11 +2364,27 @@ async function codingEndChecks(
       return undefined;
     }
   };
-  const found = await o.specReview.run(app, conv, { request: o.text, receipts: o.receipts, ownerName: o.ownerWord, route, readNow, canStep: o.canStep, goalOrLoop: o.goalOrLoop });
+  // T60: the strong review (on by default): a Review model other than the coder reads with tools, then takes over.
+  const checks = preciseSettings(app).checks;
+  const strongMode = !checks.review && strongReviewSet(app);
+  if (strongMode && route[0] && route[0].provider.config.id === o.current.providerId && route[0].model === o.current.model) return undefined;
+  // T59: with the review's tools on, it reads the workspace itself and may run her tests again in a copy.
+  const tools = checks.reviewTools || strongMode ? { workspaceDir: o.wsDir, sandbox: o.sandbox, signal: o.signal, ...(o.hasShell ? { runTests: testsInCopy(app.sandboxGate, o.sandbox, o.wsDir) } : {}) } : undefined;
+  const found = await o.specReview.run(app, conv, { request: o.text, receipts: o.receipts, ownerName: o.ownerWord, route, readNow, canStep: o.canStep, goalOrLoop: o.goalOrLoop, ...(tools ? { tools } : {}) });
   if (!found) return undefined;
-  const key = en('{model} reviewed the change against your request and found {n} point(s) to check.');
-  const params = { model: found.reviewer, n: found.issues.length };
-  return { note: found.note, notice: { type: 'notice', kind: 'lookup', text: fill(key, params), key, params } };
+  // T57: with "the reviewer finishes" on, the Review model itself takes the rest of the turn (when it is
+  // another model than the one that wrote the change, and allowed in this conversation).
+  const usable = conv.private ? route.filter((c) => isLocalChoice(c)) : route;
+  const strong = checks.reviewFinish || strongMode ? usable.find((c) => !(c.provider.config.id === o.current.providerId && c.model === o.current.model)) : undefined;
+  const key = strong ? en('{model} reviewed the change, found {n} point(s), and takes over to fix them.') : en('{model} reviewed the change against your request and found {n} point(s) to check.');
+  const params = { model: strong ? strong.model : found.reviewer, n: found.issues.length };
+  return { note: strong ? takeOverNote(found.issues, o.ownerWord) : found.note, notice: { type: 'notice', kind: 'lookup', text: fill(key, params), key, params }, ...(strong ? { takeOver: strong } : {}) };
+}
+
+/** T57: the rest of the turn runs on the Review model; if it fails, the turn's own models are next. */
+function takeOverChain(chain: ModelChoice[], ci: number, to: ModelChoice): { provider: Provider; model: string; chain: ModelChoice[]; ci: number } {
+  const rest = chain.slice(ci).filter((c) => !(c.provider.config.id === to.provider.config.id && c.model === to.model));
+  return { provider: to.provider, model: to.model, chain: [to, ...rest], ci: 0 };
 }
 
 async function* runTurnInner(app: AppContext, conversationId: string, userText: string, signal: AbortSignal, opts: TurnOptions, rec: RunRecorder): AsyncGenerator<ChatEvent> {
@@ -2772,7 +2791,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   };
   try {
     // Phase 83: a branch works in its own copy of the workspace, never the real one.
-    wsDir = opts.replay?.workspaceDir ?? workspaceDir(app.rootDir ?? app.dataDir, conv.workspace);
+    wsDir = opts.replay?.workspaceDir ?? workspaceDir(workspacesBase(app), conv.workspace);
     // C13: a coding task with its own worktree: her file and command tools work in that folder.
     wsRoot = wsDir;
     const tree = !opts.replay && conv.mode === 'coding' ? app.worktrees?.active(conv.id) : undefined;
@@ -3313,7 +3332,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   // T55: in a coding conversation the turn does not end on files changed after the last test run.
   const doneGate = conv.mode === 'coding' && !opts.replay && !opts.group && !conv.partner && preciseSettings(app).checks.doneGate ? new DoneGate() : undefined;
   // T56: once a turn, the Review model reads her change against what was asked (src/spec-review.ts).
-  const specReview = app.codeReview && conv.mode === 'coding' && !opts.replay && !opts.group && !conv.partner && preciseSettings(app).checks.review ? new SpecReview() : undefined;
+  const specReview = app.codeReview && conv.mode === 'coding' && !opts.replay && !opts.group && !conv.partner && (preciseSettings(app).checks.review || strongReviewSet(app)) ? new SpecReview() : undefined;
   /** Fred fix B: an answer with no words (reasoning only, think tags only) gets one more go, without thinking. */
   let emptyRetried = false;
   let rescued = false;
@@ -4077,10 +4096,11 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
           continue;
         }
         // T55/T56: untested changes, then the review of her change (codingEndChecks below): one more step each.
-        const end = await codingEndChecks(app, conv, { doneGate, specReview, receipts, reply, text, ownerWord, wsDir, canStep: step < maxSteps - 1 && !meter?.final && stage !== 'summarize-stop' && stage !== 'reached', goalOrLoop: Boolean(opts.persist), hasShell: tools.some((t) => t.spec.name === 'shell') });
+        const end = await codingEndChecks(app, conv, { doneGate, specReview, receipts, reply, text, ownerWord, wsDir, canStep: step < maxSteps - 1 && !meter?.final && stage !== 'summarize-stop' && stage !== 'reached', goalOrLoop: Boolean(opts.persist), hasShell: tools.some((t) => t.spec.name === 'shell'), current: { providerId: provider.config.id, model }, sandbox, signal });
         if (end) {
           if (end.notice) yield end.notice;
           checkNote = end.note;
+          if (end.takeOver) ({ provider, model, chain, ci } = takeOverChain(chain, ci, end.takeOver));
           continue;
         }
         break;

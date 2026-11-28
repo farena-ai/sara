@@ -252,3 +252,51 @@ html.shell:where(:not([data-palette="classic"])) .shell-drag { display: none; }
 /* 3.49.1: why this device was signed out, above the sign-in field. */
 #login-why { margin: 0 0 10px; padding: 8px 12px; border-left: 3px solid var(--warn); border-radius: 6px; background: color-mix(in srgb, var(--warn) 10%, transparent); }
 #login-why[hidden] { display: none; }
+/* T61: with more than one companion, her face at the bottom left opens the companion list, upward. */
+.side-foot-row { position: relative; }
+.side-companion-menu { top: auto; bottom: calc(100% + 6px); left: 0; right: auto; }
+.side-companion-menu button.ghost + button.ghost { border-top: 0; margin-top: 0; }
+#open-sara.many .side-her::after { content: "\2303"; margin-left: 6px; font-size: 0.8em; opacity: 0.6; }
+/* T62: on a second companion, whose model and tool choices a page shows (web/own-choices.js). */
+.own-choices { margin: 0 0 10px; padding: 6px 10px; border-left: 3px solid var(--accent-solid); border-radius: 4px; background: var(--accent-soft); }
+/* T62: "What {name} may use" on the mail and Google pages, while another companion is open. */
+.cacc-block { margin: 12px 0; padding: 4px 12px 8px; border: 1px solid var(--line); border-radius: 10px; }
+.cacc-block .cacc-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+
+/* T63 (owner, 2026-11-28): the one model control, in the message box (web/chat-model.js). Wide screens:
+   the text gets the whole first row and a quiet chip sits next to + in the row under it (so it never
+   narrows the text or pushes the icons). Phones (760 px and narrower): no chip and the row stays as it
+   was; the + menu's first item opens the same picker. */
+.cmp-model-wrap { display: flex; flex: 1 1 0; min-width: 0; align-items: center; }
+.cmp-model { display: inline-flex; align-items: center; gap: 4px; min-width: 0; max-width: min(240px, 100%); height: 28px; padding: 0 6px 0 10px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--text-2); font: 500 12.5px/1 var(--font-ui, inherit); cursor: pointer; }
+.cmp-model[hidden], .cmp-model-item[hidden], .cmp-model-pop[hidden] { display: none; }
+.cmp-model:hover, .cmp-model.on { background: var(--surface-3); color: var(--text-1); }
+.cmp-model:focus-visible { outline: 2px solid var(--accent-solid); outline-offset: 1px; }
+.cmp-model.set { color: var(--text-1); }
+.cmp-model-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmp-model svg.ic { flex: none; width: 14px; height: 14px; opacity: 0.7; }
+.cmp-model-pop { top: auto; right: auto; left: 8px; bottom: calc(100% + 10px); z-index: 45; display: flex; flex-direction: column; width: min(340px, calc(100vw - 32px)); max-height: min(60vh, 440px); padding: 6px; }
+/* A long list over the chat reads better on a solid sheet than on glass. */
+#composer > #cmp-model-pop { background: var(--surface-1); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.cmp-model-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.cmp-model-pop .pop-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 36px; padding: 6px 10px; border: 0; border-radius: var(--r-control, 8px); background: none; color: var(--text-1); font-size: 13.5px; text-align: left; }
+.cmp-model-pop .pop-item[hidden], .cmp-model-group[hidden] { display: none; }
+.cmp-model-pop .pop-item:hover, .cmp-model-pop .pop-item:focus-visible { background: var(--surface-3); outline: none; }
+.cmp-model-pop .pop-item[aria-checked="true"] { background: var(--accent-soft); font-weight: 600; }
+.cmp-model-opt-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmp-model-opt-sub { flex: none; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
+.cmp-model-group { padding: 10px 10px 4px; color: var(--text-3); font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.cmp-model-find { flex: none; height: 32px; margin: 2px 2px 6px; }
+.cmp-model-note { flex: none; margin: 6px 10px 2px; }
+@media (min-width: 761px) {
+  #composer { flex-wrap: wrap; row-gap: 2px; }
+  #composer > textarea#input { flex: 1 0 100%; }
+  .cmp-model-item { display: none; }
+  /* + now starts the bottom row: its menu opens on that side. */
+  #composer .composer-menu { left: 8px; right: auto; }
+}
+@media (max-width: 760px) {
+  .cmp-model-wrap { display: none; }
+  .cmp-model-pop { left: 4px; width: calc(100vw - 24px); max-height: 60vh; }
+  .cmp-model-pop .pop-item { min-height: 44px; }
+}

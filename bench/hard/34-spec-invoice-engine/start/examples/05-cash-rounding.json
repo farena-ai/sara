@@ -1,0 +1,27 @@
+{
+  "number": "CH-2026-077",
+  "issueDate": "2026-09-30",
+  "currency": "CHF",
+  "cashRounding": true,
+  "taxRates": {
+    "standard": "8.1",
+    "reduced": "2.6"
+  },
+  "taxRounding": "half-even",
+  "lines": [
+    {
+      "id": "K1",
+      "description": "Consulting hour",
+      "quantity": "1.25",
+      "unitPrice": "180.00",
+      "taxClass": "standard"
+    },
+    {
+      "id": "K2",
+      "description": "Printed report",
+      "quantity": "1",
+      "unitPrice": "12.50",
+      "taxClass": "reduced"
+    }
+  ]
+}

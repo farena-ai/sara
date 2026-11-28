@@ -34,7 +34,7 @@ import { KEY_SHAPED } from '../redact.ts';
 import { isPrivateAddress, pinnedGet } from '../tools/builtin.ts';
 import type { SandboxInfo } from '../tools/sandbox.ts';
 import { ToolError, type Permission, type Tool } from '../tools/types.ts';
-import { workspaceDir } from '../tools/workspace.ts';
+import { workspaceDir, workspacesBase } from '../tools/workspace.ts';
 import { addedPermissions, hostAllowed, localize, MANIFEST_FILE, ManifestError, parseManifest, permissionIds, permissionLines, pluginToolName, type PermissionLine, type PluginManifest, type PluginSetting, compareSemver, everyMinutes } from './manifest.ts';
 import { fenceFor, type Fence, type InMessage, PluginProcess, prepareDataDir, spawnSpec } from './runtime.ts';
 import { commandLine, FENCE_LABELS, jobFenceFor, JobRefused, npmCli, parsePlan, runJob, type JobFence, type JobPlan, type JobSource } from './exec-job.ts';
@@ -1105,7 +1105,7 @@ export class PluginManager {
     const readExtra: string[] = [];
     if (m.permissions.files.read.includes('workspace')) {
       try {
-        const ws = workspaceDir(this.opts.dataDir, 'main');
+        const ws = workspaceDir(workspacesBase(a.app), 'main');
         mkdirSync(ws, { recursive: true });
         readExtra.push(ws);
       } catch {
@@ -1421,7 +1421,7 @@ export class PluginManager {
             return { ok: false, content: 'This is no longer allowed. Nothing ran.' };
           }
           try {
-            const out = await t.run(args, { workspaceDir: workspaceDir(this.opts.dataDir, 'main'), signal: AbortSignal.any([life.signal, AbortSignal.timeout(120_000)]), sandbox: a.app.sandbox, companionName: a.app.persona.name });
+            const out = await t.run(args, { workspaceDir: workspaceDir(workspacesBase(a.app), 'main'), signal: AbortSignal.any([life.signal, AbortSignal.timeout(120_000)]), sandbox: a.app.sandbox, companionName: a.app.persona.name });
             this.store.log(id, a.id, 'call', `${tool}: ran (the owner allowed it)`);
             return { ok: true, content: cut(this.opts.scrub(out), 16 * 1024) };
           } catch (err) {
@@ -1532,7 +1532,7 @@ export class PluginManager {
       throw err;
     }
     let sourceDir: string;
-    if (plan.source === 'workspace') sourceDir = workspaceDir(this.opts.dataDir, 'main');
+    if (plan.source === 'workspace') sourceDir = workspaceDir(workspacesBase(a.app), 'main');
     else {
       const root = this.dataDirFor(id, a.id);
       sourceDir = plan.from === '.' ? root : join(root, ...plan.from.split('/'));

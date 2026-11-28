@@ -12,7 +12,7 @@ import { type CharacterChoices, quickCharacter, RELATIONSHIPS, TALK, VIBES, writ
 import { exportCharacter, parseCharacter, withCharacterVoice } from '../characterfile.ts';
 import { bondContext } from '../chat.ts';
 import { applyBring, BRING_SOURCE_NAME, BringError, type BringPlan, type BringRead, MAX_BRING_BYTES, MAX_BRING_FILES, MAX_PASTE, planBring, readBring } from '../companion-import/bring.ts';
-import { createCompanionDir, newCompanionPersona, retireCompanionDir } from '../companions.ts';
+import { CompanionSettings, createCompanionDir, isInheritKey, MAIN_ID, newCompanionPersona, ownKeysOf, retireCompanionDir } from '../companions.ts';
 import { galleryEntry, galleryLine, galleryList, NoBrainError } from '../gallery.ts';
 import { as400, AVATAR_TYPES, fromPhoneApp, HttpError, MAX_AVATAR, MAX_CHARACTER, readJson, readRaw, SECURITY_HEADERS, send } from '../http.ts';
 import { trOwner } from '../i18n.ts';
@@ -58,7 +58,7 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
       if (!cm) throw new HttpError(404, 'Not found');
       if (opts.demo && method !== 'GET') throw new HttpError(403, 'Not on the demo server.');
       // Phase 67: companions whose model isn't on this computer show as paused in private local mode.
-      const view = () => ({ companions: cm.view(app.companionId ?? 'main').map((x) => ({ ...x, ...(privateLocalOn() && !talksHere(cm.get(x.id)?.app.settings.get() ?? app.settings.get()) ? { pausedLocal: true } : {}) })), planner: app.settings.get().companionPlanner ?? 'shared' });
+      const view = () => ({ companions: cm.view(app.companionId ?? 'main').map((x) => ({ ...x, ...(privateLocalOn() && !talksHere(cm.get(x.id)?.app.settings.get() ?? app.settings.get()) ? { pausedLocal: true } : {}) })), planner: app.settings.get().companionPlanner ?? 'separate' });
       if (!b && method === 'GET') return send(res, 200, await view());
       if (!b && method === 'POST') {
         const body = (await readJson(req)) as { name?: unknown; pronouns?: unknown; from?: unknown };
@@ -184,6 +184,20 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
         if (body.planner !== 'shared' && body.planner !== 'separate') throw new HttpError(400, 'Choose shared or separate.');
         app.settings.update({ companionPlanner: body.planner });
         return send(res, 200, { ...view(), restart: cm.all().length > 1 });
+      }
+      // T62: the models, thinking, edit checks and tool rules she follows from the main companion, or her own.
+      if (b === 'current' && c === 'own') {
+        const st = app.settings;
+        const isMain = (app.companionId ?? MAIN_ID) === MAIN_ID || !(st instanceof CompanionSettings);
+        if (method === 'DELETE') {
+          if (opts.demo || app.demo || opts.member || app.member) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
+          if (isMain) throw new HttpError(404, 'Not found');
+          const keys = (new URL(req.url ?? '/', 'http://x').searchParams.get('keys') ?? '').split(',').map((k) => k.trim()).filter(Boolean);
+          const bad = keys.find((k) => !isInheritKey(k));
+          if (!keys.length || bad) throw new HttpError(400, 'Unknown field {key}.', { params: { key: bad ?? '' } });
+          st.clearOwn(keys);
+        } else if (method !== 'GET') throw new HttpError(405, 'Method not allowed');
+        return send(res, 200, { main: isMain, name: app.persona.name, mainName: cm.main.app.persona.name, own: ownKeysOf(st), owner: !opts.demo && !opts.member && !app.member });
       }
       if (b && !c && method === 'DELETE') {
         if (!cm.get(b)) throw new HttpError(404, 'No such companion.');

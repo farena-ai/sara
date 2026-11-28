@@ -1,0 +1,10 @@
+{
+  "group_by": [
+    "region"
+  ],
+  "metrics": [
+    "count",
+    "median_qty"
+  ],
+  "format": "json"
+}

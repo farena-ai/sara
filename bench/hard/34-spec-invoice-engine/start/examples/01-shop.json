@@ -1,0 +1,55 @@
+{
+  "number": "2026-0141",
+  "issueDate": "2026-03-02",
+  "currency": "EUR",
+  "taxRates": {
+    "standard": "19",
+    "reduced": "7"
+  },
+  "discounts": [
+    {
+      "type": "amount",
+      "value": "5.00",
+      "code": "WELCOME5"
+    },
+    {
+      "type": "percent",
+      "value": "10",
+      "code": "SPRING10"
+    }
+  ],
+  "lines": [
+    {
+      "id": "1",
+      "description": "Desk lamp",
+      "quantity": "2",
+      "unitPrice": "24.90",
+      "taxClass": "standard",
+      "discounts": [
+        {
+          "type": "amount",
+          "value": "3.00"
+        },
+        {
+          "type": "percent",
+          "value": "5"
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "description": "Coffee beans 1 kg",
+      "quantity": "3",
+      "unitPrice": "13.49",
+      "taxClass": "reduced"
+    },
+    {
+      "id": "3",
+      "description": "Gift wrapping",
+      "quantity": "1",
+      "unitPrice": "2.50",
+      "taxClass": "standard",
+      "discountable": false
+    }
+  ]
+}

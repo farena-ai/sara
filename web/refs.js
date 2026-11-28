@@ -324,7 +324,7 @@ export function checksCard(card, conversationId) {
 
 // ------------------------------------------------------------------ Settings → Skills & tools → Check her edits
 
-const IDS = { 'pc-on': ['checks', 'on'], 'pc-wait': ['checks', 'waitS'], 'pc-timeout': ['checks', 'timeoutS'], 'pc-shown': ['checks', 'shown'], 'pc-warnings': ['checks', 'warnings'], 'pc-nudges': ['checks', 'nudges'], 'pref-on': ['refs', 'on'], 'pref-chars': ['refs', 'perRefChars'], 'pref-urls': ['refs', 'urls'], 'pref-older': ['refs', 'olderAs'] };
+const IDS = { 'pc-on': ['checks', 'on'], 'pc-wait': ['checks', 'waitS'], 'pc-timeout': ['checks', 'timeoutS'], 'pc-shown': ['checks', 'shown'], 'pc-warnings': ['checks', 'warnings'], 'pc-nudges': ['checks', 'nudges'], 'pc-strong': ['checks', 'strongReview'], 'pref-on': ['refs', 'on'], 'pref-chars': ['refs', 'perRefChars'], 'pref-urls': ['refs', 'urls'], 'pref-older': ['refs', 'olderAs'] };
 const CHOICE = { 'pc-wait': 'waitS', 'pc-timeout': 'timeoutS', 'pc-shown': 'shown', 'pc-nudges': 'nudges', 'pref-chars': 'perRefChars' };
 
 export async function loadPreciseSettings() {

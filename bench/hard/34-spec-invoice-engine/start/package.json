@@ -1,0 +1,9 @@
+{
+  "name": "tally-invoice",
+  "version": "2.0.0-dev",
+  "private": true,
+  "type": "module",
+  "description": "An invoicing engine: lines, tax classes, discounts, proration and credit notes.",
+  "bin": { "tally": "bin/tally.js" },
+  "scripts": { "test": "node --test" }
+}

@@ -72,6 +72,14 @@ never mix with the owner's. Google sign-ins are the owner's (members add Gmail w
 Addresses are shown on cards; tokens and app passwords stay encrypted in the vault and are never
 shown. The combined-view choices are kept in `mail-view.json` in your data folder (no secrets).
 
+**Several companions (T62).** The first companion uses every connected account. Any other companion
+uses none until you allow them: open her, then Settings → Connections → Email and calendar (a tick per
+mailbox, Gmail ones included) or Gmail and Calendar (Google Calendar, Docs and Sheets and the calendars
+added by link; Spotify). Saved at once, in `companions/<id>/access.json`. Her tools, Today, briefing
+and inbox helper see only what is ticked (`src/companion-access.ts` hands her gated views of the
+accounts; `GET`/`PUT /api/companion-access`, owner only, never the demo). Adding or removing accounts
+on these pages is still the server's, from whichever companion is open.
+
 ## For developers
 
 - `src/google-accounts.ts`: `GoogleAccounts` over `GoogleAccount` (first account `google`, vault

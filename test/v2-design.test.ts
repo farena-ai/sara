@@ -47,11 +47,12 @@ test('V2 chat turns: name, time and how long she took, from the message rows onl
   for (const l of LANGS) for (const k of ['{n} s', '{n} min', 'You']) assert.ok(i18n(l)[k], `${l}: ${k}`);
 });
 
-test('V2 header: one model · workspace chip, and the context ring as a small meter with its percentage', () => {
+test('V2 header: one chat-settings chip (mode · workspace), and the context ring as a small meter with its percentage', () => {
   const app = web('app.js');
   assert.match(app, /function setConvSummary\(full, chip\) \{\s*\$\('#conv-summary'\)\.replaceChildren\(el\('span', 'cs-full', full\), el\('span', 'cs-chip', chip \?\? full\)\);/);
-  // 3.3.0: the chip names the folder only when it matters (coding, or not the main folder).
-  assert.match(app, /setConvSummary\(`\$\{c\.mode === 'coding' \? `\$\{t\('Coding'\)\} · ` : ''\}\$\{folder\}\$\{model \|\| label\}\$\{plan\}`, \[model \|\| label, folder \? ws : ''\]\.filter\(Boolean\)\.join\(' · '\)\);/);
+  // 3.3.0: the chip names the folder only when it matters (coding, or not the main folder). T63: never
+  // the model (it is chosen and shown in the message box); with nothing to name it says Chat settings.
+  assert.match(app, /const words = \[c\.mode === 'coding' \? t\('Coding'\) : '', folder \? ws : ''\]\.filter\(Boolean\)\.join\(' · '\) \|\| t\('Chat settings'\);\n\s*setConvSummary\(words, words\);/);
   assert.doesNotMatch(app, /\$\('#conv-summary'\)\.textContent =/, 'one place builds the chip');
   const look = web('look.css');
   const v2 = look.slice(look.indexOf('/* ---------- V2 '));

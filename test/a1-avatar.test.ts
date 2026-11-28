@@ -206,8 +206,9 @@ test('VRM: visemes and mood expressions from the same rig', () => {
 });
 
 // ---------- the setting ----------
-test('setting: her picture choices, the default stays the orb', () => {
-  assert.equal(herPictureMode(null, false), 'orb', 'new installs: the orb');
+test('setting: her picture choices, the default is her portrait when she has her own look (T62)', () => {
+  assert.equal(herPictureMode(null, false), 'orb', 'no look of her own: the orb');
+  assert.equal(herPictureMode(null, false, true), 'portrait', 'her own look: her portrait');
   assert.equal(herPictureMode('portrait', false), 'portrait', 'her portrait = the animated one');
   assert.equal(herPictureMode('portrait-still', true), 'still');
   assert.equal(herPictureMode('vrm', false), 'vrm');
@@ -219,7 +220,7 @@ test('setting: her picture choices, the default stays the orb', () => {
   assert.equal(pictureMotion('vrm', { vrm: true }), 'vrm');
   assert.equal(pictureMotion('vrm', { vrm: false }), 'rig', 'no model stored: her animated portrait');
   const html = web('index.html');
-  assert.match(html, /<select id="ap-herpic"><option value="orb">Presence orb \(default\)<\/option><option value="portrait">Her portrait, animated<\/option><option value="portrait-still">Her portrait, still<\/option><option value="own">Your picture<\/option><option value="vrm">A 3D model \(\.vrm\)<\/option><\/select>/);
+  assert.match(html, /<select id="ap-herpic"><option value="orb">Presence orb<\/option><option value="portrait">Her portrait, animated<\/option><option value="portrait-still">Her portrait, still<\/option><option value="own">Your picture<\/option><option value="vrm">A 3D model \(\.vrm\)<\/option><\/select>/);
   for (const id of ['ap-vrm-file', 'ap-fit-open']) assert.match(html, new RegExp(`id="${id}"`));
   assert.ok(JSON.stringify(JSON.parse(web('tips.json'))).includes('"ap-vrm-file"'), 'a tip for the model file');
 });

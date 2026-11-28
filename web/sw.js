@@ -48,7 +48,7 @@ const OFFLINE = '/offline.html';
 //   Phase 92 had caches.open('sara-shell-v26'); every older cache is deleted below.
 // v28 (Phase 94): computer check-ups (checkup-view.js: the report card and the one-change card).
 //   Phase 93 had caches.open('sara-shell-v29'); every older cache is deleted below.
-const SHELL = [OFFLINE, '/offline.css', '/offline.js', '/theme.css', '/theme-boot.js', '/icon-192.png', '/project-checkpoints.js', '/offline-page.js', '/offline-store.js', '/offline-sync.js', '/offline-lists.js', '/offline-view.js', '/offline-view.css', '/offline-answer.js'];
+const SHELL = [OFFLINE, '/offline.css', '/offline.js', '/theme.css', '/companion-keys.js', '/theme-boot.js', '/icon-192.png', '/project-checkpoints.js', '/offline-page.js', '/offline-store.js', '/offline-sync.js', '/offline-lists.js', '/offline-view.js', '/offline-view.css', '/offline-answer.js'];
 
 // v29 (CU8 draft): Linux hands installation and explicit device-code computer-control warning.
 // v30 (Phase 96): skills (skills.js: Settings → Abilities → Skills, the editor, Add a skill and its

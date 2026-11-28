@@ -364,7 +364,30 @@ export function modelUses(shared: SettingsStore, companions: CompanionRef[]): Mo
   for (const c of companions) {
     const cm = c.settings.get().companionModel;
     if (cm) out.push({ providerId: cm.providerId, model: cm.model, where: `${c.name}'s own model`, job: 'chat', set: (m) => c.settings.update({ companionModel: { ...cm, model: m } }) });
+    // T62: a companion's own model choices (src/companions.ts INHERIT_KEYS) are hers to keep current too.
+    const own = (c.settings as { ownKeys?: () => string[] }).ownKeys?.() ?? [];
+    if (own.length) out.push(...ownModelUses(c, own));
   }
+  return out;
+}
+
+/** T62: the default model, its backups and the jobs a non-main companion chose for herself. */
+function ownModelUses(c: CompanionRef, own: string[]): ModelUse[] {
+  const s = c.settings.get();
+  const out: ModelUse[] = [];
+  if (own.includes('defaultModel') && s.defaultProviderId && s.defaultModel) out.push({ providerId: s.defaultProviderId, model: s.defaultModel, where: `${c.name}'s default model`, job: 'default', set: (m) => c.settings.update({ defaultModel: m }) });
+  if (own.includes('defaultFallbacks'))
+    (s.defaultFallbacks ?? []).forEach((f, i) => out.push({ providerId: f.providerId, model: f.model, where: `A backup for ${c.name}'s default model`, job: 'default', set: (m) => c.settings.update({ defaultFallbacks: (c.settings.get().defaultFallbacks ?? []).map((x, k) => (k === i ? { ...x, model: m } : x)) }) }));
+  if (own.includes('routes'))
+    for (const [k, r] of Object.entries(s.routes ?? {}) as [RoutePurpose, ModelRoute | undefined][]) {
+      if (!r) continue;
+      const patchRoute = (fn: (x: ModelRoute) => ModelRoute) => {
+        const cur = c.settings.get().routes ?? {};
+        if (cur[k]) c.settings.update({ routes: { ...cur, [k]: fn(cur[k]!) } });
+      };
+      out.push({ providerId: r.providerId, model: r.model, where: `${jobLabel(k)} (${c.name})`, job: k, set: (m) => patchRoute((x) => ({ ...x, model: m })) });
+      (r.fallbacks ?? []).forEach((f, i) => out.push({ providerId: f.providerId, model: f.model, where: `A backup for ${jobLabel(k)} (${c.name})`, job: k, set: (m) => patchRoute((x) => ({ ...x, fallbacks: (x.fallbacks ?? []).map((y, j) => (j === i ? { ...y, model: m } : y)) })) }));
+    }
   return out;
 }
 

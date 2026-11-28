@@ -1,0 +1,7 @@
+{
+  "title": "Python report generator: large inputs within measured bounds, same bytes",
+  "kind": "refactor",
+  "lang": "python",
+  "prompt": "tally (a sales report generator, about 30 modules) cannot cope with the data it is now used on: big reports never finish and the nightly job runs out of memory. Make it handle the inputs described in docs/PERFORMANCE.md within the bounds stated there (tools/measure.py measures them), without changing any byte of any report: docs/CONTRACT.md is what a report must contain. Keep the public API and the command line working, and make sure the tests pass.",
+  "hidden": ["{python}", "__hidden__/run_hidden.py"]
+}

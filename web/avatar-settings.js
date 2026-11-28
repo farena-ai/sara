@@ -3,20 +3,23 @@
 // remove it. "Your picture": Fit the face, three dots (eyes, mouth) dragged onto the picture so it can
 // blink and glance (sara.faceFit, this device; a new upload clears it).
 import { fitRegions, VRM_MAX_BYTES } from './avatar-rig.js';
+import './companion-keys.js';
 
 const $ = (s) => document.querySelector(s);
 const FIT_KEY = 'sara.faceFit';
+// T62: the fit and the 3D model's flag are kept per companion (web/companion-keys.js).
+const look = globalThis.saraKeys;
 
 /** The saved dots for your picture, or null. */
 export function readFaceFit() {
   try {
-    const v = JSON.parse(localStorage.getItem(FIT_KEY) ?? 'null');
+    const v = JSON.parse(look.get(FIT_KEY) ?? 'null');
     return fitRegions(v) ? v : null;
   } catch {
     return null;
   }
 }
-export const clearFaceFit = () => localStorage.removeItem(FIT_KEY);
+export const clearFaceFit = () => look.del(FIT_KEY);
 
 export function initAvatarSettings({ t, refresh, reloadVrm, ownPicture }) {
   const sel = $('#ap-herpic');
@@ -36,7 +39,7 @@ export function initAvatarSettings({ t, refresh, reloadVrm, ownPicture }) {
   };
   async function showStored() {
     if (!note) return;
-    const has = localStorage.getItem('sara.vrm') === '1';
+    const has = look.get('sara.vrm') === '1';
     $('#ap-vrm-remove').hidden = !has;
     if (!has) return void (note.textContent = t('No model yet. VRM 0.x and 1.0 files up to {n} MB; it stays on this device.', { n: Math.round(VRM_MAX_BYTES / 1048576) }));
     const mod = await import('./avatar-vrm.js');
@@ -58,7 +61,7 @@ export function initAvatarSettings({ t, refresh, reloadVrm, ownPicture }) {
       const mod = await import('./avatar-vrm.js');
       const r = await mod.storeVrm(f);
       if (!r.ok) return void (note.textContent = (reasons[r.code] ?? reasons.type)());
-      localStorage.setItem('sara.vrm', '1');
+      look.set('sara.vrm', '1');
       await showStored();
       refresh();
       reloadVrm();
@@ -69,7 +72,7 @@ export function initAvatarSettings({ t, refresh, reloadVrm, ownPicture }) {
   $('#ap-vrm-remove')?.addEventListener('click', async () => {
     const mod = await import('./avatar-vrm.js');
     await mod.removeStoredVrm();
-    localStorage.removeItem('sara.vrm');
+    look.del('sara.vrm');
     await showStored();
     refresh();
     reloadVrm();
@@ -167,7 +170,7 @@ function openFit({ t, src, done }) {
   };
   dlg.querySelector('#ap-fit-save').onclick = () => {
     if (!fitRegions(pts)) return;
-    localStorage.setItem(FIT_KEY, JSON.stringify(pts));
+    look.set(FIT_KEY, JSON.stringify(pts));
     dlg.close();
     done();
   };

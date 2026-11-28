@@ -20,7 +20,7 @@ import { resolveChain } from '../chat.ts';
 import { RunRecorder } from '../runs.ts';
 import { runInSandbox } from '../sandbox-run.ts';
 import type { Conversation } from '../store.ts';
-import { resolveInside, workspaceDir } from '../tools/workspace.ts';
+import { resolveInside, workspaceDir, workspacesBase } from '../tools/workspace.ts';
 import { readWorkspaceText, type Finding, type FixState } from './findings.ts';
 import { dirtyFiles, git, repoState } from './git.ts';
 import { askModel, jsonIn, jsonObjectsIn, securitySettings, walkFiles } from './pass.ts';
@@ -134,7 +134,7 @@ export class FixBranches {
   /** Where a finding's workspace is (the owner's workspaces folder). */
   #wsDir(f: Finding): string {
     if (!f.workspace) throw new Error('This finding has no workspace.');
-    return workspaceDir(this.#app.rootDir ?? this.#app.dataDir, f.workspace);
+    return workspaceDir(workspacesBase(this.#app), f.workspace);
   }
 
   /** Start-up: fixes that were running when the server stopped are marked failed (their worktrees were swept). */

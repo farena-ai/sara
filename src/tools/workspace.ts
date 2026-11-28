@@ -13,6 +13,15 @@ export function workspaceDir(dataDir: string, name: string): string {
   return realpathSync(dir);
 }
 
+/**
+ * T62: the folder that holds a companion's `workspaces/` (and her code snapshots): the server's data
+ * folder for the first companion (unchanged), her own folder (data/companions/<id>) for any other, so
+ * each companion has her own projects.
+ */
+export function workspacesBase(app: { dataDir: string; rootDir?: string; companionId?: string }): string {
+  return app.companionId && app.companionId !== 'main' ? app.dataDir : (app.rootDir ?? app.dataDir);
+}
+
 /** True when `p` is `root` or below it (plain path arithmetic; callers resolve links first). */
 export function inside(root: string, p: string): boolean {
   const rel = relative(root, p);

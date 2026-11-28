@@ -1,0 +1,9 @@
+[project]
+name = "accesspolicy"
+version = "0.4.0"
+description = "Gatekeeper: a small access-policy evaluator"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+accesspolicy = "accesspolicy.cli:main"

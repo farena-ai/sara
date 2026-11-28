@@ -19,7 +19,7 @@ import type { ChatMessage, ToolCall } from './providers/types.ts';
 import { checkClaims, correctionNote, type Receipt } from './receipts.ts';
 import type { RoutePurpose } from './settings.ts';
 import { ToolError, type Tool } from './tools/types.ts';
-import { inside, workspaceDir } from './tools/workspace.ts';
+import { inside, workspaceDir, workspacesBase } from './tools/workspace.ts';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { cleanBudget, usageLine, usageScope, type UsageTotals } from './usage.ts';
@@ -215,7 +215,7 @@ const est = (x: unknown) => Math.ceil((typeof x === 'string' ? x.length : JSON.s
 /** The last line starting with "VERDICT:" in a report. */
 /** The folder a task works in: the workspace, or (V3.4) its task worktree inside it. */
 export function taskDir(app: AppContext, task: Pick<TeamTask, 'workspace' | 'workflow'>): string {
-  const ws = workspaceDir(app.rootDir ?? app.dataDir, task.workspace);
+  const ws = workspaceDir(workspacesBase(app), task.workspace);
   const wt = task.workflow?.worktree;
   if (!wt) return ws;
   const d = resolve(ws, wt.dir);

@@ -17,7 +17,7 @@ import { en, trOwner } from './i18n.ts';
 import { nextScheduled } from './loops.ts';
 import { policy } from './policy-profile.ts';
 import { cleanLimits, teamHelpers, type TeamLimits, type TeamStep } from './team.ts';
-import { isSecretPath, resolveInside, workspaceDir } from './tools/workspace.ts';
+import { isSecretPath, resolveInside, workspaceDir, workspacesBase } from './tools/workspace.ts';
 import { usageLine } from './usage.ts';
 
 export const CREW = { maxCrews: 12, maxMembers: 4, minMembers: 1, missedSlotMs: 6 * 3600_000 } as const;
@@ -423,7 +423,7 @@ CREATE INDEX IF NOT EXISTS crew_runs_crew ON crew_runs(crew_id, id);
 
   #dir(c: Crew): string {
     const conv = this.#app.store.getConversation(c.conversationId);
-    const ws = workspaceDir(this.#app.rootDir ?? this.#app.dataDir, conv?.workspace ?? 'main');
+    const ws = workspaceDir(workspacesBase(this.#app), conv?.workspace ?? 'main');
     return resolveInside(ws, c.folder);
   }
 
@@ -456,7 +456,7 @@ CREATE INDEX IF NOT EXISTS crew_runs_crew ON crew_runs(crew_id, id);
     const c = run ? this.get(run.crewId) : undefined;
     if (!run?.file || !c) return undefined;
     const conv = this.#app.store.getConversation(c.conversationId);
-    const path = resolveInside(workspaceDir(this.#app.rootDir ?? this.#app.dataDir, conv?.workspace ?? 'main'), run.file);
+    const path = resolveInside(workspaceDir(workspacesBase(this.#app), conv?.workspace ?? 'main'), run.file);
     return existsSync(path) ? { path, name: basename(path) } : undefined;
   }
 

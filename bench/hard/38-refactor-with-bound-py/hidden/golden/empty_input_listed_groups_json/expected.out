@@ -1,0 +1,53 @@
+{
+  "title": "",
+  "columns": [
+    "region",
+    "count",
+    "units",
+    "revenue",
+    "customers",
+    "avg_price",
+    "median_qty",
+    "share",
+    "rank",
+    "top_products"
+  ],
+  "rows": [
+    {
+      "region": "b",
+      "count": "0",
+      "units": "0",
+      "revenue": "0.00",
+      "customers": "0",
+      "avg_price": "-",
+      "median_qty": "-",
+      "share": "-",
+      "rank": "1",
+      "top_products": "-"
+    },
+    {
+      "region": "a",
+      "count": "0",
+      "units": "0",
+      "revenue": "0.00",
+      "customers": "0",
+      "avg_price": "-",
+      "median_qty": "-",
+      "share": "-",
+      "rank": "1",
+      "top_products": "-"
+    }
+  ],
+  "total": {
+    "region": "TOTAL",
+    "count": "0",
+    "units": "0",
+    "revenue": "0.00",
+    "customers": "0",
+    "avg_price": "-",
+    "median_qty": "-",
+    "share": "-",
+    "rank": "",
+    "top_products": "-"
+  }
+}

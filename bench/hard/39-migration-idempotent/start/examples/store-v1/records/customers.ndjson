@@ -1,0 +1,12 @@
+{"id": "c1", "name": "Ada  Lovelace", "email": " ADA@Example.com ", "created": "2024-01-05", "phone": "(555) 123-4567"}
+{"id": "c2", "name": "Grace Brewster Hopper", "email": "grace@navy.mil", "created": "2024-02-10", "tier": "gold"}
+{"id": "c3", "name": "Plato", "email": "plato@academy.gr", "created": "2024-02-11", "phone": ""}
+
+{"email": "ada@example.com", "name": "Ada Byron", "id": "c4", "created": "2024-03-01", "phone": "1-555-999-0000", "tier": null, "marketing_opt_in": true}
+{"id": "c2", "name": "Duplicate Grace", "email": "g2@navy.mil", "created": "2024-02-12"}
+{"name": "No Id", "email": "x@y.z", "created": "2024-01-01"}
+{"id": "c5", "name": "Bad Mail", "email": "not-an-email", "created": "2024-01-01"}
+this is not json
+{"id": "c6", "name": "Phony", "email": "phony@x.org", "created": "2024-01-01", "phone": "12345"}
+{"id": "c7", "name": "Datey", "email": "datey@x.org", "created": "01/02/2024"}
+{"id": "c8", "name": " Zoë   Ünal ", "email": "zoe@x.org", "created": "2024-04-04", "phone": "+1 (555) 000-1111", "tier": ""}

@@ -31,7 +31,7 @@ function open(id: string) {
   const stored: Record<string, string> = {};
   const calls: string[] = [];
   runInNewContext(`${app.slice(start, end)}\nshowSettingsTab(${JSON.stringify(id)});`, {
-    OLD_TABS: {}, settingsPages: () => pages, $, t: (s: string) => s,
+    OLD_TABS: {}, OWN_PAGES: {}, OWN_RELOAD: {}, settingsPages: () => pages, $, t: (s: string) => s,
     document: { querySelectorAll: (q: string) => (q.includes('settings-nav-list') ? nav : []), getElementById: () => null },
     showSettingsHelp() {}, openGroupOf() {}, paintCrumbs() {}, showServices: () => calls.push('services'), setTimeout() {}, requestAnimationFrame() {},
     localStorage: { setItem: (k: string, v: string) => (stored[k] = v), getItem: (k: string) => stored[k] ?? null },

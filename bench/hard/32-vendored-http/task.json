@@ -1,0 +1,7 @@
+{
+  "title": "Stockroom: API regressions after the move to a vendored router, plus reservations",
+  "kind": "bug",
+  "lang": "js",
+  "prompt": "Stockroom is a small stock-keeping API built on relay, an in-process router and client library vendored under vendor/relay/ (it has its own README.md and docs/API.md). Since the move to relay 4 several endpoints misbehave (see ISSUES.md), and the reservations feature (#38) is still missing. docs/API.md in the project root is the specification of the API. Fix the regressions, add the reservation endpoints, and make sure the test suite passes. The library under vendor/ is third-party code and must not be modified.",
+  "hidden": ["node", "--test", "__hidden__/*.test.js"]
+}

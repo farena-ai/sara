@@ -153,6 +153,8 @@ function walk(root: string, dir: string, out: FileRef[], sideDbs?: Set<string>):
     if (dir === root && (SKIP_TOP.has(name) || isRestoreLeftover(name))) continue;
     // Phase 31: other companions' databases are snapshotted safely below, like the main one.
     if (dir !== root && /^companions\/[^/]+\/sara\.db(-wal|-shm)?$/.test(rel)) continue;
+    // T62: another companion's code snapshots (her own projects' undo copies) stay out, like the first's.
+    if (/^(members\/[^/]+\/)?companions\/[^/]+\/snapshots$/.test(rel)) continue;
     // Phase 71: household members' databases (members/<id>/sara.db and their companions') too.
     if (/^members\/[^/]+\/(companions\/[^/]+\/)?sara\.db(-wal|-shm)?$/.test(rel)) continue;
     const st = statSync(full, { throwIfNoEntry: false });

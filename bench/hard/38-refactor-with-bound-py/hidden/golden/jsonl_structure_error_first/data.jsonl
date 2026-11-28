@@ -1,0 +1,3 @@
+{"order": "o", "day": "2026-02-30x", "region": "a", "store": "s1", "product": "x", "category": "k", "customer": "c1", "qty": "1", "price": "1"}
+{"order": "o", "day": "2026-03-01", "region": "a", "store": "s1", "product": "x", "category": "k", "customer": "c1", "qty": "1", "price": "1"}
+[1, 2]

@@ -1,0 +1,6 @@
+order,day,region,store,product,category,customer,qty,price
+o,2026-02-27,north,s1,a,k,c1,1,10
+o,2026-03-01,east,s1,a,k,c1,1,10
+o,2026-03-01,south,s1,a,k,c1,1,10
+o,2026-04-01,west,s1,a,k,c1,1,4
+o,2026-03-05,north,s1,a,k,c1,1,1

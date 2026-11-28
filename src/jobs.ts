@@ -5,7 +5,7 @@
 // owner gets a notification.
 import type { DatabaseSync } from 'node:sqlite';
 import { runCommand, type Bind, type RunResult, type SandboxInfo } from './tools/sandbox.ts';
-import { workspaceDir } from './tools/workspace.ts';
+import { workspaceDir, workspacesBase } from './tools/workspace.ts';
 import type { AppContext } from './chat.ts';
 import { complete } from './life.ts';
 import { buildSystemPrompt } from './persona.ts';
@@ -199,7 +199,7 @@ export class JobManager {
       let run: RunResult;
       try {
         pre = spec.before?.() ?? {};
-        const wsDir = workspaceDir(app.rootDir ?? app.dataDir, spec.workspace);
+        const wsDir = workspaceDir(workspacesBase(app), spec.workspace);
         run = await runCommand(spec.command, wsDir, spec.sandbox ?? { ...app.sandbox, network: app.settings.get().shellNetwork ?? true }, {
           timeoutMs: Math.min(MAX_JOB_MS, spec.timeoutMs),
           signal: ac.signal,

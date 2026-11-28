@@ -13,7 +13,9 @@
 // It only adds a step. It never edits, never blocks the reply for long (one call, a time limit) and
 // is skipped in private conversations unless the review model is on the owner's own hardware.
 import type { AppContext, ModelChoice } from './chat.ts';
-import { cheapCall, isLocalModel } from './cheap.ts';
+import { cheapCall, isLocalModel, ledgerOf } from './cheap.ts';
+import { runToolReview } from './review-tools.ts';
+import type { SandboxInfo } from './tools/sandbox.ts';
 import type { Receipt } from './receipts.ts';
 import type { Conversation } from './store.ts';
 
@@ -66,7 +68,7 @@ export function reviewMaterial(request: string, receipts: Receipt[], readNow?: (
       filesText += `--- ${p}\n${cut(now, SPEC_REVIEW.fileChars)}\n\n`;
     }
   }
-  const tests = ok.findLast((r) => r.name === 'shell' && /\b(test|pytest|unittest|jest|vitest|mocha|check)\b/i.test(String(r.args.command ?? '')));
+  const tests = lastTestRun(receipts);
   const text = [
     `## The request\n${cut(request.trim(), SPEC_REVIEW.requestChars)}`,
     docText ? `## Documents the developer read\n${docText}` : '## Documents the developer read\n(none this turn)',
@@ -75,6 +77,13 @@ export function reviewMaterial(request: string, receipts: Receipt[], readNow?: (
     tests ? `## Last test output (${String(tests.args.command)})\n${cut(tests.output, SPEC_REVIEW.testChars)}` : '## Last test output\n(no tests were run)',
   ].join('\n\n');
   return { text, edits: edits.length };
+}
+
+const TEST_RE = /\b(test|pytest|unittest|jest|vitest|mocha|check)\b/i;
+
+/** T59: the last test command she ran this turn (one that ran), if any. */
+export function lastTestRun(receipts: Receipt[]): Receipt | undefined {
+  return receipts.findLast((r) => r.status === 'ok' && r.name === 'shell' && TEST_RE.test(String(r.args.command ?? '')));
 }
 
 /** Reads the reviewer's lines. Anything that is not an ISSUE line with both parts is dropped. */
@@ -97,14 +106,33 @@ export function specReviewNote(issues: SpecIssue[], reviewer: string, ownerName:
   return `[Note from the app, not from ${ownerName}: before you finish, ${reviewer} read your change against the request and found ${issues.length === 1 ? 'one possible gap' : `${issues.length} possible gaps`}:\n${lines}\nA reviewer can be wrong. For each one: open the code and the document, decide whether it is real, fix what is real (and run the tests again), and say in your answer which ones you did not change and why. Do not just agree.]`;
 }
 
+/** T57: the note for the Review model when it takes the turn over: the gaps are its own findings to check and fix. */
+export function takeOverNote(issues: SpecIssue[], ownerName: string): string {
+  const lines = issues.map((i, n) => `${n + 1}. The request or its documents say: "${i.from}". Found: ${i.what}`).join('\n');
+  return `[Note from the app, not from ${ownerName}: another model wrote the change above and said it was finished. A review of it against the request found ${issues.length === 1 ? 'one possible gap' : `${issues.length} possible gaps`}:\n${lines}\nYou take over from here. Read the code and the documents yourself, check each point (a review can be wrong), fix what is real, look for anything else the request asks that is not done, run the tests, and then answer with what you changed and what you left as it was.]`;
+}
+
 export class SpecReview {
   /** One review a turn: her follow-up step is not reviewed again. */
   done = false;
+  /** T59: how the last review with tools went (steps, test runs). */
+  lastTools?: { steps: number; testRuns: number };
 
   async run(
     app: AppContext,
     conv: Conversation,
-    o: { request: string; receipts: Receipt[]; ownerName: string; route: ModelChoice[]; canStep: boolean; goalOrLoop: boolean; readNow?: (path: string) => string | undefined; call?: (system: string, user: string) => Promise<string> },
+    o: {
+      request: string;
+      receipts: Receipt[];
+      ownerName: string;
+      route: ModelChoice[];
+      canStep: boolean;
+      goalOrLoop: boolean;
+      readNow?: (path: string) => string | undefined;
+      call?: (system: string, user: string) => Promise<string>;
+      /** T59: the reviewer gets read-only tools on this workspace (and the tests again, in a copy, when runTests is given). */
+      tools?: { workspaceDir: string; sandbox: SandboxInfo; runTests?: (command: string, signal: AbortSignal) => Promise<string>; signal?: AbortSignal };
+    },
   ): Promise<{ note: string; issues: SpecIssue[]; reviewer: string } | undefined> {
     if (this.done || !o.canStep || o.goalOrLoop) return undefined;
     const material = reviewMaterial(o.request, o.receipts, o.readNow);
@@ -117,7 +145,29 @@ export class SpecReview {
     let reviewer = 'a second model';
     try {
       if (o.call) out = await o.call(SPEC_REVIEW_PROMPT, material.text);
-      else {
+      else if (o.tools) {
+        const ledger = ledgerOf(app);
+        if (!ledger.fits('spec-review', { runs: SPEC_REVIEW.dailyRuns }, { tokens: 0 })) return undefined;
+        ledger.add('spec-review', { runs: 1 });
+        const test = lastTestRun(o.receipts);
+        const command = test ? String(test.args.command ?? '') : '';
+        const t = o.tools;
+        const runTests = command && t.runTests ? (signal: AbortSignal) => t.runTests!(command, signal) : undefined;
+        // The same model twice: one that thought until its limit and wrote nothing gets a second try.
+        for (const choice of [route[0]!, route[0]!]) {
+          const r = await runToolReview({ choice, material: material.text, workspaceDir: t.workspaceDir, sandbox: t.sandbox, ...(runTests ? { runTests, testCommand: command } : {}), ...(t.signal ? { signal: t.signal } : {}), ...(conv.id ? { conversationId: conv.id } : {}) });
+          try {
+            ledger.add('spec-review', { tokens: r.tokens });
+          } catch {
+            /* the store closed meanwhile */
+          }
+          this.lastTools = { steps: r.steps, testRuns: r.testRuns };
+          out = r.text;
+          reviewer = choice.model;
+          if (out) break;
+        }
+        if (!out) return undefined;
+      } else {
         const r = await cheapCall(app, {
           source: 'spec-review',
           purpose: 'spec-review',

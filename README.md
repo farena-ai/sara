@@ -24,7 +24,7 @@
 
 **Update:** on a Linux server `sudo sara update` (backs up first, rolls back if she doesn't answer) · Docker: `sudo git pull && sudo docker compose up -d --build` · Windows and Mac apps: Settings → Privacy & system → Updates · Android: Google Play. [Upgrading](docs/INSTALL.md#upgrading).
 
-> **Status:** 3.49.2, [Moving in from another agent no longer stops on a long relationship section](https://github.com/farena-ai/sara/releases/tag/v3.49.2). A patch: a move-in no longer stops when her old personality files say a lot about your relationship (what does not fit her sheet becomes her notes), and when an import stops, the review says why. [See what changed](#whats-new)
+> **Status:** 3.50.0, [Separate companions, one model switch, a stronger code review](https://github.com/farena-ai/sara/releases/tag/v3.50.0). Each companion is her own identity: her own planner, projects, details, look and accounts, so one can be a companion and another a plain work assistant. The model for a chat is switched from the message box. With a separate Review model, coding work gets a stronger review. [See what changed](#whats-new)
 >
 > Windows installer: unsigned ([SmartScreen guidance](docs/INSTALL.md)). The macOS release process requires signed and notarized downloads; each build is qualified separately. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [home-screen web app](docs/PHONE.md).
 
@@ -164,20 +164,21 @@ Recent releases · 6 November 2026. [Full changelog](CHANGELOG.md) · [All downl
 
 | Release | What changed for you |
 |---|---|
+| **[3.50.0](https://github.com/farena-ai/sara/releases/tag/v3.50.0)** | **Separate companions, one model switch, a stronger code review** — Companions as separate identities (planner, companion side, My details, projects, look, which mail and Google accounts each may use; models and tool rules follow your main companion until changed); one model switch in the message box; switch companions from her face at the bottom left; a stronger review of coding work with a separate Review model. |
 | **[3.49.2](https://github.com/farena-ai/sara/releases/tag/v3.49.2)** | **Moving in from another agent no longer stops on a long relationship section** — A patch: a long relationship section in an old agent's personality files no longer stops the move-in (the rest becomes her notes); a stopped import is reported on the review instead of the review quietly showing again. |
 | **[3.49.1](https://github.com/farena-ai/sara/releases/tag/v3.49.1)** | **You stay signed in on the devices you use** — A patch: a sign-in in use gets a fresh 30 days, so a device you use is no longer signed out on its 30th day; one rule for every sign-in, 30 days without use (apps approved with a code no longer end after 90 days); the sign-in page says why a device was signed out. |
 | **[3.49.0](https://github.com/farena-ai/sara/releases/tag/v3.49.0)** | **Safer coding: checked edits and tests before done** — Coding: every written file is parsed at once; no writing into a file that changed since she read it; no finishing on changes made after the last test run; "Look first" no longer skips a lookup on a thinking model. |
-| **[3.48.0](https://github.com/farena-ai/sara/releases/tag/v3.48.0)** | **The companion side, off and on again** — A switch for the companion side (Settings → You → About you): off is a plain work and coding assistant with all tools and the same memory, on again brings her back as she was; "Check facts before she answers" now saves. |
 | **[3.35.1](https://github.com/farena-ai/sara/releases/tag/v3.35.1)** | **[Sara knows who you're linked with, and names follow renames](docs/MESSAGES.md)** — Linked friends awareness (names, unread counts, times, request kinds; never message text; switch in Messages settings); one friend-name lookup for all friend tools; signed rename events with "formerly" names for 30 days; Rename in a chat's Options. |
 | **[3.22.1](https://github.com/farena-ai/sara/releases/tag/v3.22.1)** | **[Settings and the new windows open again](docs/MONEY.md)** — Settings, Health, Family and every window after Money open again; a test now checks every window in the page is closed. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Earlier 2.6x releases</b>: 3.47.0 back to 2.61.5</summary>
+<summary><b>Earlier 2.6x releases</b>: 3.48.0 back to 2.61.5</summary>
 
 | Release | What changed for you |
 |---|---|
+| **[3.48.0](https://github.com/farena-ai/sara/releases/tag/v3.48.0)** | **The companion side, off and on again** — A switch for the companion side (Settings → You → About you): off is a plain work and coding assistant with all tools and the same memory, on again brings her back as she was; "Check facts before she answers" now saves. |
 | **[3.47.0](https://github.com/farena-ai/sara/releases/tag/v3.47.0)** | **Look first, then answer** — Factual questions are looked up before she answers (her memory first, then the web), with the source named; she says so when she could not check; a story or game is left alone; Settings: Look it up first, Offer to look it up, or Off. |
 | **[3.46.1](https://github.com/farena-ai/sara/releases/tag/v3.46.1)** | **Models on your own computer answer sooner** — A model on your own computer is not loaded again every message (small jobs use the model already loaded); no long think before an ordinary chat reply on Balanced; Quick really turns thinking off in Ollama; the chat says when a model is thinking. |
 | **[3.46.0](https://github.com/farena-ai/sara/releases/tag/v3.46.0)** | **Why a model got its score, and a quicker start** — Why a model got its score (each task, passed or not, with the reason); Use on a backup model; how the last test run ended; an estimate that learns; help for Test my models; the chat shows about a fifth sooner at start; one decision for which model answers. |

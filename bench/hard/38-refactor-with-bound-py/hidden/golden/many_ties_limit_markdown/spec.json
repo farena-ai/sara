@@ -1,0 +1,10 @@
+{
+  "group_by": [
+    "region"
+  ],
+  "order": "revenue",
+  "limit": 4,
+  "format": "markdown",
+  "top_products": 1,
+  "title": "Ties"
+}

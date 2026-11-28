@@ -1,0 +1,11 @@
+{
+  "title": "Event pipeline: duplicates after a restart, short batches, drifting totals",
+  "kind": "bug",
+  "lang": "js",
+  "prompt": "This is relay, an in-process event pipeline with a journal on disk (about 45 files). Users have reported the three problems in ISSUES.md, and the runs they refer to are recorded in logs/ (the inputs are in examples/). docs/GUARANTEES.md is the contract the pipeline must keep; docs/JOURNAL.md, docs/SINKS.md and docs/CLI.md describe the rest. Find the causes and fix them so that every documented guarantee holds, keep everything else working, and make sure the test suite passes.",
+  "hidden": [
+    "node",
+    "--test",
+    "__hidden__/*.test.js"
+  ]
+}

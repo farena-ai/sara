@@ -68,7 +68,7 @@ test('S1: cards open at the first child and at every top-level heading', async (
 test('S3: Advanced folds sit on real pages and start at a real control; Show me and search jumps open them', async () => {
   const look = await import(pathToFileURL(join(ROOT, 'web', 'settings-look.js')).href);
   const pages = Object.keys(look.ADVANCED);
-  assert.ok(pages.length >= 12, `${pages.length} pages fold`);
+  assert.ok(pages.length >= 11, `${pages.length} pages fold`);
   for (const [page, id] of Object.entries(look.ADVANCED) as [string, string][]) {
     const sec = new RegExp(`<section class="settings-page[^"]*" data-page="${page}"[^>]*>([\\s\\S]*?)</section>`).exec(html);
     assert.ok(sec, `${page} is a page`);

@@ -1,0 +1,7 @@
+region,count,units,revenue,customers,avg_price,median_qty,share,rank,top_products
+south,1,1,10.00,1,10.00,1,47.6,1,a (10.00)
+east,1,1,10.00,1,10.00,1,47.6,1,a (10.00)
+north,1,1,1.00,1,1.00,1,4.8,3,a (1.00)
+west,0,0,0.00,0,-,-,0.0,4,-
+nowhere,0,0,0.00,0,-,-,0.0,4,-
+TOTAL,3,3,21.00,1,7.00,1,100.0,,a (21.00)

@@ -48,6 +48,28 @@ export async function loadMyDetails() {
   set('md-em-phone', d.emergency?.phone);
   if ($('#md-leave-tab')) $('#md-leave-tab').checked = r.leaveStoreTab === true;
   $('#md-status').textContent = '';
+  paintCopy(r.copyFrom);
+}
+
+/** T62: each companion keeps her own details; a second one with none can copy the main one's (once, on a click). */
+function paintCopy(from) {
+  const row = $('#md-copy-row');
+  if (!row) return;
+  row.hidden = !from;
+  if (!from) return;
+  const b = $('#md-copy');
+  b.textContent = t('Copy my details from {main}', { main: from });
+  b.disabled = false;
+  b.onclick = async () => {
+    b.disabled = true;
+    try {
+      await api('/my-details/copy', { method: 'POST', body: {} });
+      await loadMyDetails();
+    } catch (err) {
+      b.disabled = false;
+      $('#md-status').textContent = err.message;
+    }
+  };
 }
 
 /** The page's values in the server's shape (empty fields left out). */

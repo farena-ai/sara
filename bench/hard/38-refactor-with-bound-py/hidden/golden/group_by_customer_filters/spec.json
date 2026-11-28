@@ -1,0 +1,18 @@
+{
+  "group_by": [
+    "customer"
+  ],
+  "where": {
+    "category": [
+      "toys",
+      "books"
+    ],
+    "day_to": "2026-04-30"
+  },
+  "format": "text",
+  "metrics": [
+    "count",
+    "revenue",
+    "customers"
+  ]
+}
