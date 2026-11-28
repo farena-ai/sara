@@ -24,7 +24,7 @@
 
 **Aktualisieren:** auf einem Linux-Server `sudo sara update` (sichert zuerst und rollt zurück, wenn sie nicht antwortet) · Docker: `sudo git pull && sudo docker compose up -d --build` · Apps für Windows und Mac: Einstellungen → Daten und Zustand → Updates · Android: Google Play. [Upgrade](docs/INSTALL.md#upgrading).
 
-> **Status:** 3.49.1, [Du bleibst auf den Geräten angemeldet, die du benutzt](https://github.com/farena-ai/sara/releases/tag/v3.49.1). Ein Patch: Ein Telefon, Browser oder eine Sara-App, die du benutzt, wird nicht mehr 30 Tage nach der Anmeldung abgemeldet. Nur 30 Tage ohne Nutzung beenden eine Anmeldung, und die Anmeldeseite sagt dann, warum. [Was ist neu?](#was-ist-neu)
+> **Status:** 3.49.2, [Der Umzug von einem anderen Agenten stoppt nicht mehr an einem langen Abschnitt über die Beziehung](https://github.com/farena-ai/sara/releases/tag/v3.49.2). Ein Patch: Ein Umzug stoppt nicht mehr, wenn ihre alten Persönlichkeitsdateien viel über eure Beziehung sagen (was nicht auf ihr Blatt passt, wird zu ihren Notizen), und wenn ein Import stoppt, sagt die Übersicht, warum. [Was ist neu?](#was-ist-neu)
 >
 > Windows-Installer: unsigniert ([SmartScreen-Hilfe](docs/INSTALL.md)). Der macOS-Release-Prozess verlangt signierte und notarisierte Downloads; jeder Build wird gesondert geprüft. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [Web-App auf dem Home-Bildschirm](docs/PHONE.md).
 
@@ -167,20 +167,21 @@ Aktuelle Releases · 6. November 2026. [Vollständiges Änderungsprotokoll](CHAN
 
 | Version | Was sich für dich ändert |
 |---|---|
+| **[3.49.2](https://github.com/farena-ai/sara/releases/tag/v3.49.2)** | **Der Umzug von einem anderen Agenten stoppt nicht mehr an einem langen Abschnitt über die Beziehung** — Ein Patch: Ein langer Abschnitt über die Beziehung in den Persönlichkeitsdateien eines alten Agenten stoppt den Umzug nicht mehr (der Rest wird zu ihren Notizen); ein gestoppter Import wird in der Übersicht gemeldet, statt die Übersicht kommentarlos neu zu zeigen. |
 | **[3.49.1](https://github.com/farena-ai/sara/releases/tag/v3.49.1)** | **Du bleibst auf den Geräten angemeldet, die du benutzt** — Ein Patch: Eine benutzte Anmeldung bekommt neue 30 Tage, also wird ein Gerät, das du benutzt, nicht mehr am 30. Tag abgemeldet; eine Regel für jede Anmeldung, 30 Tage ohne Nutzung (mit einem Code freigegebene Apps enden nicht mehr nach 90 Tagen); die Anmeldeseite sagt, warum ein Gerät abgemeldet wurde. |
 | **[3.49.0](https://github.com/farena-ai/sara/releases/tag/v3.49.0)** | **Sichereres Programmieren: geprüfte Änderungen und Tests vor dem Fertig** — Programmieren: jede geschriebene Datei wird sofort geparst; kein Schreiben in eine Datei, die sich seit dem Lesen geändert hat; kein Fertig bei Änderungen nach dem letzten Testlauf; „Zuerst nachschlagen“ überspringt bei einem nachdenkenden Modell keine Suche mehr. |
 | **[3.48.0](https://github.com/farena-ai/sara/releases/tag/v3.48.0)** | **Die Begleiter-Seite, aus und wieder an** — Ein Schalter für die Begleiter-Seite (Einstellungen → Du → Über dich): aus ist eine schlichte Arbeits- und Code-Assistentin mit allen Werkzeugen und demselben Gedächtnis, wieder an ist sie wie zuvor; „Fakten prüfen, bevor sie antwortet“ wird jetzt gespeichert. |
-| **[3.47.0](https://github.com/farena-ai/sara/releases/tag/v3.47.0)** | **Erst nachschlagen, dann antworten** — Sachfragen werden vor der Antwort nachgeschlagen (erst ihr Gedächtnis, dann das Web), mit Quelle; sie sagt, wenn sie nicht nachsehen konnte; eine Geschichte oder ein Spiel bleibt unberührt; Einstellungen: Zuerst nachschlagen, Nachschlagen anbieten oder Aus. |
 | **[3.35.1](https://github.com/farena-ai/sara/releases/tag/v3.35.1)** | **[Sara weiß, mit wem du verbunden bist, und Namen folgen Umbenennungen](docs/MESSAGES.md)** — Wissen über verbundene Freunde (Namen, Ungelesene, Zeiten, Anfragearten; nie der Text; Schalter in den Nachrichten-Einstellungen); eine Namenssuche für alle Freundes-Werkzeuge; signierte Umbenennungen mit „früher“ für 30 Tage; Umbenennen in den Optionen des Chats. |
 | **[3.22.1](https://github.com/farena-ai/sara/releases/tag/v3.22.1)** | **[Einstellungen und die neuen Fenster öffnen sich wieder](docs/MONEY.md)** — Einstellungen, Gesundheit, Familie und alle Fenster nach Geld öffnen sich wieder; ein Test prüft jetzt, dass jedes Fenster der Seite geschlossen ist. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Frühere 2.6x-Releases</b>: 3.46.1 zurück bis 2.61.5</summary>
+<summary><b>Frühere 2.6x-Releases</b>: 3.47.0 zurück bis 2.61.5</summary>
 
 | Version | Was sich für dich ändert |
 |---|---|
+| **[3.47.0](https://github.com/farena-ai/sara/releases/tag/v3.47.0)** | **Erst nachschlagen, dann antworten** — Sachfragen werden vor der Antwort nachgeschlagen (erst ihr Gedächtnis, dann das Web), mit Quelle; sie sagt, wenn sie nicht nachsehen konnte; eine Geschichte oder ein Spiel bleibt unberührt; Einstellungen: Zuerst nachschlagen, Nachschlagen anbieten oder Aus. |
 | **[3.46.1](https://github.com/farena-ai/sara/releases/tag/v3.46.1)** | **Modelle auf deinem eigenen Computer antworten früher** — Ein Modell auf deinem eigenen Computer wird nicht mehr bei jeder Nachricht neu geladen (kleine Aufgaben nutzen das schon geladene Modell); kein langes Nachdenken vor einer gewöhnlichen Antwort bei Ausgewogen; Schnell schaltet das Nachdenken in Ollama wirklich aus; der Chat sagt, wenn ein Modell nachdenkt. |
 | **[3.46.0](https://github.com/farena-ai/sara/releases/tag/v3.46.0)** | **Warum ein Modell seine Punktzahl bekam, und ein schnellerer Start** — Warum ein Modell seine Punktzahl bekam (jede Aufgabe, bestanden oder nicht, mit Grund); Verwenden bei einem Ersatzmodell; wie der letzte Test endete; eine Schätzung, die lernt; Hilfe zu Meine Modelle testen; der Chat erscheint beim Start etwa ein Fünftel früher; eine einzige Entscheidung, welches Modell antwortet. |
 | **[3.45.0](https://github.com/farena-ai/sara/releases/tag/v3.45.0)** | **Meine Modelle testen: eine Punktzahl für jedes Modell bei jeder Aufgabe** — Meine Modelle testen (alle, ein Anbieter oder zwei bis drei nebeneinander; Punktzahl pro Aufgabe, das beste und seine Ersatzmodelle, nutzungsabhängig bezahlte nur, wenn angehakt); die Krisennummern einmal pro Unterhaltung; „Wie ich diese Woche war“ in ihrem Wochenrückblick; eine Änderung oder Löschung, während sie noch antwortet, erreicht das, was sie gerade senden wollte; ein zu langsames Embedding-Modell wird nicht von selbst gewählt. |

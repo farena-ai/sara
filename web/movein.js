@@ -703,6 +703,8 @@ function renderPreview(pv) {
     }), tip(t('Decides every card that is safe to decide (settings, hooks and plugins without a warning) and picks her first personality draft. You still look it over before Import.')));
     head.append(all);
   }
+  // 3.49.2: the last Import stopped (nothing was saved): say so above the review, not silently.
+  if (pv.error) root.append(errorCard(t('The move-in stopped and nothing was saved: {why}', { why: pv.error })));
   root.append(planCard(pv), head);
   if (state.bring) root.append(bringCard(state.bring));
   if (pv.persona) root.append(personaCard(pv));

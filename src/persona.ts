@@ -80,6 +80,9 @@ const strList = (v: unknown, field: string, max = 20): string[] => {
 };
 
 /** Validates a character sheet (also used by the persona editor). Adults only. */
+/** 3.49.2: the longest "Relationship, in your words" a personality takes (move-in drafts keep to it). */
+export const RELATIONSHIP_NOTE_MAX = 400;
+
 export function validatePersona(raw: unknown): Persona {
   const o = (raw ?? {}) as Record<string, unknown>;
   const name = String(o.name ?? '').trim();
@@ -125,7 +128,7 @@ function studioFields(o: Record<string, unknown>): Partial<Persona> {
     if (v) out[k] = v;
   }
   const note = String(o.relationshipNote ?? '').trim();
-  if (note.length > 400) throw new Error('Relationship, in your words: at most 400 characters');
+  if (note.length > RELATIONSHIP_NOTE_MAX) throw new Error('Relationship, in your words: at most 400 characters');
   if (note) out.relationshipNote = note;
   const pickOf = <T extends Record<string, unknown>>(v: unknown, from: T) => (typeof v === 'string' && v in from ? v : undefined);
   const away = pickOf(o.away, AWAY);

@@ -5,6 +5,11 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.49.2 (2026-11-27): Moving in from another agent no longer stops on a long relationship section
+
+- Fixed: a move-in no longer stops when her old personality files say a lot about your relationship. The draft kept up to 600 characters for "Relationship, in your words" while her character sheet takes 400, so the whole import stopped; now what fits goes on the sheet and the rest becomes her notes. A summary handed in from elsewhere is cut to what the sheet takes too.
+- Fixed: when an import stops, the review now says so and why. Before, the page silently showed the review again as if nothing had happened.
+
 ## 3.49.1 (2026-11-27): You stay signed in on the devices you use
 
 - Fixed: a phone, browser or Sara app you use is no longer signed out 30 days after you signed it in. The sign-in carried a fixed end 30 days after the day you signed in, while Devices says a device is signed out after 30 days unused; now a sign-in in use gets a fresh 30 days (at most once a day). Devices already signed out need one more sign-in: on a device that still works, Settings → Connections → Devices and sign-in → Add a phone or computer makes a one-time code.

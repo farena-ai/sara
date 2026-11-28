@@ -596,6 +596,8 @@ export class MoveIn {
       sections,
       held: counts.held,
       adultOn: c.adultOn,
+      // 3.49.2: why the last Import stopped (the bundle is back to ready; the page says so).
+      error: s.error ?? null,
       notes: { total: notes, active: Math.min(notes, ACTIVE_NOTES), archived: Math.max(0, notes - ACTIVE_NOTES) },
       persona: pf ? { ref: persona.ref, refused: pf.refused ?? null, history: pf.history, drafts: pf.drafts.map((d) => ({ label: d.label, files: d.files, sheet: d.sheet, notes: d.notes, leftOut: d.leftOut, ageGuessed: d.ageGuessed ?? false })), current: { name: app.persona.name, summary: app.persona.summary } } : null,
       conversations: { count: convs.length, from: dates[0] ?? null, to: dates.at(-1) ?? null, learnRecent: recent.length, tokensRecent: Math.ceil(chars(recent) / 4), tokensAll: Math.ceil(chars(convs) / 4), model, learnDays: LEARN_DAYS },
@@ -715,6 +717,7 @@ export class MoveIn {
     s.abort = ac;
     s.state = 'importing';
     s.line = 'Moving in';
+    delete s.error;
     this.#save(s);
     const job = async (signal: AbortSignal, progress: (line: string) => void) => {
       const r = await runBatch({

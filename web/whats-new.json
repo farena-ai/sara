@@ -2,6 +2,23 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.49.2",
+   "date": "2026-11-27",
+   "title": "Moving in from another agent no longer stops on a long relationship section",
+   "items": [
+    {
+     "id": "3-49-2-a-move-in-no-longer-stops",
+     "kind": "fixed",
+     "text": "A move-in no longer stops when her old personality files say a lot about your relationship."
+    },
+    {
+     "id": "3-49-2-when-an-import-stops-the",
+     "kind": "fixed",
+     "text": "When an import stops, the review now says so and why."
+    }
+   ]
+  },
+  {
    "version": "3.49.1",
    "date": "2026-11-27",
    "title": "You stay signed in on the devices you use",
@@ -168,43 +185,6 @@
      "id": "3-45-0-a-title-or-summary-that",
      "kind": "fixed",
      "text": "A title or summary that was being written while you deleted or edited a message it read is no longer saved."
-    }
-   ]
-  },
-  {
-   "version": "3.44.0",
-   "date": "2026-11-24",
-   "title": "Research runs side by side, reports in more scripts, sent mail checked",
-   "items": [
-    {
-     "id": "3-44-0-the-research-report-pdf-and",
-     "kind": "new",
-     "text": "The research report PDF (and the trust report and work page PDFs) can show Greek, Russian, Chinese, Japanese, Korean, Hebrew, Thai, symbols and simple emoji."
-    },
-    {
-     "id": "3-44-0-more-than-one-research-run",
-     "kind": "new",
-     "text": "More than one research run at a time. Two runs read and write at once; start a third and it waits its turn."
-    },
-    {
-     "id": "3-44-0-she-can-copy-a-file",
-     "kind": "new",
-     "text": "She can copy a file between her workspace and one of your servers over SSH, up or down (\"put the new index.html on web box\", \"bring me the nginx error log\")."
-    },
-    {
-     "id": "3-44-0-her-time-to-leave-message",
-     "kind": "fixed",
-     "text": "Her \"Time to leave\" message in the hour the clocks go back now says which of the two times it means, such as \"1:30 AM (1st)\" or \"1:30 AM (2nd)\", like the Today page."
-    },
-    {
-     "id": "3-44-0-a-research-run-interrupted-by",
-     "kind": "fixed",
-     "text": "A research run interrupted by a restart while it was reading a page now reads that page again when it goes on; before, that one page was skipped."
-    },
-    {
-     "id": "3-44-0-memory-notes-for-a-conversation",
-     "kind": "fixed",
-     "text": "Memory notes for a conversation the background model answers with nothing (some models decline a conversation without saying so)."
     }
    ]
   }

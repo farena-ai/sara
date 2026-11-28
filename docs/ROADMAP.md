@@ -108,6 +108,11 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## A move-in that does not stop half way, in 3.49.2
+
+Moving in from another agent no longer stops when her old personality files say a lot about your
+relationship, and when an import does stop, the page says why.
+
 ## You stay signed in on the devices you use, in 3.49.1
 
 A phone, browser or Sara app you use is no longer signed out. Only 30 days without use end a sign-in,

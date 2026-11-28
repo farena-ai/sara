@@ -24,7 +24,7 @@
 
 **Actualizar:** en un servidor Linux, `sudo sara update` (antes hace una copia de seguridad y vuelve atrás si ella no responde) · Docker: `sudo git pull && sudo docker compose up -d --build` · apps de Windows y Mac: Ajustes → Datos y salud → Actualizaciones · Android: Google Play. [Cómo actualizar](docs/INSTALL.md#upgrading).
 
-> **Estado:** 3.49.1, [Sigues con la sesión iniciada en los dispositivos que usas](https://github.com/farena-ai/sara/releases/tag/v3.49.1). Un parche: un teléfono, navegador o app de Sara que usas ya no se desconecta 30 días después de iniciar sesión. Solo 30 días sin uso terminan una sesión, y entonces la página de inicio de sesión explica por qué. [Ver novedades](#novedades)
+> **Estado:** 3.49.2, [La mudanza desde otro agente ya no se detiene por una sección de relación larga](https://github.com/farena-ai/sara/releases/tag/v3.49.2). Un parche: una mudanza ya no se detiene cuando sus antiguos archivos de personalidad dicen mucho sobre vuestra relación (lo que no cabe en su ficha pasa a sus notas), y cuando una importación se detiene, la revisión explica por qué. [Ver novedades](#novedades)
 >
 > Instalador Windows: sin firma ([guía de SmartScreen](docs/INSTALL.md)). El proceso de publicación de macOS exige descargas firmadas y notarizadas; cada compilación se verifica por separado. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [app web en la pantalla de inicio](docs/PHONE.md).
 
@@ -167,20 +167,21 @@ Versiones recientes · 6 de noviembre de 2026. [Historial completo](CHANGELOG.md
 
 | Versión | Qué cambia para ti |
 |---|---|
+| **[3.49.2](https://github.com/farena-ai/sara/releases/tag/v3.49.2)** | **La mudanza desde otro agente ya no se detiene por una sección de relación larga** — Un parche: una sección de relación larga en los archivos de personalidad de un agente antiguo ya no detiene la mudanza (el resto pasa a sus notas); una importación detenida se indica en la revisión en lugar de mostrar la revisión otra vez sin más. |
 | **[3.49.1](https://github.com/farena-ai/sara/releases/tag/v3.49.1)** | **Sigues con la sesión iniciada en los dispositivos que usas** — Un parche: una sesión en uso recibe 30 días nuevos, así que un dispositivo que usas ya no se desconecta el día 30; una regla para todas las sesiones, 30 días sin uso (las apps aprobadas con un código ya no terminan a los 90 días); la página de inicio de sesión explica por qué se desconectó un dispositivo. |
 | **[3.49.0](https://github.com/farena-ai/sara/releases/tag/v3.49.0)** | **Programación más segura: ediciones comprobadas y pruebas antes de terminar** — Programación: cada archivo escrito se analiza al momento; no escribe en un archivo que cambió desde que lo leyó; no termina con cambios hechos después de la última ejecución de pruebas; «Buscar primero» ya no se salta una búsqueda con un modelo que piensa. |
 | **[3.48.0](https://github.com/farena-ai/sara/releases/tag/v3.48.0)** | **El lado de compañera, desactivado y activado de nuevo** — Un interruptor para el lado de compañera (Ajustes → Tú → Sobre ti): desactivado es una asistente sencilla de trabajo y programación con todas las herramientas y la misma memoria, y al activarlo vuelve como era; «Comprobar los hechos antes de que responda» ahora se guarda. |
-| **[3.47.0](https://github.com/farena-ai/sara/releases/tag/v3.47.0)** | **Primero buscar, luego responder** — Las preguntas sobre hechos se buscan antes de que responda (primero su memoria, luego la web), nombrando la fuente; dice cuándo no pudo comprobarlo; una historia o un juego se deja como está; Ajustes: Buscarlo primero, Ofrecer buscarlo o Desactivado. |
 | **[3.35.1](https://github.com/farena-ai/sara/releases/tag/v3.35.1)** | **[Sara sabe con quién estás enlazado, y los nombres siguen los cambios](docs/MESSAGES.md)** — Saber de amigos enlazados (nombres, no leídos, horas, tipos de petición; nunca el texto; interruptor en Ajustes de mensajes); una búsqueda de amigo por nombre para todas las herramientas; cambios de nombre firmados con «antes» durante 30 días; Renombrar en las Opciones del chat. |
 | **[3.22.1](https://github.com/farena-ai/sara/releases/tag/v3.22.1)** | **[Ajustes y las ventanas nuevas vuelven a abrirse](docs/MONEY.md)** — Ajustes, Salud, Familia y todas las ventanas después de Dinero vuelven a abrirse; una prueba comprueba ahora que todas las ventanas de la página están cerradas. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Versiones 2.6x anteriores</b>: de la 3.46.1 a la 2.61.5</summary>
+<summary><b>Versiones 2.6x anteriores</b>: de la 3.47.0 a la 2.61.5</summary>
 
 | Versión | Qué cambia para ti |
 |---|---|
+| **[3.47.0](https://github.com/farena-ai/sara/releases/tag/v3.47.0)** | **Primero buscar, luego responder** — Las preguntas sobre hechos se buscan antes de que responda (primero su memoria, luego la web), nombrando la fuente; dice cuándo no pudo comprobarlo; una historia o un juego se deja como está; Ajustes: Buscarlo primero, Ofrecer buscarlo o Desactivado. |
 | **[3.46.1](https://github.com/farena-ai/sara/releases/tag/v3.46.1)** | **Los modelos de tu propio ordenador responden antes** — Un modelo de tu propio ordenador ya no se carga de nuevo con cada mensaje (las tareas pequeñas usan el modelo ya cargado); sin larga reflexión antes de una respuesta normal en Equilibrado; Rápido desactiva de verdad el pensamiento en Ollama; el chat dice cuándo un modelo está pensando. |
 | **[3.46.0](https://github.com/farena-ai/sara/releases/tag/v3.46.0)** | **Por qué un modelo obtuvo su puntuación, y un arranque más rápido** — Por qué un modelo obtuvo su puntuación (cada tarea, superada o no, con el motivo); Usar en un modelo suplente; cómo terminó la última prueba; una estimación que aprende; ayuda para Probar mis modelos; el chat aparece alrededor de una quinta parte antes al arrancar; una sola decisión sobre qué modelo responde. |
 | **[3.45.0](https://github.com/farena-ai/sara/releases/tag/v3.45.0)** | **Prueba mis modelos: una puntuación para cada modelo en cada tarea** — Probar mis modelos (todos, un proveedor, o dos o tres lado a lado; puntuación por trabajo, el mejor y sus suplentes, los de pago por uso solo si los marcas); las líneas de crisis una vez por conversación; «Cómo me fue esta semana» en su resumen semanal; una edición o un borrado mientras aún responde llega a lo que iba a enviar; un modelo de embeddings demasiado lento no se elige solo. |

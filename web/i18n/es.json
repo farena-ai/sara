@@ -22937,13 +22937,6 @@
 "ElevenLabs error {status}: {detail}": "Error {status} de ElevenLabs: {detail}",
 "Add your xAI key in Settings → Sara → Voice.": "Añade tu clave de xAI en Ajustes → Sara → Voz.",
 "Grok voice error {status}: {detail}": "Error {status} de la voz de Grok: {detail}",
-  "Research runs side by side, reports in more scripts, sent mail checked": "Investigaciones en paralelo, informes en más alfabetos, correo enviado comprobado",
-  "The research report PDF (and the trust report and work page PDFs) can show Greek, Russian, Chinese, Japanese, Korean, Hebrew, Thai, symbols and simple emoji.": "El PDF del informe de investigación (y los PDF del informe de confianza y de las páginas de trabajo) puede mostrar griego, ruso, chino, japonés, coreano, hebreo, tailandés, símbolos y emojis sencillos.",
-  "More than one research run at a time. Two runs read and write at once; start a third and it waits its turn.": "Más de una investigación a la vez. Dos investigaciones leen y escriben al mismo tiempo; si empiezas una tercera, espera su turno.",
-  "She can copy a file between her workspace and one of your servers over SSH, up or down (\"put the new index.html on web box\", \"bring me the nginx error log\").": "Puede copiar un archivo entre su espacio de trabajo y uno de tus servidores por SSH, de ida o de vuelta («pon el nuevo index.html en web box», «tráeme el registro de errores de nginx»).",
-  "Her \"Time to leave\" message in the hour the clocks go back now says which of the two times it means, such as \"1:30 AM (1st)\" or \"1:30 AM (2nd)\", like the Today page.": "Su mensaje «Hora de salir», en la hora en que se atrasan los relojes, ahora dice a cuál de las dos horas se refiere, como «1:30 AM (1.ª)» o «1:30 AM (2.ª)», igual que la página Hoy.",
-  "A research run interrupted by a restart while it was reading a page now reads that page again when it goes on; before, that one page was skipped.": "Una investigación interrumpida por un reinicio mientras leía una página ahora vuelve a leer esa página al continuar; antes, esa página se saltaba.",
-  "Memory notes for a conversation the background model answers with nothing (some models decline a conversation without saying so).": "Notas de memoria de una conversación a la que el modelo de fondo responde con nada (algunos modelos rechazan una conversación sin decirlo).",
   "How I did this week": "Cómo me fue esta semana",
   "How I did this week:": "Cómo me fue esta semana:",
   "Replies that failed because the model took too long: {n}.": "Respuestas que fallaron porque el modelo tardó demasiado: {n}.",
@@ -23271,5 +23264,9 @@
   "You were signed out because this device was not used for 30 days. Sign in again to continue.": "Se cerró tu sesión porque este dispositivo no se usó durante 30 días. Vuelve a iniciar sesión para continuar.",
   "This device was signed out (under Devices and sign-in, or when the owner token was reset). Sign in again to continue.": "Se cerró la sesión de este dispositivo (en Dispositivos e inicio de sesión, o al restablecer el token del propietario). Vuelve a iniciar sesión para continuar.",
   "A phone, browser or Sara app you use is no longer signed out 30 days after you signed it in.": "Un teléfono, navegador o app de Sara que usas ya no se desconecta 30 días después de iniciar sesión.",
-  "When a device was signed out, its sign-in page says why: it was not used for 30 days, or it was signed out under Devices and sign-in (or when the owner token was reset).": "Cuando se cierra la sesión de un dispositivo, su página de inicio de sesión explica por qué: no se usó durante 30 días, o se cerró en Dispositivos e inicio de sesión (o al restablecer el token del propietario)."
+  "When a device was signed out, its sign-in page says why: it was not used for 30 days, or it was signed out under Devices and sign-in (or when the owner token was reset).": "Cuando se cierra la sesión de un dispositivo, su página de inicio de sesión explica por qué: no se usó durante 30 días, o se cerró en Dispositivos e inicio de sesión (o al restablecer el token del propietario).",
+  "Moving in from another agent no longer stops on a long relationship section": "La mudanza desde otro agente ya no se detiene por una sección de relación larga",
+  "A move-in no longer stops when her old personality files say a lot about your relationship.": "Una mudanza ya no se detiene cuando sus antiguos archivos de personalidad dicen mucho sobre vuestra relación.",
+  "When an import stops, the review now says so and why.": "Cuando una importación se detiene, la revisión ahora lo dice y explica por qué.",
+  "The move-in stopped and nothing was saved: {why}": "La mudanza se detuvo y no se guardó nada: {why}"
 }

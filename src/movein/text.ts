@@ -4,7 +4,7 @@
 // lines that try to switch off Sara's safety layer are left out with the exact line shown.
 import { INSTRUCTION_LIKE } from '../companion-import/learn.ts';
 import type { MemoryKind } from '../memory.ts';
-import type { Persona } from '../persona.ts';
+import { RELATIONSHIP_NOTE_MAX, type Persona } from '../persona.ts';
 import { detectExplicit, detectMinorSexualContent } from '../safety.ts';
 import { statedAges } from '../character-cards.ts';
 import type { Category, PersonaDraft, PersonaLine, PersonaNote } from './types.ts';
@@ -197,7 +197,7 @@ export function draftPersona(label: string, files: PersonaFile[], base: Persona,
   const leftOut: (PersonaLine & { why: string })[] = [];
   const lists: Record<'personality' | 'speech' | 'boundaries' | 'background', string[]> = { personality: [], speech: [], boundaries: [], background: [] };
   const rel: string[] = [];
-  let summary = opts.summaryOverride ?? '';
+  let summary = (opts.summaryOverride ?? '').slice(0, 1500);
   let name = opts.name;
 
   const take = (slot: Slot | 'rituals' | 'jokes', text: string, from: string) => {
@@ -208,7 +208,9 @@ export function draftPersona(label: string, files: PersonaFile[], base: Persona,
     if (slot === 'rituals') return void notes.push({ kind: 'self', text: t, from, tag: 'ritual' });
     if (slot === 'jokes') return void notes.push({ kind: 'self', text: t, from, tag: 'shared joke' });
     if (slot === 'relationship') {
-      if (rel.join(' ').length + t.length < 600) rel.push(t);
+      // 3.49.2: the sheet takes at most RELATIONSHIP_NOTE_MAX characters here (it was 600, so a long
+      // relationship section stopped the whole import); the rest becomes her notes, nothing is lost.
+      if (rel.join(' ').length + (rel.length ? 1 : 0) + t.length <= RELATIONSHIP_NOTE_MAX) rel.push(t);
       else notes.push({ kind: 'self', text: t, from });
       return;
     }
@@ -288,7 +290,7 @@ export function draftPersona(label: string, files: PersonaFile[], base: Persona,
   sheet.speech = lists.speech;
   sheet.boundaries = lists.boundaries;
   sheet.background = lists.background;
-  if (rel.length) sheet.relationshipNote = rel.join(' ').slice(0, 600);
+  if (rel.length) sheet.relationshipNote = rel.join(' ').slice(0, RELATIONSHIP_NOTE_MAX);
   const all = files.map((f) => f.text).join('\n');
   const ages = statedAges(all).filter((a) => !a.past && a.age >= 18 && a.age <= 120);
   let ageGuessed = false;
